@@ -82,6 +82,25 @@ hole card that is not an overcard and is not already paired. Pairing the `7` kic
 `Q-8-3` is **not** an out. This is exactly trap #1: name the rank the predicate means; a
 generic "any hole card pairs" wrongly inflated the 12-out spot to 15.
 
+**Overcards stack on EVERYTHING — no carve-out (owner decision).** Overcard-pairing outs
+are added to *whatever else the hand has_, including straight draws and combos. This makes
+the rule fully compositional and uniform. Worked ground truth (compute via `analyse()` with
+the composite `hits`):
+
+| Hero | Board | Components | Outs | True% |
+|---|---|---|---|---|
+| A♠ 7♠ | K♠ 4♠ 9♦ | flush + overcard(A) | 12 | 45.0 |
+| 7♠ 5♠ | K♠ 4♠ 9♦ | flush (no overcard) | 9 | 35.0 |
+| A♥ K♣ | 9♦ 7♠ 2♥ | overcards(A,K) | 6 | 24.1 |
+| Q♣ J♠ | T♥ 8♦ 2♣ | gutshot + overcards(Q,J) | 10 | ~38 |
+| 6♣ 5♠ | 9♥ 8♦ 2♣ | gutshot (no overcard) | 4 | 16.5 |
+| 9♥ 8♣ | 7♦ 6♠ K♣ | open-ender (no overcard) | 8 | 31.5 |
+| J♦ T♦ | 9♦ 8♣ 2♦ | flush + open-ender + overcards(J,T) | 21 | ~70 |
+| A♥ 9♣ | 9♦ 5♠ 2♥ | pair(9→trips) + overcard-two-pair(A) | 5 | 20.4 |
+
+`quick = outs × mult` may exceed the true number a lot at high out counts — that's expected;
+the step-03 drift correction (subtract outs above 8) handles it.
+
 **Straight-draw sub-classification (standard definitions, unambiguous).** Compute the set
 of *completing ranks* `C` = ranks `r` such that adding one card of rank `r` to
 `hero ∪ board` makes a 5-card straight (ace counts high and low). Then:

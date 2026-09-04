@@ -48,7 +48,7 @@ All green.
 
 ---
 
-## Phase 2 — Classifier + dealer  *(Haiku, Opus-reviewed — the hard part)*
+## Phase 2 — Classifier + dealer  *(Sonnet, Opus-reviewed — the hard part)*
 
 **Goal:** `classify()` + weighted rejection-sampling generator. This is the "hardest part
 of the product" (DECISIONS). Build test-first.
