@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-0edfe078-4d74-46e0-9b55-ad7ada2d7a44/styles.css">
+<script src="_ds/nocturne-0edfe078-4d74-46e0-9b55-ad7ada2d7a44/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+  body { margin: 0; background: #161826; color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: var(--color-accent-300); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  @keyframes riseSheet { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+</style>
+</helmet>
+
+<div style="position: relative; width: 1280px; height: 860px; overflow: hidden; background: var(--color-bg); font-family: var(--font-body); display: flex; flex-direction: column; user-select: none">
+
+  <div style="height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22.4px; border-bottom: 1px solid var(--color-divider)">
+    <div style="display: flex; align-items: baseline; gap: 11.2px">
+      <span style="font-family: var(--font-heading); font-weight: 500; font-size: 15px; letter-spacing: 0.14em">RUNOUT</span>
+      <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">Odds trainer</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 22.4px; font-size: 12px; color: var(--color-neutral-500)">
+      <div style="display: flex; align-items: baseline; gap: 5.6px">
+        <span>Hands</span>
+        <span style="font-size: 14px; color: var(--color-neutral-300); font-variant-numeric: tabular-nums">{{ handNo }}</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 5.6px">
+        <span>Streak</span>
+        <span style="font-size: 14px; color: var(--color-accent-300); font-variant-numeric: tabular-nums">{{ streak }}</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 5.6px">
+        <span>Avg error</span>
+        <span style="font-size: 14px; color: var(--color-neutral-300); font-variant-numeric: tabular-nums">{{ avgError }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px; padding-left: 16.8px; border-left: 1px solid var(--color-divider)">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #6fbf8e"></span>
+        <span style="font-variant-numeric: tabular-nums; color: var(--color-neutral-400); min-width: 14px">{{ nGreen }}</span>
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #cfa25f; margin-left: 8.4px"></span>
+        <span style="font-variant-numeric: tabular-nums; color: var(--color-neutral-400); min-width: 14px">{{ nAmber }}</span>
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #c2686f; margin-left: 8.4px"></span>
+        <span style="font-variant-numeric: tabular-nums; color: var(--color-neutral-400); min-width: 14px">{{ nRed }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse 70% 60% at 50% 40%, #1d1f2f 0%, #161826 78%)">
+
+    <div style="position: relative; width: 820px; height: 380px; border-radius: 190px / 190px; background: radial-gradient(ellipse 80% 80% at 50% 28%, #2a2d40 0%, #1e2030 62%, #191b28 100%); box-shadow: inset 0 0 0 1px var(--color-neutral-800), inset 0 0 60px rgba(0,0,0,0.5), 0 24px 60px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center">
+
+      <div style="position: absolute; inset: 14px; border-radius: 180px / 180px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent)"></div>
+
+      <div style="position: absolute; top: 30px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8.4px">
+        <div style="display: flex; gap: 4px">
+          <div style="width: 32px; height: 44px; border-radius: var(--radius-sm); background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900)); box-shadow: inset 0 0 0 1px var(--color-accent-700)"></div>
+          <div style="width: 32px; height: 44px; border-radius: var(--radius-sm); background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900)); box-shadow: inset 0 0 0 1px var(--color-accent-700)"></div>
+        </div>
+        <span style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600)">Villain</span>
+      </div>
+
+      <div style="position: absolute; top: 116px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8.4px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-500)">
+        <span>{{ street }}</span>
+        <span style="color: var(--color-neutral-700)">·</span>
+        <span>{{ toCome }}</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8.4px; margin-top: 26px">
+        <sc-for list="{{ board }}" as="c" hint-placeholder-count="3">
+          <div style="width: 66px; height: 94px; border-radius: var(--radius-md); background: linear-gradient(170deg, var(--color-neutral-100), var(--color-neutral-200)); box-shadow: 0 6px 16px rgba(0,0,0,0.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+            <span style="font-family: var(--font-heading); font-weight: 500; font-size: 29px; line-height: 1; color: {{ c.color }}">{{ c.rank }}</span>
+            <span style="font-size: 23px; line-height: 1; color: {{ c.color }}">{{ c.suit }}</span>
+          </div>
+        </sc-for>
+        <sc-for list="{{ blanks }}" as="b" hint-placeholder-count="2">
+          <div style="width: 66px; height: 94px; margin-left: 5.6px; border-radius: var(--radius-md); border: 1px dashed var(--color-neutral-800); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8.4px; box-sizing: border-box">
+            <span style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700)">{{ b.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="position: absolute; bottom: -32px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 8.4px">
+        <sc-for list="{{ hero }}" as="c" hint-placeholder-count="2">
+          <div style="width: 82px; height: 116px; border-radius: var(--radius-md); background: linear-gradient(170deg, var(--color-neutral-100), var(--color-neutral-300)); box-shadow: 0 10px 26px rgba(0,0,0,0.55), 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+            <span style="font-family: var(--font-heading); font-weight: 500; font-size: 37px; line-height: 1; color: {{ c.color }}">{{ c.rank }}</span>
+            <span style="font-size: 29px; line-height: 1; color: {{ c.color }}">{{ c.suit }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: none; height: 226px; box-sizing: border-box; border-top: 1px solid var(--color-divider); background: linear-gradient(180deg, #1a1c2a, #161826); padding: 22.4px 33.6px 22.4px; display: flex; gap: 33.6px; align-items: stretch">
+
+    <div style="width: 274px; flex: none; display: flex; flex-direction: column; gap: 8.4px; padding-right: 22.4px; border-right: 1px solid var(--color-divider)">
+      <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">You're drawing to</span>
+      <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 8.4px">
+          <div style="display: flex; align-items: center; gap: 11.2px">
+            <span style="font-family: var(--font-heading); font-weight: 500; font-size: 25px; line-height: 1.15; text-wrap: pretty">{{ drawName }}</span>
+            <button type="button" onClick="{{ openExplain }}" title="How is this counted?" style="flex: none; width: 30px; height: 30px; border-radius: 50%; background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); font-family: var(--font-body); font-size: 15px; line-height: 1; cursor: pointer; transition: background 140ms ease" style-hover="background: color-mix(in srgb, var(--color-accent) 16%, transparent)" style-active="background: color-mix(in srgb, var(--color-accent) 28%, transparent)">?</button>
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-neutral-400); text-wrap: pretty">{{ drawSub }}</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{ unlocked }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; height: 42px">
+          <span style="font-family: var(--font-heading); font-weight: 500; font-size: 25px; line-height: 1; color: var(--color-neutral-700)">—</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 22.4px; height: 74px">
+        <sc-if value="{{ unlocked }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; padding-top: 8.4px; max-width: 620px">
+            <span style="font-family: var(--font-heading); font-weight: 500; font-size: 22px; line-height: 1.25; color: var(--color-neutral-200); text-wrap: pretty">What is the percentage chance you improve by the river?</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: flex-start; gap: 28px">
+            <div style="display: flex; flex-direction: column; gap: 1px">
+              <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent-500)">You said</span>
+              <div style="display: flex; align-items: baseline; gap: 3px">
+                <span style="font-family: var(--font-heading); font-weight: 500; font-size: 44px; line-height: 1; color: var(--color-accent-200); font-variant-numeric: tabular-nums">{{ guess }}</span>
+                <span style="font-size: 16px; color: var(--color-neutral-500)">%</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1px">
+              <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">Actual</span>
+              <div style="display: flex; align-items: baseline; gap: 3px">
+                <span style="font-family: var(--font-heading); font-weight: 500; font-size: 44px; line-height: 1; color: var(--color-text); font-variant-numeric: tabular-nums">{{ truePct }}</span>
+                <span style="font-size: 16px; color: var(--color-neutral-500)">%</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5.6px; padding-top: 3px">
+              <span style="align-self: flex-start; padding: 3px 10px; border-radius: 999px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: {{ bandColor }}; box-shadow: inset 0 0 0 1px {{ bandColor }}">{{ bandLabel }}</span>
+              <span style="font-size: 13px; color: var(--color-neutral-500); font-variant-numeric: tabular-nums">off by {{ delta }} points</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="display: flex; align-items: center; gap: 11.2px; padding-top: 8.4px">
+          <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; gap: 11.2px">
+              <button type="button" onClick="{{ openExplain }}" style="height: 38px; padding: 0 16.8px; border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-300); font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: border-color 140ms ease, color 140ms ease" style-hover="border-color: var(--color-accent); color: var(--color-accent-200)">How it's counted</button>
+              <button type="button" onClick="{{ next }}" style="height: 38px; padding: 0 22.4px; border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); font-family: var(--font-body); font-size: 14px; cursor: pointer; transition: background 140ms ease" style-hover="background: color-mix(in srgb, var(--color-accent) 16%, transparent)" style-active="background: color-mix(in srgb, var(--color-accent) 28%, transparent)">Next hand →</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div>
+        <div style="position: relative; height: 26px">
+          <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0">
+              <span style="position: absolute; bottom: 0; transform: translateX(-50%); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-300); white-space: nowrap; left: {{ guessLabelLeft }}">You</span>
+              <span style="position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-300); white-space: nowrap; left: {{ trueLabelLeft }}">Actual</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showHover }}" hint-placeholder-val="{{ false }}">
+            <span style="position: absolute; bottom: 0; transform: translateX(-50%); font-size: 13px; color: var(--color-neutral-300); font-variant-numeric: tabular-nums; white-space: nowrap; left: {{ hoverLeft }}">{{ hoverPct }}%</span>
+          </sc-if>
+        </div>
+
+        <div tabIndex="0" role="slider" onPointerDown="{{ onStripDown }}" onPointerMove="{{ onStripMove }}" onPointerLeave="{{ onStripLeave }}" onKeyDown="{{ onStripKey }}" style="position: relative; height: 44px; border-radius: var(--radius-md); background: linear-gradient(180deg, #1e2030, #1b1d2b); box-shadow: inset 0 0 0 1px var(--color-neutral-800); cursor: crosshair; touch-action: none; overflow: hidden">
+
+          <div style="position: absolute; top: 0; bottom: 0; left: 25%; width: 1px; background: var(--color-neutral-800)"></div>
+          <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--color-neutral-700)"></div>
+          <div style="position: absolute; top: 0; bottom: 0; left: 75%; width: 1px; background: var(--color-neutral-800)"></div>
+
+          <div style="position: absolute; top: 0; bottom: 0; left: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 8%, transparent), color-mix(in srgb, var(--color-accent) 30%, transparent)); width: {{ guessWidth }}"></div>
+
+          <sc-if value="{{ showHover }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; top: 6px; bottom: 6px; width: 1px; background: var(--color-neutral-500); left: {{ hoverLeft }}"></div>
+          </sc-if>
+
+          <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0">
+              <div style="position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--color-accent); box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 70%, transparent); left: {{ guessLeft }}"></div>
+              <div style="position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--color-neutral-100); box-shadow: 0 0 14px rgba(243,245,254,0.5); left: {{ trueLeft }}"></div>
+              <div style="position: absolute; top: 18px; height: 8px; background: {{ bandColor }}; opacity: 0.5; left: {{ gapLeft }}; width: {{ gapWidth }}"></div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-neutral-600); font-variant-numeric: tabular-nums; padding-top: 5.6px">
+          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ showExplain }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeExplain }}" style="position: absolute; inset: 0; background: rgba(13,14,22,0.66); backdrop-filter: blur(2px)"></div>
+  </sc-if>
+
+  <sc-if value="{{ showExplain }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; background: linear-gradient(180deg, #1c1e2c, #17192600); animation: riseSheet 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both; top: {{ sheetTop }}">
+      <div style="height: 100%; box-sizing: border-box; background: linear-gradient(180deg, #1e2030, #17192a); box-shadow: 0 -1px 0 0 var(--color-neutral-700), 0 -30px 80px rgba(0,0,0,0.6); border-radius: {{ sheetRadius }}; padding: 22.4px 44.8px; overflow: auto; display: flex; flex-direction: column; gap: 16.8px">
+
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 22.4px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">How it's counted</span>
+            <h1 style="margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: 28px; line-height: 1.1">{{ explainTitle }}</h1>
+            <p style="margin: 0; font-size: 14px; color: var(--color-neutral-400)">{{ drawName }} · {{ street }} · {{ toCome }}</p>
+          </div>
+          <button type="button" onClick="{{ closeExplain }}" style="flex: none; width: 34px; height: 34px; border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-300); font-family: var(--font-body); font-size: 16px; line-height: 1; cursor: pointer; transition: border-color 140ms ease, color 140ms ease" style-hover="border-color: var(--color-accent); color: var(--color-accent-200)">×</button>
+        </div>
+
+        <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--color-divider) 48px, var(--color-divider) calc(100% - 48px), transparent)"></div>
+
+        <div style="display: flex; gap: 44.8px; align-items: flex-start">
+
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 22.4px">
+
+            <div style="display: flex; gap: 16.8px">
+              <span style="flex: none; width: 26px; font-family: var(--font-heading); font-size: 13px; color: var(--color-accent-500); padding-top: 3px">01</span>
+              <div style="display: flex; flex-direction: column; gap: 11.2px; min-width: 0">
+                <h2 style="margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: 19px">{{ step1Title }}</h2>
+                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-neutral-400); text-wrap: pretty">{{ outsCopy }}</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 5.6px">
+                  <sc-for list="{{ outsList }}" as="c" hint-placeholder-count="9">
+                    <div style="width: 32px; height: 44px; border-radius: var(--radius-sm); background: linear-gradient(170deg, var(--color-neutral-200), var(--color-neutral-300)); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent)">
+                      <span style="font-family: var(--font-heading); font-weight: 500; font-size: 14px; line-height: 1; color: {{ c.color }}">{{ c.rank }}</span>
+                      <span style="font-size: 12px; line-height: 1.1; color: {{ c.color }}">{{ c.suit }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 16.8px">
+              <span style="flex: none; width: 26px; font-family: var(--font-heading); font-size: 13px; color: var(--color-accent-500); padding-top: 3px">02</span>
+              <div style="display: flex; flex-direction: column; gap: 8.4px; min-width: 0">
+                <h2 style="margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: 19px">{{ step2Title }}</h2>
+                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-neutral-400); text-wrap: pretty">{{ step2Copy }}</p>
+              </div>
+            </div>
+
+            <sc-if value="{{ hasDrift }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; gap: 16.8px">
+                <span style="flex: none; width: 26px; font-family: var(--font-heading); font-size: 13px; color: var(--color-accent-500); padding-top: 3px">03</span>
+                <div style="display: flex; flex-direction: column; gap: 8.4px; min-width: 0">
+                  <h2 style="margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: 19px">Where the shortcut drifts</h2>
+                  <p style="margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-neutral-400); text-wrap: pretty">{{ driftCopy }}</p>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="flex: none; width: 320px; display: flex; flex-direction: column; gap: 11.2px">
+            <div style="border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--color-neutral-800); overflow: hidden">
+              <div style="padding: 16.8px; display: flex; flex-direction: column; gap: 5.6px; background: #1f2130">
+                <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">On the fly</span>
+                <div style="display: flex; align-items: baseline; gap: 8.4px; flex-wrap: wrap">
+                  <span style="font-family: var(--font-heading); font-weight: 500; font-size: 27px; color: var(--color-neutral-200); font-variant-numeric: tabular-nums">{{ quickSum }}</span>
+                </div>
+                <span style="font-size: 12px; color: var(--color-neutral-500)">{{ quickNote }}</span>
+              </div>
+              <div style="height: 1px; background: var(--color-neutral-800)"></div>
+              <div style="padding: 16.8px; display: flex; flex-direction: column; gap: 5.6px; background: var(--color-accent-900)">
+                <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent-300)">True number</span>
+                <div style="display: flex; align-items: baseline; gap: 3px">
+                  <span style="font-family: var(--font-heading); font-weight: 500; font-size: 40px; line-height: 1; color: var(--color-accent-100); font-variant-numeric: tabular-nums">{{ truePct }}</span>
+                  <span style="font-size: 16px; color: var(--color-accent-300)">%</span>
+                </div>
+                <span style="font-size: 12px; color: var(--color-accent-400)">{{ trueNote }}</span>
+              </div>
+            </div>
+
+            <div style="padding: 14px 16.8px; border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--color-neutral-800); display: flex; flex-direction: column; gap: 8.4px">
+              <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600)">Worth memorising</span>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5.6px 16.8px; font-size: 13px; color: var(--color-neutral-400); font-variant-numeric: tabular-nums">
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>15 outs</span><span style="color: var(--color-neutral-200)">54%</span></div>
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>8 · open-ender</span><span style="color: var(--color-neutral-200)">31%</span></div>
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>12 outs</span><span style="color: var(--color-neutral-200)">45%</span></div>
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>6 · overcards</span><span style="color: var(--color-neutral-200)">24%</span></div>
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>9 · flush draw</span><span style="color: var(--color-neutral-200)">35%</span></div>
+                <div style="display: flex; justify-content: space-between; gap: 8.4px"><span>4 · gutshot</span><span style="color: var(--color-neutral-200)">17%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding-top: 11.2px; display: flex; gap: 11.2px">
+          <button type="button" onClick="{{ closeExplain }}" style="height: 38px; padding: 0 22.4px; border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-accent); color: var(--color-accent); font-family: var(--font-body); font-size: 14px; cursor: pointer; transition: background 140ms ease" style-hover="background: color-mix(in srgb, var(--color-accent) 16%, transparent)">Back to the table</button>
+          <button type="button" onClick="{{ nextFromExplain }}" style="height: 38px; padding: 0 22.4px; border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-300); font-family: var(--font-body); font-size: 14px; cursor: pointer; transition: border-color 140ms ease, color 140ms ease" style-hover="border-color: var(--color-accent); color: var(--color-accent-200)">Deal me another →</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;greenBand&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:15,&quot;unit&quot;:&quot;pts&quot;,&quot;section&quot;:&quot;Scoring&quot;,&quot;label&quot;:&quot;Green within&quot;},&quot;amberBand&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:2,&quot;max&quot;:25,&quot;unit&quot;:&quot;pts&quot;,&quot;section&quot;:&quot;Scoring&quot;,&quot;label&quot;:&quot;Amber within&quot;},&quot;explainLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Bottom sheet&quot;,&quot;Full screen&quot;],&quot;default&quot;:&quot;Bottom sheet&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Explanation&quot;,&quot;label&quot;:&quot;How the explanation arrives&quot;}}">
+const RANKS = '23456789TJQKA';
+const SUITS = { s: '\u2660', h: '\u2665', d: '\u2666', c: '\u2663' };
+const RED = '#a5474e';
+const BLACK = '#292b31';
+const BAND = { green: '#6fbf8e', amber: '#cfa25f', red: '#c2686f' };
+
+function card(code) {
+  const s = code[1];
+  return { rank: code[0] === 'T' ? '10' : code[0], suit: SUITS[s], color: (s === 'h' || s === 'd') ? RED : BLACK };
+}
+function fullDeck() {
+  const out = [];
+  for (const r of RANKS) for (const s of 'shdc') out.push(r + s);
+  return out;
+}
+function suitCounts(cs) {
+  const n = {};
+  for (const c of cs) n[c[1]] = (n[c[1]] || 0) + 1;
+  return n;
+}
+function hasFlush(cs) {
+  const n = suitCounts(cs);
+  return Object.keys(n).some(k => n[k] >= 5);
+}
+function hasStraight(cs) {
+  const set = {};
+  for (const c of cs) set[RANKS.indexOf(c[0])] = true;
+  if (set[12]) set[-1] = true;
+  for (let lo = -1; lo <= 8; lo++) {
+    let ok = true;
+    for (let i = 0; i < 5; i++) if (!set[lo + i]) ok = false;
+    if (ok) return true;
+  }
+  return false;
+}
+// Any hole card whose rank now appears at least `n` times in the seven.
+function pairsUp(hero, cs, n) {
+  return hero.some(h => cs.filter(c => c[0] === h[0]).length >= n);
+}
+
+// The curated ladder. `hits` decides whether one runout card completes the draw.
+const SPOTS = [
+  {
+    hero: ['As', '7s'], board: ['Ks', '4s', '9d'],
+    name: 'A flush draw',
+    sub: 'Four spades between your hand and the board. The bread-and-butter draw.',
+    hits: cs => hasFlush(cs),
+    step1: 'Nine spades are still live',
+    outsCopy: 'Thirteen spades exist. Four of them are face up — your two and the king on the flop. Nine are still in the deck, and any one of them makes your flush.'
+  },
+  {
+    hero: ['9h', '8c'], board: ['7d', '6s', 'Kc'],
+    name: 'An open-ended straight draw',
+    sub: '9-8 on a 7-6 flop. Both ends of the run are live.',
+    hits: cs => hasStraight(cs),
+    step1: 'Eight cards finish the run',
+    outsCopy: 'A ten gives you 10-9-8-7-6; a five gives you 9-8-7-6-5. Four of each rank are in the deck and none are showing — eight outs.'
+  },
+  {
+    hero: ['Qc', 'Js'], board: ['Th', '8d', '2c'],
+    name: 'A gutshot',
+    sub: 'Only the belly card gets there. It feels like a draw; it barely is one.',
+    hits: cs => hasStraight(cs),
+    step1: 'Four nines and nothing else',
+    outsCopy: 'You need a nine — Q-J-10-9-8 — and no other rank helps. Four nines, none visible. Four outs.'
+  },
+  {
+    hero: ['Jh', '9c'], board: ['Qd', 'Ts', '7s'],
+    name: 'A double gutshot',
+    sub: 'Looks like a gutshot, plays like an open-ender. The trap in the ladder.',
+    hits: cs => hasStraight(cs),
+    step1: 'Two belly cards, eight outs',
+    outsCopy: 'An eight makes 7-8-9-10-J. A king makes 9-10-J-Q-K. Two separate inside draws stacked on one flop, so this is eight outs, not four — count both gaps before you fold.'
+  },
+  {
+    hero: ['Ah', '7h'], board: ['Qh', '8h', '3c'],
+    name: 'A flush draw with an overcard',
+    sub: 'Four hearts, plus your ace can just be the best hand.',
+    hits: cs => hasFlush(cs) || cs.filter(c => c[0] === 'A').length >= 2,
+    step1: 'Nine hearts plus three aces',
+    outsCopy: 'Nine hearts finish the flush. Three more aces — the non-hearts, since the heart ace is already counted — give you top pair, which is often enough. Twelve outs.'
+  },
+  {
+    hero: ['Jd', 'Td'], board: ['9d', '8c', '2d'],
+    name: 'A flush draw and an open-ender',
+    sub: 'Two draws at once. This is the hand you raise with, not the one you call with.',
+    hits: cs => hasFlush(cs) || hasStraight(cs),
+    step1: 'Fifteen outs, not seventeen',
+    outsCopy: 'Nine diamonds for the flush, eight cards for the straight — but the queen and seven of diamonds sit on both lists. Count the overlap once: fifteen outs.'
+  },
+  {
+    hero: ['Ah', '9c'], board: ['9d', '5s', '2h'],
+    name: 'A pair looking to improve',
+    sub: 'A pair of nines with an ace kicker. Small draw, easy to overrate.',
+    hits: (cs, hero) => pairsUp(hero, cs, 3) || (cs.filter(c => c[0] === 'A').length >= 2),
+    step1: 'Two nines and three aces',
+    outsCopy: 'Two nines left give you trips. Three aces give you two pair. Five outs — and these are the outs people forget to count at all.'
+  },
+  {
+    hero: ['Ah', 'Kc'], board: ['9d', '7s', '2h'],
+    name: 'Two overcards',
+    sub: 'Nothing yet. Six cards make you a pair that is probably good.',
+    hits: (cs, hero) => pairsUp(hero, cs, 2),
+    step1: 'Three aces, three kings',
+    outsCopy: 'Three aces and three kings pair you up, and on this dry board top pair is usually the best hand. Six outs — the weakest thing you can still call a draw.'
+  },
+  {
+    hero: ['Ah', 'Kd'], board: ['9h', '5h', '2c'],
+    name: 'A backdoor flush draw',
+    sub: 'Three hearts, not four. As a draw this is nearly nothing.',
+    mode: 'backdoor',
+    step1: 'Zero outs — you need both cards',
+    outsCopy: 'You hold one heart and the flop brought two, so you have three of the five you need. Ten hearts remain, but no single card gets you there.'
+  },
+  {
+    hero: ['As', '7s'], board: ['Ks', '4s', '9d', '2c'],
+    name: 'A flush draw on the turn',
+    sub: 'Same nine spades, one card left. Halve everything.',
+    hits: cs => hasFlush(cs),
+    step1: 'Still nine spades',
+    outsCopy: 'The blank deuce changed nothing about your outs — nine spades are still live. What changed is that you only get one more card.'
+  }
+];
+
+function analyse(spot) {
+  const known = spot.hero.concat(spot.board);
+  const rest = fullDeck().filter(c => known.indexOf(c) === -1);
+  const n = rest.length;
+  const streets = 5 - spot.board.length;
+
+  if (spot.mode === 'backdoor') {
+    const counts = suitCounts(known);
+    const s = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    const left = rest.filter(c => c[1] === s).length;
+    const t = +((left / n) * 100).toFixed(1), r = +(((left - 1) / (n - 1)) * 100).toFixed(1);
+    return { outs: 0, outsList: [], unseen: n, streets, suitLeft: left, total: Math.round((t / 100) * (r / 100) * 1000) / 10, quick: null };
+  }
+
+  const outs = rest.filter(c => spot.hits(known.concat([c]), spot.hero));
+  const o = outs.length;
+  if (o === 0) console.error('Spot has no single-card outs — mis-specified hand:', spot.hero, spot.board);
+  const total = streets === 2
+    ? (1 - (((n - o) * (n - o - 1)) / (n * (n - 1)))) * 100
+    : (o / n) * 100;
+  return { outs: o, outsList: outs, unseen: n, streets, total: Math.round(total * 10) / 10, quick: o * (streets === 2 ? 4 : 2) };
+}
+
+class Component extends DCLogic {
+  state = { i: 0, guess: null, hover: null, showExplain: false, errors: [], streak: 0, hands: 1, bands: { green: 0, amber: 0, red: 0 } };
+
+  spot() { return SPOTS[this.state.i % SPOTS.length]; }
+  bandsFor() {
+    return {
+      green: this.props.greenBand != null ? this.props.greenBand : 5,
+      amber: this.props.amberBand != null ? this.props.amberBand : 10
+    };
+  }
+  bandOf(delta) {
+    const b = this.bandsFor();
+    return delta <= b.green ? 'green' : (delta <= b.amber ? 'amber' : 'red');
+  }
+
+  pctFrom(ev, el) {
+    const r = el.getBoundingClientRect();
+    return Math.max(0, Math.min(100, Math.round(((ev.clientX - r.left) / r.width) * 100)));
+  }
+
+  commit(pct) {
+    const a = analyse(this.spot());
+    const delta = Math.abs(pct - a.total);
+    const band = this.bandOf(delta);
+    this.setState(s => {
+      const bands = { green: s.bands.green, amber: s.bands.amber, red: s.bands.red };
+      bands[band] += 1;
+      return {
+        guess: pct, hover: null, errors: s.errors.concat([delta]),
+        streak: band === 'green' ? s.streak + 1 : 0, bands: bands
+      };
+    });
+  }
+
+  onStripDown = (e) => {
+    if (this.state.guess !== null) { this.next(); return; }
+    this.commit(this.pctFrom(e, e.currentTarget));
+    e.currentTarget.focus();
+  };
+  onStripMove = (e) => {
+    if (this.state.guess !== null) return;
+    this.setState({ hover: this.pctFrom(e, e.currentTarget) });
+  };
+  onStripLeave = () => { if (this.state.hover !== null) this.setState({ hover: null }); };
+  onStripKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (this.state.guess !== null) this.next();
+      else this.commit(this.state.hover === null ? 50 : this.state.hover);
+      return;
+    }
+    if (this.state.guess !== null) return;
+    const step = e.shiftKey ? 10 : 1;
+    const cur = this.state.hover === null ? 50 : this.state.hover;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); this.setState({ hover: Math.min(100, cur + step) }); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); this.setState({ hover: Math.max(0, cur - step) }); }
+  };
+
+  next = () => this.setState(s => ({ i: s.i + 1, guess: null, hover: null, showExplain: false, hands: s.hands + 1 }));
+  nextFromExplain = () => this.next();
+  openExplain = () => this.setState({ showExplain: true });
+  closeExplain = () => this.setState({ showExplain: false });
+
+  renderVals() {
+    const spot = this.spot();
+    const a = analyse(spot);
+    const locked = this.state.guess !== null;
+    const truePct = a.total.toFixed(1);
+    const delta = locked ? Math.abs(this.state.guess - a.total) : 0;
+    const band = this.bandOf(delta);
+    const errs = this.state.errors;
+    const twoCards = a.streets === 2;
+    const mult = twoCards ? 4 : 2;
+
+    const blanks = twoCards ? [{ label: 'Turn' }, { label: 'River' }] : [{ label: 'River' }];
+
+    let step2Title, step2Copy, quickSum, quickNote, trueNote, driftCopy = null;
+    if (spot.mode === 'backdoor') {
+      step2Title = 'The rule of 4 does not apply';
+      step2Copy = 'There is nothing to multiply — zero outs times four is still zero. Both remaining cards have to be hearts, and two things that both must happen are much rarer than one thing that might. Treat a backdoor as a bonus attached to whatever else your hand is doing, never as a reason to call.';
+      quickSum = 'No outs to multiply';
+      quickNote = 'Memorise the number instead';
+      trueNote = 'Both cards must come hearts';
+    } else {
+      step2Title = twoCards ? 'Two cards to come, so multiply by 4' : 'One card to come, so multiply by 2';
+      step2Copy = twoCards
+        ? 'Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.'
+        : 'One card left means one chance, so the multiplier halves: outs × 2. The same nine spades that were worth about 35% on the flop are worth about 18% here.';
+      quickSum = a.outs + ' × ' + mult + ' = ' + a.quick + '%';
+      quickNote = 'outs × ' + mult + ', done in your head';
+      trueNote = 'What the deck actually does';
+      const drift = a.quick - a.total;
+      if (twoCards && a.outs > 8) {
+        driftCopy = 'Past eight outs the ×4 runs hot: ' + a.outs + ' × 4 says ' + a.quick + '%, the deck says ' + truePct +
+          '%. The fix is one subtraction — take off the outs above eight. ' + a.outs + ' × 4 = ' + a.quick + ', minus ' + (a.outs - 8) +
+          ' = ' + (a.quick - (a.outs - 8)) + '%. Within a point.';
+      } else if (Math.abs(drift) > 0.9) {
+        driftCopy = '×' + mult + ' says ' + a.quick + '%, the deck says ' + truePct + '% — ' + Math.abs(drift).toFixed(1) +
+          ' of a point out. Ignore it. What actually costs you money is an out that is not clean: a card that fills your flush and also fills villain\u2019s straight is worth less than one out.';
+      }
+    }
+
+    return {
+      hero: spot.hero.map(card),
+      board: spot.board.map(card),
+      blanks: blanks,
+      street: twoCards ? 'Flop' : 'Turn',
+      toCome: twoCards ? 'two cards to come' : 'one card to come',
+      drawName: spot.name,
+      drawSub: spot.sub,
+
+      handNo: this.state.hands,
+      streak: this.state.streak,
+      avgError: errs.length ? '\u00b1' + (errs.reduce((x, y) => x + y, 0) / errs.length).toFixed(1) : '\u2014',
+      nGreen: this.state.bands.green,
+      nAmber: this.state.bands.amber,
+      nRed: this.state.bands.red,
+
+      locked: locked,
+      unlocked: !locked,
+      guess: locked ? this.state.guess : 0,
+      guessWidth: locked ? this.state.guess + '%' : '0%',
+      guessLeft: (locked ? this.state.guess : 0) + '%',
+      trueLeft: truePct + '%',
+      // Labels get pushed apart when the two marks land close together.
+      guessLabelLeft: (locked && delta < 9 ? Math.max(0, Math.min(this.state.guess, a.total) - (9 - delta) / 2) : (locked ? this.state.guess : 0)) + '%',
+      trueLabelLeft: (locked && delta < 9 ? Math.min(100, Math.max(this.state.guess, a.total) + (9 - delta) / 2) : a.total) + '%',
+      gapLeft: Math.min(locked ? this.state.guess : 0, a.total) + '%',
+      gapWidth: delta + '%',
+      truePct: truePct,
+      delta: delta.toFixed(1),
+      bandColor: BAND[band],
+      bandLabel: band === 'green' ? 'On the money' : (band === 'amber' ? 'Close' : 'Off'),
+      showHover: !locked && this.state.hover !== null,
+      hoverLeft: (this.state.hover === null ? 0 : this.state.hover) + '%',
+      hoverPct: this.state.hover === null ? 0 : this.state.hover,
+
+      showExplain: this.state.showExplain,
+      explainTitle: spot.mode === 'backdoor' ? 'Roughly 4%, and no shortcut' : a.outs + ' outs \u2192 ' + Math.round(a.total) + '%',
+      step1Title: spot.step1,
+      outsCopy: spot.outsCopy,
+      outsList: a.outsList.map(card),
+      step2Title: step2Title,
+      step2Copy: step2Copy,
+      hasDrift: driftCopy !== null,
+      driftCopy: driftCopy || '',
+      quickSum: quickSum,
+      quickNote: quickNote,
+      trueNote: trueNote,
+      sheetTop: this.props.explainLayout === 'Full screen' ? '0px' : '240px',
+      sheetRadius: this.props.explainLayout === 'Full screen' ? '0px' : 'var(--radius-lg) var(--radius-lg) 0 0',
+
+      onStripDown: this.onStripDown,
+      onStripMove: this.onStripMove,
+      onStripLeave: this.onStripLeave,
+      onStripKey: this.onStripKey,
+      next: this.next,
+      nextFromExplain: this.nextFromExplain,
+      openExplain: this.openExplain,
+      closeExplain: this.closeExplain
+    };
+  }
+}
+</script>
+</body>
+</html>
