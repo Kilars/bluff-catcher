@@ -56,6 +56,71 @@ The ten prototype spots survive **only as test fixtures** (see FIXTURES below).
 Everything else (`air`, `made` — already a straight/flush/trips/two-pair+, etc.) is a
 **reject**: re-deal.
 
+### Classifier contract — COMPOSITIONAL out-counting (the central rule)
+
+Random hands are frequently more than one draw at once (flush + overcard, flush +
+straight, pair + flush). The classifier counts a hand's **full combined outs**, not a
+single "clean" draw:
+
+- Detect every **component** draw present: `flush` (4 to a suit → 9 outs), the straight
+  family (`openEnder` 8 / `gutshot` 4 / `doubleGutshot` 8), and `pairing`.
+- **Outs = the UNION of every component's out-cards, overlaps counted once.** (The "15,
+  not 17" trap: on a two-suited straighty board the flush and straight out-lists overlap —
+  dedup them. `analyse()` already dedups because it counts distinct cards `c` where any
+  `hits` predicate fires; build the composite `hits` as the OR of component predicates.)
+
+**The pairing component — the critical constraint (trap #1):** a pairing card counts as an
+out **only** when it is:
+- an **overcard to the entire board** — a hole card strictly higher than the highest board
+  card, so pairing it makes **top pair** (e.g. the ace on `Q-8-3` → 3 aces; A+K over a
+  9-high board → 6). One overcard → up to 3, two → up to 6.
+- or a rank the hero **already holds as a pair with the board** (a made pair), improving to
+  **trips or two-pair** (the pair's remaining cards + overcard-kicker two-pair outs).
+
+A pairing card **NEVER** counts when it would only make **bottom or middle pair** — i.e. a
+hole card that is not an overcard and is not already paired. Pairing the `7` kicker on
+`Q-8-3` is **not** an out. This is exactly trap #1: name the rank the predicate means; a
+generic "any hole card pairs" wrongly inflated the 12-out spot to 15.
+
+**Straight-draw sub-classification (standard definitions, unambiguous).** Compute the set
+of *completing ranks* `C` = ranks `r` such that adding one card of rank `r` to
+`hero ∪ board` makes a 5-card straight (ace counts high and low). Then:
+- `|C| == 0` → no straight draw.
+- `|C| == 1` → **gutshot** (4 outs).
+- `|C| >= 2` and there exist four consecutive present ranks whose low-neighbour and
+  high-neighbour are **both** in `C` → **openEnder** (8 outs).
+- `|C| >= 2` otherwise (two separate inside gaps) → **doubleGutshot** (8 outs).
+
+By this rule the prototype's `J9` on `Q-T-7` classifies as **openEnder** (it is four-in-a-
+row 9-T-J-Q), not doubleGutshot — accept this; outs and true % are unchanged. A *genuine*
+doubleGutshot test case is `K9` on `J-T-7` (completing ranks `{Q, 8}`, no four-in-a-row) —
+add it to the classifier tests. A straight draw is only the hero's if the completed straight
+uses **at least one hole card**; a straight that the board makes on its own is board texture,
+not the hero's out — do not count it, and a hand already holding a made straight/flush is a
+`made` reject.
+
+**Backdoor is only a keeper when the hand is otherwise air.** `backdoor` classifies **only**
+when the hand has exactly 3 to one suit AND no other counted component — no flush draw (4+
+to a suit), no straight draw, no overcard-pairing outs, no made pair. Its number is the
+~4% two-running-cards math. If the hand *also* has overcards or a straight draw, those win
+and backdoor is at most a mention in the note, never the category. (So the prototype's
+`A♥K♦` on `9♥5♥2♣` classifies as `overcards`, 6 outs — the standalone-backdoor fixture for
+classifier tests must be a genuinely otherwise-air 3-flush hand, e.g. `8♥6♦` on `A♥K♥2♣`.)
+The Phase-1 backdoor **math** fixture (`A♥K♦`, `mode:'backdoor'`) still validates the 4.2%
+formula in isolation and is unaffected.
+
+**Naming & category:** a hand's shown `name` is composed from its components (e.g.
+"A flush draw with an overcard", "A flush draw and an open-ender"). For weighted selection
+and per-category stats, each hand also has a single `primaryCategory` = its strongest
+component by this precedence: `combo` (flush+straight) > `flushDraw` > `openEnder` >
+`doubleGutshot` > `gutshot` > `pairImproving` > `overcards` > `backdoor`. A flush-draw-plus-
+overcard buckets as `flushDraw` (primary) but reveals the full 12-out read and name.
+
+`classify()` returns `{ primaryCategory, components, name, note, outs, outsList, hits }`
+(or a reject marker). The `hits` it returns is the composite predicate `analyse()` consumes,
+so the odds engine stays the single source of the true number — the classifier only decides
+*which predicates* apply.
+
 ### Selection — weighted, no-repeat
 
 - Pick a category by tunable weight (rare types don't vanish, common ones don't dominate):
