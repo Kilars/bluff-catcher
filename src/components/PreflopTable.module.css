@@ -1,0 +1,189 @@
+/* PreflopTable.module.css
+ *
+ * The preflop felt — reuses the same visual language as Table.module.css
+ * (felt shape, accent ring, token values). No board; shows position label,
+ * folded seats, hero cards, and blinds.
+ */
+
+/* ── Section wrapper (same role as .table in Table.module.css) ─────────── */
+
+.table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse 70% 60% at 50% 40%, #1d1f2f 0%, #161826 78%);
+}
+
+/* ── Felt ──────────────────────────────────────────────────────────────── */
+
+.felt {
+  position: relative;
+  width: 820px;
+  height: 380px;
+  border-radius: 190px / 190px;
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 28%,
+    #2a2d40 0%,
+    #1e2030 62%,
+    #191b28 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--color-neutral-800),
+    inset 0 0 60px rgba(0, 0, 0, 0.5),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.accentRing {
+  position: absolute;
+  inset: 14px;
+  border-radius: 180px / 180px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  pointer-events: none;
+}
+
+/* ── Position label (centre of felt) ──────────────────────────────────── */
+
+.positionLabel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  /* Render behind seat indicators but above the felt background */
+  z-index: 0;
+}
+
+.positionName {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.positionContext {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+}
+
+/* ── Seats row (top arc — folded opponents + blinds) ───────────────────── */
+/*
+ * We lay out 8 other seats in a single absolute row across the top of the felt.
+ * From hero's perspective in seat 0 (bottom), the seats going left-to-right
+ * across the felt top are seats 1-8 (opponents).
+ * We split them: UTG through BTN are "folded", SB and BB are "posted".
+ */
+
+.seatsRow {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 0 40px;
+}
+
+/* ── Individual seat chip ──────────────────────────────────────────────── */
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The "folded" back cards shown above the seat label */
+.seatCards {
+  display: flex;
+  gap: 2px;
+}
+
+.seatBack {
+  width: 16px;
+  height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900));
+  box-shadow: inset 0 0 0 1px var(--color-accent-700);
+}
+
+/* Blind chip (replaces the card backs for SB/BB) */
+.blindChip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sbChip {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  color: var(--color-accent-300);
+}
+
+.bbChip {
+  background: color-mix(in srgb, var(--color-accent-2) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent-2) 45%, transparent);
+  color: var(--color-accent-2-300);
+}
+
+.seatLabel {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+}
+
+/* ── Hero cards (overhanging felt bottom, identical to Table) ───────────── */
+
+.heroRow {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+/* ── feltScaleWrap (identical contract to Table.module.css) ─────────────── */
+
+@media (max-width: 820px) {
+  .table {
+    flex: none;
+    height: calc(412px * var(--felt-scale, 0.45));
+    min-height: calc(412px * var(--felt-scale, 0.45));
+    overflow: visible;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .feltScaleWrap {
+    transform: scale(var(--felt-scale, 0.45));
+    transform-origin: top center;
+    align-self: flex-start;
+  }
+}

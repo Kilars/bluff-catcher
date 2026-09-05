@@ -1,0 +1,165 @@
+/* RangeGrid.module.css
+ *
+ * 13×13 hand-class grid for the preflop range explainer.
+ *
+ * Colours:
+ *   Open cells  — green (--band-green tint): clearly distinct from fold cells.
+ *   Fold cells  — dark surface (--color-surface / --color-neutral-900): recessive.
+ *   Highlighted — strong outline + slight brightness boost: hero's current hand.
+ *
+ * Layout: flex rows.  Compact but legible on desktop (36 px cells).
+ * Phone: cells shrink to 23 px so the 13×13 grid (+ row headers) fits 390 px.
+ */
+
+.gridWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Prevent grid from overflowing the sheet body */
+  overflow: auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Column header row: corner spacer + 13 rank labels */
+.colHeaders {
+  display: flex;
+  gap: 2px;
+}
+
+/* Row: row-header + 13 data cells */
+.row {
+  display: flex;
+  gap: 2px;
+}
+
+/* Shared header cell (row and col labels) */
+.headerCell {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-neutral-400);
+  letter-spacing: 0.02em;
+}
+
+.cornerSpacer {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+/* ── Data cell ──────────────────────────────────────────────────────────────── */
+
+.cell {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: default;
+  transition: filter 80ms ease;
+}
+
+.cell:hover {
+  filter: brightness(1.15);
+}
+
+/* Cell label (hand class text) */
+.cellLabel {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ── Open / fold colours ─────────────────────────────────────────────────── */
+
+/*
+ * Open cells: green-tinted, using --band-green.
+ * Pairs on the diagonal get a slightly more saturated shade.
+ */
+.open {
+  background: color-mix(in srgb, var(--band-green) 28%, #1a2820);
+  color: var(--band-green);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--band-green) 40%, transparent);
+}
+
+.open.pair {
+  background: color-mix(in srgb, var(--band-green) 38%, #1a2820);
+}
+
+/*
+ * Fold cells: dark, recessive — clearly distinct from open.
+ */
+.fold {
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-700);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+}
+
+/* ── Highlighted cell (hero's hand) ────────────────────────────────────── */
+
+/*
+ * Strong accent outline + slight brightness boost.
+ * Retains underlying open/fold colour so the grid answer is still visible.
+ */
+.highlighted {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  z-index: 1;
+  filter: brightness(1.25);
+}
+
+.highlighted .cellLabel {
+  color: var(--color-accent-100);
+}
+
+/* ── Phone portrait (max-width: 820px) ───────────────────────────────────── */
+/*
+ * Shrink cells so the full 14-wide row (corner + 13 data cells) plus 13 gaps
+ * fits within the sheet's inner width (~345 px on a 390 px viewport).
+ *
+ * Math: 14 × 23px cells + 13 × 1px gaps = 322 + 13 = 335 px ✓
+ *
+ * Cell labels get tiny (6px) but remain visible; they must not overflow.
+ * Gap tightens from 2px to 1px so we save 13 px of total width.
+ */
+
+@media (max-width: 820px) {
+  .gridWrapper {
+    gap: 1px;
+  }
+
+  .colHeaders,
+  .row {
+    gap: 1px;
+  }
+
+  .headerCell,
+  .cornerSpacer {
+    width: 23px;
+    height: 23px;
+    font-size: 8px;
+  }
+
+  .cell {
+    width: 23px;
+    height: 23px;
+  }
+
+  .cellLabel {
+    font-size: 6px;
+    letter-spacing: -0.03em;
+  }
+}

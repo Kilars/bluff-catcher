@@ -1,70 +1,77 @@
 /**
- * App — single stateful view for the Runout odds drill.
+ * App — root shell. Holds mode state and routes to the active mode.
  *
- * State (ephemeral, Phase 6 adds localStorage):
- *   spot      current dealt Spot
- *   guess     null = not committed
- *   hover     ghost position on rail
- *   showExplain
- *   errors    running list of deltas (for avg error)
- *   streak    increments on green, resets otherwise
- *   hands     total hands played
- *   bands     cumulative green/amber/red counts
+ * mode: 'odds' | 'preflop'
+ *   Persisted to localStorage key bluff-catcher:mode:v1.
+ *   Default 'odds' on first load or corrupt value.
  *
- * Phase 4 — desktop only (fixed 1280 × 860 canvas).
+ * Structure (odds mode):
+ *   <div.frame>
+ *     <Header>   ← shared, with hamburger menu + odds stats
+ *     <OddsTrainer>  ← Table + Dock + ExplainSheet (no inner frame)
+ *   </div.frame>
+ *
+ * Structure (preflop mode):
+ *   <div.frame>
+ *     <Header>   ← shared, with hamburger menu (stats slot reserved for P3)
+ *     <preflop placeholder>
+ *   </div.frame>
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { dealSpot, boardKey } from './lib/deal';
-import { analyse } from './lib/odds';
-import { explain } from './lib/explain';
+import { useCallback, useEffect, useState } from 'react';
 import { useStats } from './hooks/useStats';
+import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
-import Table from './components/Table';
-import Dock from './components/Dock';
-import ExplainSheet from './components/ExplainSheet';
-import type { Spot } from './lib/deal';
+import OddsTrainer from './modes/OddsTrainer';
+import PreflopTrainer from './modes/PreflopTrainer';
 import styles from './App.module.css';
 
-// ─── Scoring constants ────────────────────────────────────────────────────────
+// ─── Mode type ────────────────────────────────────────────────────────────────
 
-const GREEN_BAND = 5;
-const AMBER_BAND = 10;
+export type AppMode = 'odds' | 'preflop';
 
-type Band = 'green' | 'amber' | 'red';
+// ─── Mode persistence ─────────────────────────────────────────────────────────
 
-function bandOf(delta: number): Band {
-  if (delta <= GREEN_BAND) return 'green';
-  if (delta <= AMBER_BAND) return 'amber';
-  return 'red';
+const MODE_KEY = 'bluff-catcher:mode:v1';
+
+function loadMode(): AppMode {
+  try {
+    if (typeof window === 'undefined') return 'odds';
+    const raw = localStorage.getItem(MODE_KEY);
+    if (raw === 'odds' || raw === 'preflop') return raw;
+    return 'odds';
+  } catch {
+    return 'odds';
+  }
 }
 
-// ─── Initial deal ─────────────────────────────────────────────────────────────
-
-function initialDeal(): { spot: Spot; seen: Set<string> } {
-  const seen = new Set<string>();
-  const spot = dealSpot({ seen });
-  seen.add(boardKey(spot.board));
-  return { spot, seen };
+function saveMode(mode: AppMode): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // localStorage might be disabled — silently fail
+  }
 }
-
-const { spot: INITIAL_SPOT, seen: INITIAL_SEEN } = initialDeal();
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const seenRef = useRef<Set<string>>(INITIAL_SEEN);
+  const [mode, setMode] = useState<AppMode>(() => loadMode());
   const stats = useStats();
+  const preflopStats = usePreflopStats();
 
-  const [spot, setSpot] = useState<Spot>(INITIAL_SPOT);
-  const [guess, setGuess] = useState<number | null>(null);
-  const [hover, setHover] = useState<number | null>(null);
-  const [showExplain, setShowExplain] = useState(false);
+  const handleModeChange = useCallback((next: AppMode) => {
+    setMode(next);
+    saveMode(next);
+  }, []);
 
-  // ── Phone felt scale ───────────────────────────────────────────────────────
-  // The felt is a fixed 820px design; on phone it is scaled to fit the viewport.
-  // CSS calc cannot divide length by length to a unitless scale, so compute the
-  // ratio here and expose it as --felt-scale (consumed by Table's phone styles).
+  // ── Phone felt scale ──────────────────────────────────────────────────────
+  // The felt (both modes) is a fixed 820 px design; on phone it is scaled to
+  // fit the viewport via CSS transform.  CSS calc cannot divide length by
+  // length to produce a unitless scale factor, so we compute the ratio in JS
+  // and expose it as --felt-scale on :root.  Both Table and PreflopTable
+  // consume it.  Runs once here so it covers both modes (not per-mode).
   useEffect(() => {
     const setScale = () => {
       const scale = Math.min(1, (window.innerWidth * 0.96) / 820);
@@ -75,105 +82,38 @@ export default function App() {
     return () => window.removeEventListener('resize', setScale);
   }, []);
 
-  // ── Derived (memoised on spot) ─────────────────────────────────────────────
-
-  const analysis = useMemo(
-    () =>
-      analyse(
-        spot.read.backdoor
-          ? { hero: spot.hero, board: spot.board, mode: 'backdoor' }
-          : { hero: spot.hero, board: spot.board, hits: spot.read.hits }
-      ),
-    [spot]
-  );
-
-  const explanation = useMemo(
-    () => explain(spot.read, analysis, spot.hero, spot.board),
-    [spot, analysis]
-  );
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  const handleCommit = useCallback(
-    (pct: number) => {
-      if (guess !== null) return; // already committed
-      const delta = Math.abs(pct - analysis.total);
-      const band = bandOf(delta);
-      setGuess(pct);
-      setHover(null);
-      stats.record(delta, band, spot.read.primaryCategory);
-    },
-    [guess, analysis.total, stats, spot.read.primaryCategory]
-  );
-
-  const handleNext = useCallback(() => {
-    const newSpot = dealSpot({ seen: seenRef.current });
-    seenRef.current.add(boardKey(newSpot.board));
-    setSpot(newSpot);
-    setGuess(null);
-    setHover(null);
-    setShowExplain(false);
-  }, []);
-
-  const handleHoverChange = useCallback((pct: number | null) => {
-    setHover(pct);
-  }, []);
-
-  const handleOpenExplain = useCallback(() => {
-    if (guess !== null) setShowExplain(true);
-  }, [guess]);
-
-  const handleCloseExplain = useCallback(() => {
-    setShowExplain(false);
-  }, []);
-
-  // ── Scoring (current hand) ─────────────────────────────────────────────────
-
-  const delta = guess !== null ? Math.abs(guess - analysis.total) : 0;
-  const currentBand: Band | null = guess !== null ? bandOf(delta) : null;
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <div className={styles.frame}>
       <Header
-        hands={stats.hands}
-        streak={stats.streak}
-        errors={stats.errors}
-        bands={stats.bands}
-        onResetStats={stats.reset}
+        mode={mode}
+        onModeChange={handleModeChange}
+        oddsStats={
+          mode === 'odds'
+            ? {
+                hands: stats.hands,
+                streak: stats.streak,
+                errors: stats.errors,
+                bands: stats.bands,
+                onResetStats: stats.reset,
+              }
+            : undefined
+        }
+        preflopStats={
+          mode === 'preflop'
+            ? {
+                hands: preflopStats.hands,
+                streak: preflopStats.streak,
+                accuracy: preflopStats.accuracy,
+                onResetStats: preflopStats.reset,
+              }
+            : undefined
+        }
       />
 
-      <Table
-        hero={spot.hero}
-        board={spot.board}
-        street={spot.street}
-      />
+      {mode === 'odds' && <OddsTrainer stats={stats} />}
 
-      <Dock
-        guess={guess}
-        hover={hover}
-        trueTotal={analysis.total}
-        drawName={spot.read.name}
-        drawNote={spot.read.note}
-        band={currentBand}
-        delta={delta}
-        onCommit={handleCommit}
-        onNext={handleNext}
-        onHoverChange={handleHoverChange}
-        onOpenExplain={handleOpenExplain}
-      />
-
-      {/* Explanation sheet — rendered over the top */}
-      {showExplain && (
-        <ExplainSheet
-          explanation={explanation}
-          drawName={spot.read.name}
-          street={spot.street}
-          onClose={handleCloseExplain}
-          onNext={handleNext}
-          layout="Bottom sheet"
-        />
+      {mode === 'preflop' && (
+        <PreflopTrainer onRecord={preflopStats.record} />
       )}
     </div>
   );

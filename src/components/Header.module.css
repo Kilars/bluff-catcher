@@ -10,6 +10,13 @@
   border-bottom: 1px solid var(--color-divider);
 }
 
+/* Left side: hamburger + brand grouped together */
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .brand {
   display: flex;
   align-items: baseline;
@@ -119,6 +126,11 @@
     gap: var(--space-3);
     padding: max(var(--space-3), env(safe-area-inset-top)) var(--space-5)
       var(--space-3) var(--space-5);
+  }
+
+  .left {
+    /* Left group stays on its own line */
+    flex: 1 0 auto;
   }
 
   .brand {
