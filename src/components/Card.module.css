@@ -1,0 +1,80 @@
+/* Card.module.css — shared card face rendering */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* ── Sizes ── */
+.board {
+  width: 66px;
+  height: 94px;
+  background: linear-gradient(170deg, var(--color-neutral-100), var(--color-neutral-200));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+.hero {
+  width: 82px;
+  height: 116px;
+  background: linear-gradient(170deg, var(--color-neutral-100), var(--color-neutral-300));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.out {
+  width: 32px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(170deg, var(--color-neutral-200), var(--color-neutral-300));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.villainBack {
+  width: 32px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900));
+  box-shadow: inset 0 0 0 1px var(--color-accent-700);
+}
+
+/* ── Rank text ── */
+.rankBoard {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 29px;
+  line-height: 1;
+}
+
+.rankHero {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 37px;
+  line-height: 1;
+}
+
+.rankOut {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ── Suit text ── */
+.suitBoard {
+  font-size: 23px;
+  line-height: 1;
+}
+
+.suitHero {
+  font-size: 29px;
+  line-height: 1;
+}
+
+.suitOut {
+  font-size: 12px;
+  line-height: 1.1;
+}

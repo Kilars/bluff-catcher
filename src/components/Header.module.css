@@ -1,0 +1,83 @@
+/* Header.module.css */
+
+.header {
+  height: 54px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-8);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 11.2px;
+}
+
+.brandName {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  color: var(--color-text);
+}
+
+.brandSub {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.statPair {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.statValue {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-300);
+}
+
+.statValueAccent {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent-300);
+}
+
+.bandTally {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 16.8px;
+  border-left: 1px solid var(--color-divider);
+}
+
+.bandDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.bandCount {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-400);
+  min-width: 14px;
+  font-size: 12px;
+}
+
+.bandSpacer {
+  margin-left: var(--space-3);
+}

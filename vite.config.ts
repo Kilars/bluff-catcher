@@ -1,7 +1,16 @@
-/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import type { UserConfig as VitestUserConfig } from 'vitest/config'
+
+const vitestConfig = {
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+  },
+} satisfies VitestUserConfig
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -25,10 +34,5 @@ export default defineConfig({
       },
     }),
   ],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    css: false,
-  },
+  ...vitestConfig,
 })

@@ -1,0 +1,120 @@
+/* Table.module.css */
+
+.table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse 70% 60% at 50% 40%, #1d1f2f 0%, #161826 78%);
+}
+
+.felt {
+  position: relative;
+  width: 820px;
+  height: 380px;
+  border-radius: 190px / 190px;
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 28%,
+    #2a2d40 0%,
+    #1e2030 62%,
+    #191b28 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--color-neutral-800),
+    inset 0 0 60px rgba(0, 0, 0, 0.5),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.accentRing {
+  position: absolute;
+  inset: 14px;
+  border-radius: 180px / 180px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  pointer-events: none;
+}
+
+.villain {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.villainCards {
+  display: flex;
+  gap: 4px;
+}
+
+.villainLabel {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.streetLine {
+  position: absolute;
+  top: 116px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+.streetDot {
+  color: var(--color-neutral-700);
+}
+
+.boardRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 26px;
+}
+
+.blankCard {
+  width: 66px;
+  height: 94px;
+  margin-left: 5.6px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-neutral-800);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-3);
+  box-sizing: border-box;
+  flex: none;
+}
+
+.blankLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+}
+
+.heroRow {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}

@@ -1,0 +1,146 @@
+/* GuessRail.module.css */
+
+.wrapper {
+  /* Contains the label strip + rail + scale */
+}
+
+.labelStrip {
+  position: relative;
+  height: 26px;
+}
+
+.labelYou {
+  position: absolute;
+  bottom: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-300);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.labelActual {
+  position: absolute;
+  top: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-300);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.hoverPct {
+  position: absolute;
+  bottom: 0;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.rail {
+  position: relative;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #1e2030, #1b1d2b);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  cursor: crosshair;
+  touch-action: none;
+  overflow: hidden;
+  outline: none; /* Focus ring handled globally */
+}
+
+.rail:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Tick marks */
+.tick25,
+.tick50,
+.tick75 {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.tick25 {
+  left: 25%;
+  background: var(--color-neutral-800);
+}
+
+.tick50 {
+  left: 50%;
+  background: var(--color-neutral-700);
+}
+
+.tick75 {
+  left: 75%;
+  background: var(--color-neutral-800);
+}
+
+/* Accent fill (after commit) */
+.accentFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-accent) 8%, transparent),
+    color-mix(in srgb, var(--color-accent) 30%, transparent)
+  );
+}
+
+/* Hover ghost line */
+.hoverLine {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--color-neutral-500);
+}
+
+/* Guess mark */
+.guessMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--color-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+/* True mark */
+.trueMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--color-neutral-100);
+  box-shadow: 0 0 14px rgba(243, 245, 254, 0.5);
+}
+
+/* Error gap bar */
+.gapBar {
+  position: absolute;
+  top: 18px;
+  height: 8px;
+  opacity: 0.5;
+}
+
+/* Scale labels */
+.scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-neutral-600);
+  font-variant-numeric: tabular-nums;
+  padding-top: 5.6px;
+}
