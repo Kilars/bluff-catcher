@@ -18,6 +18,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { dealSpot, boardKey } from './lib/deal';
 import { analyse } from './lib/odds';
 import { explain } from './lib/explain';
+import { useStats } from './hooks/useStats';
 import Header from './components/Header';
 import Table from './components/Table';
 import Dock from './components/Dock';
@@ -52,15 +53,12 @@ const { spot: INITIAL_SPOT, seen: INITIAL_SEEN } = initialDeal();
 
 export default function App() {
   const seenRef = useRef<Set<string>>(INITIAL_SEEN);
+  const stats = useStats();
 
   const [spot, setSpot] = useState<Spot>(INITIAL_SPOT);
   const [guess, setGuess] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [showExplain, setShowExplain] = useState(false);
-  const [errors, setErrors] = useState<number[]>([]);
-  const [streak, setStreak] = useState(0);
-  const [hands, setHands] = useState(1);
-  const [bands, setBands] = useState({ green: 0, amber: 0, red: 0 });
 
   // ── Derived (memoised on spot) ─────────────────────────────────────────────
 
@@ -88,11 +86,9 @@ export default function App() {
       const band = bandOf(delta);
       setGuess(pct);
       setHover(null);
-      setErrors((prev) => [...prev, delta]);
-      setStreak((prev) => (band === 'green' ? prev + 1 : 0));
-      setBands((prev) => ({ ...prev, [band]: prev[band] + 1 }));
+      stats.record(delta, band, spot.read.primaryCategory);
     },
-    [guess, analysis.total]
+    [guess, analysis.total, stats, spot.read.primaryCategory]
   );
 
   const handleNext = useCallback(() => {
@@ -102,7 +98,6 @@ export default function App() {
     setGuess(null);
     setHover(null);
     setShowExplain(false);
-    setHands((prev) => prev + 1);
   }, []);
 
   const handleHoverChange = useCallback((pct: number | null) => {
@@ -138,10 +133,11 @@ export default function App() {
       }}
     >
       <Header
-        hands={hands}
-        streak={streak}
-        errors={errors}
-        bands={bands}
+        hands={stats.hands}
+        streak={stats.streak}
+        errors={stats.errors}
+        bands={stats.bands}
+        onResetStats={stats.reset}
       />
 
       <Table

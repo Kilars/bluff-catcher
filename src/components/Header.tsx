@@ -10,9 +10,10 @@ interface HeaderProps {
   streak: number;
   errors: number[];
   bands: { green: number; amber: number; red: number };
+  onResetStats?: () => void;
 }
 
-export default function Header({ hands, streak, errors, bands }: HeaderProps) {
+export default function Header({ hands, streak, errors, bands, onResetStats }: HeaderProps) {
   const avgError =
     errors.length > 0
       ? `±${(errors.reduce((a, b) => a + b, 0) / errors.length).toFixed(1)}`
@@ -56,6 +57,16 @@ export default function Header({ hands, streak, errors, bands }: HeaderProps) {
           />
           <span className={styles.bandCount}>{bands.red}</span>
         </div>
+
+        {onResetStats && (
+          <button
+            className={styles.resetButton}
+            onClick={onResetStats}
+            title="Reset all stats"
+          >
+            Reset
+          </button>
+        )}
       </div>
     </header>
   );

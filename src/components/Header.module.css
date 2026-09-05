@@ -81,3 +81,24 @@
 .bandSpacer {
   margin-left: var(--space-3);
 }
+
+.resetButton {
+  margin-left: var(--space-6);
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+  cursor: pointer;
+  transition: color 0.15s ease-out;
+}
+
+.resetButton:hover {
+  color: var(--color-accent-300);
+}
+
+.resetButton:active {
+  opacity: 0.7;
+}
