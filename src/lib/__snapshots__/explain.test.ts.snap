@@ -6,7 +6,7 @@ exports[`explain: "backdoor" fixture classifies as overcards (Ah Kd / 9h 5h 2c) 
     "quickNote": "outs × 4, done in your head",
     "quickSum": "6 × 4 = 24%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "24",
+    "trueNumber": "24.1",
   },
   "memorise": [
     {
@@ -64,7 +64,7 @@ exports[`explain: combo flush+straight (Jd Td / 9d 8c 2d) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "21 × 4 = 84%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "70",
+    "trueNumber": "69.9",
   },
   "memorise": [
     {
@@ -116,9 +116,9 @@ exports[`explain: combo flush+straight (Jd Td / 9d 8c 2d) > snapshot 1`] = `
     "Ad",
   ],
   "step1": {
-    "body": "Nine diamonds make the flush. Eight cards make the straight. But the diamonds that also complete the straight are counted once — the overlap is already removed. Twenty-one outs.",
+    "body": "Nine diamonds make the flush, eight cards make the straight, and your jacks and tens pair for top pair on top. The diamonds that also complete the straight are counted once. Twenty-one outs.",
     "index": "01",
-    "title": "Twenty-one outs, not seventeen",
+    "title": "Twenty-one outs — flush, straight, overcards",
   },
   "step2": {
     "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
@@ -141,7 +141,7 @@ exports[`explain: comboFlushOvercard / flush+overcard (Ah 7h / Qh 8h 3c) > snaps
     "quickNote": "outs × 4, done in your head",
     "quickSum": "12 × 4 = 48%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "45",
+    "trueNumber": "45.0",
   },
   "memorise": [
     {
@@ -209,7 +209,7 @@ exports[`explain: doubleGutshot fixture (Jh 9c / Qd Ts 7s) — classifies as ope
     "quickNote": "outs × 4, done in your head",
     "quickSum": "8 × 4 = 32%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "32",
+    "trueNumber": "31.5",
   },
   "memorise": [
     {
@@ -269,7 +269,7 @@ exports[`explain: flushDraw (As 7s / Ks 4s 9d) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "12 × 4 = 48%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "45",
+    "trueNumber": "45.0",
   },
   "memorise": [
     {
@@ -337,7 +337,7 @@ exports[`explain: flushDrawTurn (As 7s / Ks 4s 9d 2c) > snapshot 1`] = `
     "quickNote": "outs × 2, done in your head",
     "quickSum": "12 × 2 = 24%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "26",
+    "trueNumber": "26.1",
   },
   "memorise": [
     {
@@ -405,7 +405,7 @@ exports[`explain: gutshot (Qc Js / Th 8d 2c) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "10 × 4 = 40%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "38",
+    "trueNumber": "38.4",
   },
   "memorise": [
     {
@@ -471,7 +471,7 @@ exports[`explain: openEnder (9h 8c / 7d 6s Kc) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "8 × 4 = 32%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "32",
+    "trueNumber": "31.5",
   },
   "memorise": [
     {
@@ -531,7 +531,7 @@ exports[`explain: overcards (Ah Kc / 9d 7s 2h) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "6 × 4 = 24%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "24",
+    "trueNumber": "24.1",
   },
   "memorise": [
     {
@@ -589,7 +589,7 @@ exports[`explain: pairImproving (Ah 9c / 9d 5s 2h) > snapshot 1`] = `
     "quickNote": "outs × 4, done in your head",
     "quickSum": "5 × 4 = 20%",
     "trueNote": "What the deck actually does",
-    "trueNumber": "20",
+    "trueNumber": "20.4",
   },
   "memorise": [
     {
@@ -646,7 +646,7 @@ exports[`explain: standalone backdoor (8h 6d / Ah Kh 2c) > snapshot 1`] = `
     "quickNote": "Memorise the number instead",
     "quickSum": "No outs to multiply",
     "trueNote": "Both cards must come hearts",
-    "trueNumber": "4",
+    "trueNumber": "4.2",
   },
   "memorise": [
     {

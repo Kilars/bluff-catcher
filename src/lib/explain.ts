@@ -167,13 +167,31 @@ function step1FlushOvercard(
 
 function step1ComboFlushStraight(
   suit: string,
+  hero: Card[],
+  board: Card[],
+  overcardRanks: string[],
   analysis: Analysis
 ): ExplainStep {
   const outs = analysis.outs;
+  const suitW = suitWord(suit);
+  const flushOuts = 13 - suitCount(hero.concat(board), suit);
+  const overlapLine = `The ${suitW} that also complete the straight are counted once.`;
+
+  // The classic teaching case: flush + straight and nothing else = 15, not 17.
+  if (overcardRanks.length === 0) {
+    return {
+      index: '01',
+      title: `${numberWord(outs)} outs, not seventeen`,
+      body: `${numberWord(flushOuts)} ${suitW} make the flush, eight cards make the straight. ${overlapLine} ${numberWord(outs)} outs.`,
+    };
+  }
+
+  // Combo that also has overcards — the outs stack past 15, so name them.
+  const ocWords = overcardRanks.map((r) => rankWordPlural(r)).join(' and ');
   return {
     index: '01',
-    title: `${numberWord(outs)} outs, not seventeen`,
-    body: `Nine ${suitWord(suit)} make the flush. Eight cards make the straight. But the ${suitWord(suit)} that also complete the straight are counted once — the overlap is already removed. ${numberWord(outs)} outs.`,
+    title: `${numberWord(outs)} outs — flush, straight, overcards`,
+    body: `${numberWord(flushOuts)} ${suitW} make the flush, eight cards make the straight, and your ${ocWords} pair for top pair on top. ${overlapLine} ${numberWord(outs)} outs.`,
   };
 }
 
@@ -274,7 +292,7 @@ export function explain(
     step1 = step1FlushOvercard(meta.flushSuit!, meta.overcardRanks, hero, board, analysis);
   } else if (read.components.includes('flush') && read.components.some(c => c === 'openEnder' || c === 'gutshot' || c === 'doubleGutshot')) {
     // combo: flush + straight
-    step1 = step1ComboFlushStraight(meta.flushSuit!, analysis);
+    step1 = step1ComboFlushStraight(meta.flushSuit!, hero, board, meta.overcardRanks, analysis);
   } else if (read.components.includes('flush')) {
     // pure flush draw (no overcard, no straight)
     step1 = step1Flush(meta.flushSuit!, hero, board, analysis);
@@ -345,14 +363,14 @@ export function explain(
     headMaths = {
       quickSum: 'No outs to multiply',
       quickNote: 'Memorise the number instead',
-      trueNumber: String(Math.round(total)),
+      trueNumber: total.toFixed(1),
       trueNote: `Both cards must come ${bdSuitName}`,
     };
   } else {
     headMaths = {
       quickSum: `${outs} × ${mult} = ${quick}%`,
       quickNote: `outs × ${mult}, done in your head`,
-      trueNumber: String(Math.round(total)),
+      trueNumber: total.toFixed(1),
       trueNote: 'What the deck actually does',
     };
   }
