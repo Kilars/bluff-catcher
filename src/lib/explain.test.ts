@@ -315,6 +315,75 @@ describe('explain: flushDrawTurn (As 7s / Ks 4s 9d 2c)', () => {
   });
 });
 
+// ─── Set draw: bare underpair 55 on K-Q-8 ────────────────────────────────────
+
+describe('explain: setDraw (5s 5d / Kh Qc 8d)', () => {
+  const hero: Card[] = ['5s', '5d'];
+  const board: Card[] = ['Kh', 'Qc', '8d'];
+
+  it('classify returns setDraw', () => {
+    const read = classify(hero, board);
+    expect(read).not.toBeNull();
+    expect(read!.primaryCategory).toBe('setDraw');
+  });
+
+  it('title is "2 outs → 8%"', () => {
+    const { exp, analysis } = runFixture(hero, board);
+    expect(exp.title).toBe(`${analysis.outs} outs → ${Math.round(analysis.total)}%`);
+    expect(analysis.outs).toBe(2);
+  });
+
+  it('step1 title mentions "fives"', () => {
+    const { exp } = runFixture(hero, board);
+    expect(exp.step1.title.toLowerCase()).toContain('fives');
+  });
+
+  it('step1 body mentions "set"', () => {
+    const { exp } = runFixture(hero, board);
+    expect(exp.step1.body.toLowerCase()).toContain('set');
+  });
+
+  it('step3 is null (2 outs, drift small)', () => {
+    const { exp } = runFixture(hero, board);
+    expect(exp.step3).toBeNull();
+  });
+
+  it('snapshot', () => {
+    const { exp } = runFixture(hero, board);
+    expect(exp).toMatchSnapshot();
+  });
+});
+
+// ─── Set draw augmenting open-ender: 55 on 6-7-8 ────────────────────────────
+
+describe('explain: openEnder+set (5s 5d / 6h 7c 8d)', () => {
+  const hero: Card[] = ['5s', '5d'];
+  const board: Card[] = ['6h', '7c', '8d'];
+
+  it('classify returns openEnder with set component', () => {
+    const read = classify(hero, board);
+    expect(read).not.toBeNull();
+    expect(read!.primaryCategory).toBe('openEnder');
+    expect(read!.components).toContain('set');
+  });
+
+  it('title reflects 10 outs (8 straight + 2 set)', () => {
+    const { exp, analysis } = runFixture(hero, board);
+    expect(analysis.outs).toBe(10);
+    expect(exp.title).toBe(`${analysis.outs} outs → ${Math.round(analysis.total)}%`);
+  });
+
+  it('note contains set suffix', () => {
+    const { read } = runFixture(hero, board);
+    expect(read.note.toLowerCase()).toContain('set');
+  });
+
+  it('snapshot', () => {
+    const { exp } = runFixture(hero, board);
+    expect(exp).toMatchSnapshot();
+  });
+});
+
 // ─── Standalone backdoor case: 8h 6d / Ah Kh 2c ─────────────────────────────
 
 describe('explain: standalone backdoor (8h 6d / Ah Kh 2c)', () => {

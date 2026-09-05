@@ -29,6 +29,7 @@ export type Category =
   | 'combo'
   | 'pairImproving'
   | 'overcards'
+  | 'setDraw'
   | 'backdoor';
 
 export type Component =
@@ -38,6 +39,7 @@ export type Component =
   | 'doubleGutshot'
   | 'overcard'
   | 'pairImprove'
+  | 'set'
   | 'backdoor';
 
 export interface DrawMeta {
@@ -47,6 +49,7 @@ export interface DrawMeta {
   completingRanks: string[];      // rank chars that complete the straight (deduped)
   pairedRank: string | null;      // hero rank already paired with board, else null
   backdoorSuit: string | null;    // suit char when backdoor-only hand, else null
+  pocketRank: string | null;      // rank char when hero has a pocket pair, else null
 }
 
 export interface DrawRead {
@@ -275,9 +278,15 @@ function composeName(components: Component[], overcards: string[], straightType:
   const hasOvercard = components.includes('overcard');
   const hasPairImprove = components.includes('pairImprove');
   const hasBackdoor = components.includes('backdoor');
+  const hasSet = components.includes('set');
 
   if (hasBackdoor) return 'A backdoor flush draw';
   if (hasPairImprove) return 'A pair looking to improve';
+  // Standalone set draw (no other draw component): name the set explicitly.
+  // When set augments another draw, keep the other draw's name — the note carries the set.
+  if (hasSet && !hasFlushComp && !hasStraightComp && !hasOvercard) {
+    return 'A pair drawing to a set';
+  }
 
   // Overcard description
   let overcardSuffix = '';
@@ -336,36 +345,50 @@ function composeName(components: Component[], overcards: string[], straightType:
 function composeNote(
   primaryCategory: Category,
   overcards: string[],
-  flushSuit: string | null
+  flushSuit: string | null,
+  components: Component[]
 ): string {
+  const hasSet = components.includes('set');
+
+  // Set augmenting another draw — append a short clause to the primary note.
+  function maybeSetSuffix(base: string): string {
+    if (hasSet && primaryCategory !== 'setDraw') {
+      return base + ' Plus you can still spike a set.';
+    }
+    return base;
+  }
+
   switch (primaryCategory) {
     case 'flushDraw': {
       const suit = flushSuit ? suitName(flushSuit) : 'suited';
       if (overcards.length > 0) {
-        return `Four ${suit}, plus your ${rankName(overcards[0])} can make top pair.`;
+        return maybeSetSuffix(`Four ${suit}, plus your ${rankName(overcards[0])} can make top pair.`);
       }
-      return `Four ${suit}. The bread-and-butter draw.`;
+      return maybeSetSuffix(`Four ${suit}. The bread-and-butter draw.`);
     }
     case 'combo':
-      return 'Two draws at once. This is the hand you raise with, not the one you call with.';
+      return maybeSetSuffix('Two draws at once. This is the hand you raise with, not the one you call with.');
     case 'openEnder':
       if (overcards.length > 0) {
-        return 'Both ends of the run are live, plus pairing up helps.';
+        return maybeSetSuffix('Both ends of the run are live, plus pairing up helps.');
       }
-      return 'Both ends of the run are live.';
+      return maybeSetSuffix('Both ends of the run are live.');
     case 'gutshot':
       if (overcards.length > 0) {
-        return 'Only the belly card gets there, but your overcards add equity.';
+        return maybeSetSuffix('Only the belly card gets there, but your overcards add equity.');
       }
-      return 'Only the belly card gets there. It feels like a draw; it barely is one.';
+      return maybeSetSuffix('Only the belly card gets there. It feels like a draw; it barely is one.');
     case 'doubleGutshot':
-      return 'Looks like a gutshot, plays like an open-ender. The trap in the ladder.';
+      return maybeSetSuffix('Looks like a gutshot, plays like an open-ender. The trap in the ladder.');
     case 'pairImproving':
       return 'Small draw, easy to overrate. Trips or two-pair to improve.';
     case 'overcards': {
       const names = overcards.map(rankName).join(' and ');
       return `${names.charAt(0).toUpperCase()}${names.slice(1)} pairing is probably good on this board.`;
     }
+    case 'setDraw':
+      // Bare pocket pair, no other draw. Two outs to a set — small but real.
+      return 'Only two outs, but a set is well disguised. Worth knowing the number.';
     case 'backdoor':
       return 'Three to a suit, not four. As a draw this is nearly nothing.';
     default:
@@ -405,17 +428,27 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   const bdSuit = backdoorSuit(hero, board);
   const hasBdFlush = bdSuit !== null && !hasFlushDraw && board.length === 3;
 
+  // Pocket pair detection: hero holds two cards of the same rank (and isMadeHand
+  // has already rejected trips/two-pair, so this is a genuine draw to a set).
+  const isPocketPair = hero[0][0] === hero[1][0];
+  const pocketRank = isPocketPair ? hero[0][0] : null;
+
+  // AA guard: only add the set component when the pocket rank is NOT an overcard.
+  // For a pair of overcards (e.g. AA on a low board), the overcard predicate already
+  // counts those two aces — adding a set predicate would double-count them.
+  const isSet = isPocketPair && pocketRank !== null && !ocRanks.includes(pocketRank);
+
   // ── No keeper? ─────────────────────────────────────────────────────────
   const hasStraightDraw = straightComp !== null;
   const hasOvercard = ocRanks.length > 0;
   const hasPairImprove = pairedRank !== null;
 
-  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !hasBdFlush) {
+  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !hasBdFlush && !isSet) {
     return null; // air
   }
 
   // ── Backdoor-only: no other component ──────────────────────────────────
-  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && hasBdFlush) {
+  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !isSet && hasBdFlush) {
     return {
       primaryCategory: 'backdoor',
       components: ['backdoor'],
@@ -430,6 +463,7 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
         completingRanks: [],
         pairedRank: null,
         backdoorSuit: bdSuit,
+        pocketRank,
       },
     };
   }
@@ -442,8 +476,12 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   else if (straightComp === 'gutshot') components.push('gutshot');
   if (hasOvercard && !hasPairImprove) components.push('overcard');
   if (hasPairImprove) components.push('pairImprove');
+  // Set component: only when the pocket pair is NOT an overcard (AA guard).
+  if (isSet) components.push('set');
 
   // ── Primary category (precedence order) ────────────────────────────────
+  // combo → flushDraw → openEnder → doubleGutshot → gutshot → pairImproving
+  //   → overcards → setDraw
   let primaryCategory: Category;
   if (hasFlushDraw && hasStraightDraw) {
     primaryCategory = 'combo';
@@ -457,8 +495,11 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
     primaryCategory = 'gutshot';
   } else if (hasPairImprove) {
     primaryCategory = 'pairImproving';
-  } else {
+  } else if (hasOvercard) {
     primaryCategory = 'overcards';
+  } else {
+    // Bare pocket pair with no other draw component — setDraw is the only thing going.
+    primaryCategory = 'setDraw';
   }
 
   // ── Composite hits predicate ───────────────────────────────────────────
@@ -487,17 +528,31 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
     const pRank = pairedRank!;
     // Trips predicate: pRank appears 3+ times in cs
     predicates.push((cs, _h) => cs.filter((c) => c[0] === pRank).length >= 3);
-    // Overcard kicker two-pair: for each overcard rank, it appears 2+ times in cs
+    // Overcard kicker two-pair: for each overcard rank, it appears 2+ times in cs.
+    // Threshold is heroCount(r) + 1 so that a pocket-pair overcard (e.g. AA) needs 3,
+    // not 2, to avoid counting every unseen card as an out.
     for (const ocr of ocRanks) {
       const r = ocr;
-      predicates.push((cs) => cs.filter((c) => c[0] === r).length >= 2);
+      const heroCount = hero.filter((c) => c[0] === r).length;
+      const threshold = heroCount + 1;
+      predicates.push((cs) => cs.filter((c) => c[0] === r).length >= threshold);
     }
   } else if (hasOvercard) {
-    // Overcard pairing: each overcard rank appears 2+ times in cs
+    // Overcard pairing: each overcard rank appears threshold+ times in cs,
+    // where threshold = heroCount(r) + 1 (handles pocket-pair overcards correctly).
     for (const ocr of ocRanks) {
       const r = ocr;
-      predicates.push((cs) => cs.filter((c) => c[0] === r).length >= 2);
+      const heroCount = hero.filter((c) => c[0] === r).length;
+      const threshold = heroCount + 1;
+      predicates.push((cs) => cs.filter((c) => c[0] === r).length >= threshold);
     }
+  }
+
+  // Set: pocket pair drawing to trips. Only added when isSet (AA guard applied above).
+  // Predicate: the pocket rank appears 3+ times in cs (hero pair + one new card).
+  if (isSet) {
+    const pr = pocketRank!;
+    predicates.push((cs) => cs.filter((c) => c[0] === pr).length >= 3);
   }
 
   const hits = (cs: Card[], h: Card[]): boolean =>
@@ -505,7 +560,7 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
 
   // ── Name and note ──────────────────────────────────────────────────────
   const name = composeName(components, ocRanks, straightComp);
-  const note = composeNote(primaryCategory, ocRanks, fdSuit);
+  const note = composeNote(primaryCategory, ocRanks, fdSuit, components);
 
   // ── Meta: surface the structured facts the explanation generator needs ──
   // Map completing rank indices to rank characters; -1 (ace-low) maps to 'A'.
@@ -526,6 +581,7 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
       completingRanks: cRankChars,
       pairedRank,
       backdoorSuit: null,
+      pocketRank,
     },
   };
 }

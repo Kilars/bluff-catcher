@@ -86,8 +86,9 @@ export default function Dock({
           {!committed && (
             <div className={styles.questionLine}>
               <p className={styles.questionText}>
-                What is the percentage chance you improve by the river?
+                What is the percentage chance you significantly improve by the river?
               </p>
+              <span className={styles.questionHint}>(ignore backdoors)</span>
             </div>
           )}
 

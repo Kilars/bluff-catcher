@@ -525,6 +525,72 @@ exports[`explain: openEnder (9h 8c / 7d 6s Kc) > snapshot 1`] = `
 }
 `;
 
+exports[`explain: openEnder+set (5s 5d / 6h 7c 8d) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "10 × 4 = 40%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "38.4",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "4s",
+    "4h",
+    "4d",
+    "4c",
+    "5h",
+    "5c",
+    "9s",
+    "9h",
+    "9d",
+    "9c",
+  ],
+  "step1": {
+    "body": "Four fours make the low end, four nines make the high end. Both ends are live.",
+    "index": "01",
+    "title": "Ten cards finish the run",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": {
+    "body": "Past eight outs the ×4 runs hot: 10 × 4 says 40%, the deck says 38%. The fix is one subtraction — take off the outs above eight. 10 × 4 = 40, minus 2 = 38%. Within a point.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "An open-ended straight draw · Flop · two cards to come",
+  "title": "10 outs → 38%",
+}
+`;
+
 exports[`explain: overcards (Ah Kc / 9d 7s 2h) > snapshot 1`] = `
 {
   "headMaths": {
@@ -637,6 +703,60 @@ exports[`explain: pairImproving (Ah 9c / 9d 5s 2h) > snapshot 1`] = `
   "step3": null,
   "subline": "A pair looking to improve · Flop · two cards to come",
   "title": "5 outs → 20%",
+}
+`;
+
+exports[`explain: setDraw (5s 5d / Kh Qc 8d) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "2 × 4 = 8%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "8.4",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "5h",
+    "5c",
+  ],
+  "step1": {
+    "body": "You hold a pocket pair of fives. Two more fives are in the deck — either one makes a set. Two outs × 4 is 8% — memorise the five, not the formula.",
+    "index": "01",
+    "title": "Two fives to a set",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "A pair drawing to a set · Flop · two cards to come",
+  "title": "2 outs → 8%",
 }
 `;
 

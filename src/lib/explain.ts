@@ -240,6 +240,20 @@ function step1Overcards(
   };
 }
 
+function step1Set(
+  pocketRank: string,
+  analysis: Analysis
+): ExplainStep {
+  const rankPlural = rankWordPlural(pocketRank);
+  const rank = rankWord(pocketRank);
+  const outs = analysis.outs; // always 2
+  return {
+    index: '01',
+    title: `Two ${rankPlural} to a set`,
+    body: `You hold a pocket pair of ${rankPlural}. Two more ${rankPlural} are in the deck — either one makes a set. ${numberWord(outs)} outs × 4 is ${outs * 4}% — memorise the ${rank}, not the formula.`,
+  };
+}
+
 function step1Backdoor(
   backdoorSuit: string,
   hero: Card[],
@@ -304,8 +318,13 @@ export function explain(
     step1 = step1Gutshot(meta.completingRanks);
   } else if (read.components.includes('pairImprove')) {
     step1 = step1PairImproving(meta.pairedRank!, meta.overcardRanks, analysis);
+  } else if (read.primaryCategory === 'setDraw' && read.components.includes('set')) {
+    // Bare set draw: pocket pair with no other draw component.
+    step1 = step1Set(meta.pocketRank!, analysis);
   } else {
-    // overcards-only
+    // overcards-only (and overcards that may also carry the set component for
+    // the AA case — the set component is absent there by the AA guard, so this
+    // branch is correct for all remaining cases)
     step1 = step1Overcards(meta.overcardRanks, analysis);
   }
 

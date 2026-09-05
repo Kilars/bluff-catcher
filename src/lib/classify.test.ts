@@ -295,6 +295,51 @@ describe('classify()', () => {
     });
   });
 
+  // ─── Set draw (pocket pair) cases ────────────────────────────────────────
+
+  describe('set draw — pocket pair', () => {
+    it('55 on 6-7-8: openEnder primary, set component present, 10 outs (8 straight + 2 set)', () => {
+      const hero: Card[] = ['5s', '5d'];
+      const board: Card[] = ['6h', '7c', '8d'];
+      const read = classify(hero, board);
+      expect(read).not.toBeNull();
+      expect(read!.primaryCategory).toBe('openEnder');
+      expect(read!.components).toContain('openEnder');
+      expect(read!.components).toContain('set');
+      expect(read!.meta.pocketRank).toBe('5');
+      const result = analyseWith(hero, board)!;
+      expect(result.outs).toBe(10); // 8 straight + 2 set (no overlap)
+    });
+
+    it('55 on K-Q-8: setDraw primary, components [set], 2 outs, ~8% over two streets', () => {
+      const hero: Card[] = ['5s', '5d'];
+      const board: Card[] = ['Kh', 'Qc', '8d'];
+      const read = classify(hero, board);
+      expect(read).not.toBeNull();
+      expect(read!.primaryCategory).toBe('setDraw');
+      expect(read!.components).toEqual(['set']);
+      expect(read!.meta.pocketRank).toBe('5');
+      const result = analyseWith(hero, board)!;
+      expect(result.outs).toBe(2);
+      // ~8% over two streets: 1 - (45/47)*(44/46) ≈ 8.4%
+      expect(result.total).toBeGreaterThan(7);
+      expect(result.total).toBeLessThan(10);
+    });
+
+    it('AA on low board (7-2-3): NO set component (AA guard), overcards primary, 2 outs — no double-count', () => {
+      const hero: Card[] = ['As', 'Ad'];
+      const board: Card[] = ['7h', '2c', '3d'];
+      const read = classify(hero, board);
+      expect(read).not.toBeNull();
+      expect(read!.primaryCategory).toBe('overcards');
+      expect(read!.components).not.toContain('set'); // AA guard: overcard predicate covers the 2 aces
+      expect(read!.components).toContain('overcard');
+      expect(read!.meta.pocketRank).toBe('A');
+      const result = analyseWith(hero, board)!;
+      expect(result.outs).toBe(2); // exactly 2 aces — no double-count
+    });
+  });
+
   // ─── Turn vs flop — classifier is street-agnostic ────────────────────────
 
   describe('turn board', () => {

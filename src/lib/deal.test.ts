@@ -17,7 +17,7 @@ function seeded(seed: number): () => number {
 
 const ALL_CATEGORIES: Category[] = [
   'flushDraw', 'openEnder', 'gutshot', 'doubleGutshot',
-  'combo', 'pairImproving', 'overcards', 'backdoor',
+  'combo', 'pairImproving', 'overcards', 'setDraw', 'backdoor',
 ];
 
 /** Rebuild an odds Spot from a dealt spot so we can re-run analyse(). */

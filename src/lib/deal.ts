@@ -37,11 +37,18 @@ const DEFAULT_WEIGHTS: Record<Category, number> = {
   combo: 1,
   pairImproving: 2,
   overcards: 2,
+  setDraw: 1,
   backdoor: 1,
 };
 
 /** Maximum attempts before falling back to any keeper. */
 const MAX_ATTEMPTS = 20_000;
+/**
+ * If a fallback keeper exists and we still haven't hit the target category
+ * after this many attempts, give up and use the fallback. Keeps rare categories
+ * (e.g. setDraw) from exhausting the full budget every deal cycle.
+ */
+const FALLBACK_CUTOFF = 2_000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,6 +155,10 @@ export function dealSpot(opts?: DealOptions): Spot {
         fallback = { hero, board, street, read };
       }
     }
+
+    // Once we have a fallback and have spent enough attempts hunting for the
+    // exact target, bail early rather than burning the full budget.
+    if (fallback && attempts >= FALLBACK_CUTOFF) break;
   }
 
   // Cap reached — use fallback (any keeper we found)
