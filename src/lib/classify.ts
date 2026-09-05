@@ -40,6 +40,15 @@ export type Component =
   | 'pairImprove'
   | 'backdoor';
 
+export interface DrawMeta {
+  flushSuit: string | null;       // e.g. 's' when a 4-flush draw exists, else null
+  overcardRanks: string[];        // e.g. ['A','K'] hero cards strictly above top board card
+  straightType: 'openEnder' | 'doubleGutshot' | 'gutshot' | null;
+  completingRanks: string[];      // rank chars that complete the straight (deduped)
+  pairedRank: string | null;      // hero rank already paired with board, else null
+  backdoorSuit: string | null;    // suit char when backdoor-only hand, else null
+}
+
 export interface DrawRead {
   primaryCategory: Category;
   components: Component[];
@@ -47,6 +56,7 @@ export interface DrawRead {
   note: string;
   hits: (cards: Card[], hero: Card[]) => boolean;
   backdoor?: boolean;
+  meta: DrawMeta;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -242,12 +252,12 @@ function isMadeHand(hero: Card[], board: Card[]): boolean {
 
 // ─── Name composers ─────────────────────────────────────────────────────────
 
-function suitName(suit: string): string {
+export function suitName(suit: string): string {
   const map: Record<string, string> = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' };
   return map[suit] ?? suit;
 }
 
-function rankName(rank: string): string {
+export function rankName(rank: string): string {
   const map: Record<string, string> = {
     A: 'ace', K: 'king', Q: 'queen', J: 'jack', T: 'ten',
     '9': 'nine', '8': 'eight', '7': 'seven', '6': 'six', '5': 'five',
@@ -411,6 +421,14 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
       note: `Three ${suitName(bdSuit!)}. As a draw this is nearly nothing.`,
       hits: (_cs, _hero) => false, // backdoor uses mode:'backdoor' in analyse
       backdoor: true,
+      meta: {
+        flushSuit: null,
+        overcardRanks: [],
+        straightType: null,
+        completingRanks: [],
+        pairedRank: null,
+        backdoorSuit: bdSuit,
+      },
     };
   }
 
@@ -487,11 +505,25 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   const name = composeName(components, ocRanks, straightComp);
   const note = composeNote(primaryCategory, ocRanks, fdSuit);
 
+  // ── Meta: surface the structured facts the explanation generator needs ──
+  // Map completing rank indices to rank characters; -1 (ace-low) maps to 'A'.
+  const cRankChars = Array.from(
+    new Set(cRanks.map((idx) => (idx === -1 ? 'A' : RANKS[idx])))
+  );
+
   return {
     primaryCategory,
     components,
     name,
     note,
     hits,
+    meta: {
+      flushSuit: fdSuit,
+      overcardRanks: ocRanks,
+      straightType: straightComp,
+      completingRanks: cRankChars,
+      pairedRank,
+      backdoorSuit: null,
+    },
   };
 }

@@ -1,0 +1,692 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`explain: "backdoor" fixture classifies as overcards (Ah Kd / 9h 5h 2c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "6 × 4 = 24%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "24",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "Ks",
+    "Kh",
+    "Kc",
+    "As",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Both hole cards beat every card on this board. Three aces pair your ace, three kings pair your king. Either makes top pair. Six outs.",
+    "index": "01",
+    "title": "Three aces, three kings",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "Two overcards · Flop · two cards to come",
+  "title": "6 outs → 24%",
+}
+`;
+
+exports[`explain: combo flush+straight (Jd Td / 9d 8c 2d) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "21 × 4 = 84%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "70",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "3d",
+    "4d",
+    "5d",
+    "6d",
+    "7s",
+    "7h",
+    "7d",
+    "7c",
+    "8d",
+    "Ts",
+    "Th",
+    "Tc",
+    "Js",
+    "Jh",
+    "Jc",
+    "Qs",
+    "Qh",
+    "Qd",
+    "Qc",
+    "Kd",
+    "Ad",
+  ],
+  "step1": {
+    "body": "Nine diamonds make the flush. Eight cards make the straight. But the diamonds that also complete the straight are counted once — the overlap is already removed. Twenty-one outs.",
+    "index": "01",
+    "title": "Twenty-one outs, not seventeen",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": {
+    "body": "Past eight outs the ×4 runs hot: 21 × 4 says 84%, the deck says 70%. The fix is one subtraction — take off the outs above eight. 21 × 4 = 84, minus 13 = 71%. Within a point.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "A flush draw and an open-ended straight draw with two overcards · Flop · two cards to come",
+  "title": "21 outs → 70%",
+}
+`;
+
+exports[`explain: comboFlushOvercard / flush+overcard (Ah 7h / Qh 8h 3c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "12 × 4 = 48%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "45",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "2h",
+    "3h",
+    "4h",
+    "5h",
+    "6h",
+    "9h",
+    "Th",
+    "Jh",
+    "Kh",
+    "As",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Nine hearts finish the flush. Three more aces give you top pair. Twelve outs.",
+    "index": "01",
+    "title": "Nine hearts plus three aces",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": {
+    "body": "Past eight outs the ×4 runs hot: 12 × 4 says 48%, the deck says 45%. The fix is one subtraction — take off the outs above eight. 12 × 4 = 48, minus 4 = 44%. Within a point.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "A flush draw with an overcard · Flop · two cards to come",
+  "title": "12 outs → 45%",
+}
+`;
+
+exports[`explain: doubleGutshot fixture (Jh 9c / Qd Ts 7s) — classifies as openEnder > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "8 × 4 = 32%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "32",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "8s",
+    "8h",
+    "8d",
+    "8c",
+    "Ks",
+    "Kh",
+    "Kd",
+    "Kc",
+  ],
+  "step1": {
+    "body": "Four eights make the low end, four kings make the high end. Both ends are live.",
+    "index": "01",
+    "title": "Eight cards finish the run",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "An open-ended straight draw · Flop · two cards to come",
+  "title": "8 outs → 32%",
+}
+`;
+
+exports[`explain: flushDraw (As 7s / Ks 4s 9d) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "12 × 4 = 48%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "45",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "2s",
+    "3s",
+    "5s",
+    "6s",
+    "8s",
+    "9s",
+    "Ts",
+    "Js",
+    "Qs",
+    "Ah",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Nine spades finish the flush. Three more aces give you top pair. Twelve outs.",
+    "index": "01",
+    "title": "Nine spades plus three aces",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": {
+    "body": "Past eight outs the ×4 runs hot: 12 × 4 says 48%, the deck says 45%. The fix is one subtraction — take off the outs above eight. 12 × 4 = 48, minus 4 = 44%. Within a point.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "A flush draw with an overcard · Flop · two cards to come",
+  "title": "12 outs → 45%",
+}
+`;
+
+exports[`explain: flushDrawTurn (As 7s / Ks 4s 9d 2c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 2, done in your head",
+    "quickSum": "12 × 2 = 24%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "26",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "2s",
+    "3s",
+    "5s",
+    "6s",
+    "8s",
+    "9s",
+    "Ts",
+    "Js",
+    "Qs",
+    "Ah",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Nine spades finish the flush. Three more aces give you top pair. Twelve outs.",
+    "index": "01",
+    "title": "Nine spades plus three aces",
+  },
+  "step2": {
+    "body": "One card left means one chance, so the multiplier halves: outs × 2.",
+    "index": "02",
+    "title": "One card to come, so multiply by 2",
+  },
+  "step3": {
+    "body": "×2 says 24%, the deck says 26% — 2.1 of a point out. Ignore it. What actually costs you money is an out that is not clean: a card that fills your flush and also fills villain’s straight is worth less than one out.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "A flush draw with an overcard · Turn · one card to come",
+  "title": "12 outs → 26%",
+}
+`;
+
+exports[`explain: gutshot (Qc Js / Th 8d 2c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "10 × 4 = 40%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "38",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "9s",
+    "9h",
+    "9d",
+    "9c",
+    "Jh",
+    "Jd",
+    "Jc",
+    "Qs",
+    "Qh",
+    "Qd",
+  ],
+  "step1": {
+    "body": "You need a nine — and no other rank helps. Four nines. Four outs.",
+    "index": "01",
+    "title": "Four nines and nothing else",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": {
+    "body": "Past eight outs the ×4 runs hot: 10 × 4 says 40%, the deck says 38%. The fix is one subtraction — take off the outs above eight. 10 × 4 = 40, minus 2 = 38%. Within a point.",
+    "index": "03",
+    "title": "Where the shortcut drifts",
+  },
+  "subline": "A gutshot with two overcards · Flop · two cards to come",
+  "title": "10 outs → 38%",
+}
+`;
+
+exports[`explain: openEnder (9h 8c / 7d 6s Kc) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "8 × 4 = 32%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "32",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "5s",
+    "5h",
+    "5d",
+    "5c",
+    "Ts",
+    "Th",
+    "Td",
+    "Tc",
+  ],
+  "step1": {
+    "body": "Four fives make the low end, four tens make the high end. Both ends are live.",
+    "index": "01",
+    "title": "Eight cards finish the run",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "An open-ended straight draw · Flop · two cards to come",
+  "title": "8 outs → 32%",
+}
+`;
+
+exports[`explain: overcards (Ah Kc / 9d 7s 2h) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "6 × 4 = 24%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "24",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "Ks",
+    "Kh",
+    "Kd",
+    "As",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Both hole cards beat every card on this board. Three aces pair your ace, three kings pair your king. Either makes top pair. Six outs.",
+    "index": "01",
+    "title": "Three aces, three kings",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "Two overcards · Flop · two cards to come",
+  "title": "6 outs → 24%",
+}
+`;
+
+exports[`explain: pairImproving (Ah 9c / 9d 5s 2h) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "5 × 4 = 20%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "20",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "9s",
+    "9h",
+    "As",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Two more nines give you trips. Three aces pair your ace — two pair. Five outs.",
+    "index": "01",
+    "title": "Two nines and three aces",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "A pair looking to improve · Flop · two cards to come",
+  "title": "5 outs → 20%",
+}
+`;
+
+exports[`explain: standalone backdoor (8h 6d / Ah Kh 2c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "Memorise the number instead",
+    "quickSum": "No outs to multiply",
+    "trueNote": "Both cards must come hearts",
+    "trueNumber": "4",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [],
+  "step1": {
+    "body": "You hold one heart and the board brought two, so three of five. Ten hearts remain, but no single card gets you there.",
+    "index": "01",
+    "title": "Zero outs — you need both cards",
+  },
+  "step2": {
+    "body": "There is nothing to multiply — zero outs times four is still zero. Both remaining cards have to be hearts, and two things that both must happen are much rarer than one thing that might. Treat a backdoor as a bonus attached to whatever else your hand is doing, never as a reason to call.",
+    "index": "02",
+    "title": "The rule of 4 does not apply",
+  },
+  "step3": null,
+  "subline": "A backdoor flush draw · Flop · two cards to come",
+  "title": "Roughly 4%, and no shortcut",
+}
+`;
