@@ -399,9 +399,11 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   // Made pair (for pairImproving)
   const pairedRank = pairedHeroRank(hero, board);
 
-  // Backdoor (only 3 to a suit, no other components)
+  // Backdoor (only 3 to a suit, no other components). A backdoor flush needs
+  // TWO running cards, so it is only a draw on the flop (3 board cards). On the
+  // turn a 3-flush can never complete — it is air, not a keeper.
   const bdSuit = backdoorSuit(hero, board);
-  const hasBdFlush = bdSuit !== null && !hasFlushDraw;
+  const hasBdFlush = bdSuit !== null && !hasFlushDraw && board.length === 3;
 
   // ── No keeper? ─────────────────────────────────────────────────────────
   const hasStraightDraw = straightComp !== null;

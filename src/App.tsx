@@ -14,7 +14,7 @@
  * Phase 4 — desktop only (fixed 1280 × 860 canvas).
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dealSpot, boardKey } from './lib/deal';
 import { analyse } from './lib/odds';
 import { explain } from './lib/explain';
@@ -60,6 +60,20 @@ export default function App() {
   const [guess, setGuess] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [showExplain, setShowExplain] = useState(false);
+
+  // ── Phone felt scale ───────────────────────────────────────────────────────
+  // The felt is a fixed 820px design; on phone it is scaled to fit the viewport.
+  // CSS calc cannot divide length by length to a unitless scale, so compute the
+  // ratio here and expose it as --felt-scale (consumed by Table's phone styles).
+  useEffect(() => {
+    const setScale = () => {
+      const scale = Math.min(1, (window.innerWidth * 0.96) / 820);
+      document.documentElement.style.setProperty('--felt-scale', String(scale));
+    };
+    setScale();
+    window.addEventListener('resize', setScale);
+    return () => window.removeEventListener('resize', setScale);
+  }, []);
 
   // ── Derived (memoised on spot) ─────────────────────────────────────────────
 

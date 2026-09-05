@@ -1,14 +1,18 @@
 /*
  * app.css — minimal global layout rules.
  *
- * On desktop the .frame is a fixed-size 1280×860 island; no global rules are
- * needed — the browser centres it naturally.
+ * On desktop the .frame is a fixed-size 1280×860 island. The default body
+ * margin (8px) would offset it and push its bottom edge below an exactly
+ * 860px-tall viewport, clipping the guess-rail scale. Reset the margin so the
+ * frame sits flush and fits its target 1280×860 canvas.
  *
  * On phone (max-width: 820px) we want #root to stretch to the full viewport
- * so the .frame can use width:100vw / height:100dvh. Without this, the default
- * display:block on #root is fine but we must ensure no margin/padding leaks
- * from body cause overflow or scroll-bounce artefacts.
+ * so the .frame can use width:100vw / height:100dvh.
  */
+
+body {
+  margin: 0;
+}
 
 @media (max-width: 820px) {
   html,

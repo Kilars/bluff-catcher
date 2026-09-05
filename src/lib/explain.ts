@@ -213,8 +213,8 @@ function step1PairImproving(
   }
   return {
     index: '01',
-    title: `Two ${pRankPlural} and three kickers`,
-    body: `Two more ${pRankPlural} give you trips. Three kicker cards give two pair. Your ${pRank} is already on the board — ${numberWord(analysis.outs)} outs.`,
+    title: `Two ${pRankPlural} to trips`,
+    body: `Your ${pRank} is already paired with the board. Two more ${pRankPlural} give you trips — the only clean out, since your kicker is too low to count. ${numberWord(analysis.outs)} outs.`,
   };
 }
 
