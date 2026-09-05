@@ -151,17 +151,20 @@ export default function Dock({
           )}
         </div>
 
-        {/* Guess rail */}
-        <GuessRail
-          guess={guess}
-          hover={hover}
-          trueTotal={trueTotal}
-          bandColor={bandColor}
-          onCommit={onCommit}
-          onNext={onNext}
-          onHoverChange={onHoverChange}
-          onOpenExplain={onOpenExplain}
-        />
+        {/* Guess rail — wrapped so the phone media query can pin it via
+             margin-top:auto on .railWrapper, pushing it to the thumb zone */}
+        <div className={styles.railWrapper}>
+          <GuessRail
+            guess={guess}
+            hover={hover}
+            trueTotal={trueTotal}
+            bandColor={bandColor}
+            onCommit={onCommit}
+            onNext={onNext}
+            onHoverChange={onHoverChange}
+            onOpenExplain={onOpenExplain}
+          />
+        </div>
       </div>
     </div>
   );

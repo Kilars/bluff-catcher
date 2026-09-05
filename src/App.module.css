@@ -1,0 +1,45 @@
+/*
+ * App.module.css — frame shell for the Runout drill.
+ *
+ * Desktop: fixed 1280 × 860 canvas, overflow hidden.
+ * The frame is a fixed-size island that sits in the page; no desktop globals needed.
+ *
+ * Phone portrait: @media (max-width: 820px)
+ * 820 px = the exact felt width.  Anything narrower cannot show the felt at
+ * 1:1 scale and reflows into the vertical-column phone layout.
+ * Landscape is left on the desktop code path (felt fits at landscape widths).
+ *
+ * Phone layout — single column, top → bottom:
+ *   1. Compact header (wraps / condenses) — see Header.module.css
+ *   2. Felt region (scaled down to fit 100vw) — see Table.module.css
+ *   3. Dock left col (hand read) then right col (result) stacked
+ *   4. GuessRail pinned sticky at bottom — see Dock.module.css
+ *
+ * Safe-area insets applied via env(safe-area-inset-*) in Header / GuessRail.
+ */
+
+/* ── Frame ───────────────────────────────────────────────────────────────── */
+
+.frame {
+  /* Desktop values — IDENTICAL to the former inline styles in App.tsx */
+  position: relative;
+  width: 1280px;
+  height: 860px;
+  overflow: hidden;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* ── Phone portrait override ─────────────────────────────────────────────── */
+
+@media (max-width: 820px) {
+  .frame {
+    width: 100vw;
+    height: 100vh;        /* fallback for browsers without dvh */
+    height: 100dvh;       /* preferred: excludes dynamic browser chrome */
+    overflow: hidden;     /* outer clips; inner sections scroll if needed */
+    overflow-y: auto;     /* allow vertical scroll on very small screens */
+  }
+}

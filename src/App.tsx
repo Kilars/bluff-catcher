@@ -24,6 +24,7 @@ import Table from './components/Table';
 import Dock from './components/Dock';
 import ExplainSheet from './components/ExplainSheet';
 import type { Spot } from './lib/deal';
+import styles from './App.module.css';
 
 // ─── Scoring constants ────────────────────────────────────────────────────────
 
@@ -120,18 +121,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '1280px',
-        height: '860px',
-        overflow: 'hidden',
-        background: 'var(--color-bg)',
-        display: 'flex',
-        flexDirection: 'column',
-        userSelect: 'none',
-      }}
-    >
+    <div className={styles.frame}>
       <Header
         hands={stats.hands}
         streak={stats.streak}

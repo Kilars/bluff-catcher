@@ -21,6 +21,9 @@ export default function Table({ hero, board, street }: TableProps) {
 
   return (
     <section className={styles.table}>
+      {/* feltScaleWrap owns the CSS transform that shrinks the felt on phone.
+          On desktop it has no styles and is invisible in the layout. */}
+      <div className={styles.feltScaleWrap}>
       <div className={styles.felt}>
         {/* Inner accent ring */}
         <div className={styles.accentRing} />
@@ -60,6 +63,7 @@ export default function Table({ hero, board, street }: TableProps) {
           ))}
         </div>
       </div>
+      </div>{/* end feltScaleWrap */}
     </section>
   );
 }

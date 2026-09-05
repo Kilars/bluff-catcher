@@ -144,3 +144,22 @@
   font-variant-numeric: tabular-nums;
   padding-top: 5.6px;
 }
+
+/* ── Phone portrait (max-width: 820px) ───────────────────────────────────── */
+/*
+ * Make the rail taller for comfortable touch (52px vs 44px desktop).
+ * Safe-area inset is handled by the dock wrapper padding in Dock.module.css,
+ * so no extra bottom padding needed here.
+ * touch-action: none is already set on .rail — tap = commit works.
+ */
+
+@media (max-width: 820px) {
+  .rail {
+    height: 52px;
+  }
+
+  .scale {
+    font-size: 12px;
+    padding-top: var(--space-2);
+  }
+}
