@@ -10,6 +10,13 @@
  *  - F = Fold (when uncommitted)
  *  - J = Open (when uncommitted)
  *  - Space / Enter = Next hand (when committed)
+ *  - R = Range grid (when committed)
+ *  - I = Situation info sheet (always)
+ *  - Escape = close whichever sheet is open
+ *
+ * The situation info sheet opens on every mount so the player always knows the
+ * scenario they are being drilled on. While a sheet is open the game keys are
+ * inert.
  *
  * Props:
  *  - onRecord(wasCorrect): called exactly once per commit to record the result
@@ -21,6 +28,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealPreflopSpot, type PreflopSpot } from '../lib/preflop/deal';
 import PreflopTable from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
+import PreflopInfoSheet from '../components/PreflopInfoSheet';
 import styles from './PreflopTrainer.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +51,9 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
 
   // Range sheet open/close state — only available after commit
   const [rangeOpen, setRangeOpen] = useState(false);
+
+  // Situation info sheet — open on mount, every mount (no persistence).
+  const [infoOpen, setInfoOpen] = useState(true);
 
   // Ref so keyboard handler always sees up-to-date committed value
   const committedRef = useRef<CommittedAction | null>(null);
@@ -71,6 +82,17 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
     setRangeOpen(false);
   }, []);
 
+  // Only one sheet at a time — opening one closes the other.
+  const openInfo = useCallback(() => {
+    setRangeOpen(false);
+    setInfoOpen(true);
+  }, []);
+
+  const openRange = useCallback(() => {
+    setInfoOpen(false);
+    setRangeOpen(true);
+  }, []);
+
   // ── Keyboard handler ─────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -82,17 +104,27 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      // Escape always closes the range sheet if open
+      // Escape closes whichever sheet is open
       if (e.key === 'Escape') {
-        setRangeOpen((open) => {
-          if (open) { e.preventDefault(); return false; }
-          return open;
-        });
+        if (infoOpen) {
+          e.preventDefault();
+          setInfoOpen(false);
+        } else if (rangeOpen) {
+          e.preventDefault();
+          setRangeOpen(false);
+        }
         return;
       }
 
-      // Don't handle game keys when the range sheet is open
-      if (rangeOpen) return;
+      // Don't handle game keys while a sheet is open
+      if (rangeOpen || infoOpen) return;
+
+      // I opens the situation info sheet, committed or not
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        openInfo();
+        return;
+      }
 
       const current = committedRef.current;
 
@@ -112,14 +144,14 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
           handleNext();
         } else if (e.key === 'r' || e.key === 'R') {
           e.preventDefault();
-          setRangeOpen(true);
+          openRange();
         }
       }
     }
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleCommit, handleNext, rangeOpen]);
+  }, [handleCommit, handleNext, openInfo, openRange, rangeOpen, infoOpen]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -140,10 +172,20 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
 
       {/* Controls dock */}
       <div className={styles.dock}>
-        {/* Left column — hand class label */}
+        {/* Left column — hand class label + situation info (both states) */}
         <div className={styles.left}>
-          <span className={styles.kicker}>Your hand</span>
-          <span className={styles.handClass}>{spot.handClass}</span>
+          <div className={styles.leftText}>
+            <span className={styles.kicker}>Your hand</span>
+            <span className={styles.handClass}>{spot.handClass}</span>
+          </div>
+          <button
+            type="button"
+            className={styles.btnInfo}
+            onClick={openInfo}
+          >
+            <span className={styles.keyHint}>I</span>
+            Info
+          </button>
         </div>
 
         {/* Right column — prompt or post-commit affordance */}
@@ -188,7 +230,7 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
                 <button
                   type="button"
                   className={styles.btnRange}
-                  onClick={() => setRangeOpen(true)}
+                  onClick={openRange}
                 >
                   <span className={styles.keyHint}>R</span>
                   Range
@@ -214,6 +256,9 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
           onClose={() => setRangeOpen(false)}
         />
       )}
+
+      {/* Situation info sheet — open on mount, re-openable via Info / I */}
+      {infoOpen && <PreflopInfoSheet onClose={() => setInfoOpen(false)} />}
     </>
   );
 }
