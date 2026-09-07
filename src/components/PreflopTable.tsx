@@ -4,8 +4,9 @@
  * Shows:
  *  - Hero's two concrete cards (via the shared Card component)
  *  - A clear position label (UTG / UTG+1 / UTG+2 / LJ / HJ / CO / BTN)
- *  - Folded seat indicators in front of hero (opponents)
- *  - Blind posts (SB / BB) behind hero
+ *  - The whole seat ring: seats that folded before hero, seats still to act
+ *    behind hero (the BTN among them, emphasised), and the SB / BB blinds
+ *  - A counter line: how many folded before hero, how many act behind
  *
  * No board — preflop only.
  * Reuses the felt look from Table.tsx (same tokens, same border-radius, same
@@ -57,38 +58,14 @@ const POSITION_LONG: Record<Position, string> = {
 // ─── Seat layout ──────────────────────────────────────────────────────────────
 
 /**
- * 9-max table seat layout from hero's perspective (hero is always at the
- * bottom/south).  The 8 remaining seats are displayed left-to-right across
- * the top arc.  We name them by their function at a 9-max table where hero
- * occupies each position in turn.
+ * 9-max seat layout from hero's perspective — hero always sits at the bottom,
+ * the other 8 seats run left-to-right across the top arc in action order.
  *
- * For clarity we always show all 8 non-hero seats with their position-relative
- * labels.  Seats in front of hero have folded; SB and BB show blind chips.
- *
- * The order from left-to-right across the felt (seat display order):
- *   index 0 = leftmost (UTG relative to BTN, etc.)
- *
- * We derive the displayed seats dynamically based on hero's position so that
- * the labels always reflect who folds before hero.
- *
- * For a 9-max 60bb RFI scenario:
- *   - Hero is one of: UTG, UTG1, UTG2, LJ, HJ, CO, BTN
- *   - All seats before hero in the action order have folded to hero
- *   - SB and BB are always "live" (posted), shown as blind chips
- *
- * The 9 seats (in VPIP/position order, seat 0 = UTG):
- *   [0] UTG, [1] UTG+1, [2] UTG+2 / LJ, [3] LJ / HJ, [4] HJ, [5] CO, [6] BTN, [7] SB, [8] BB
- *
- * Since UTG2 = LJ in the plan we deduplicate to 7 playable positions:
- *   UTG, UTG1, UTG2(=LJ), HJ, CO, BTN  → that is 6 unique non-blind seats
- * Actually the spec says 7: UTG, UTG1, UTG2, LJ, HJ, CO, BTN.
- * In a real 9-max, UTG2 and LJ are two different seats; the plan treats them
- * the same range-wise but they ARE different seats.
- *
- * Seat indices (0-based, UTG = 0):
- *   0=UTG 1=UTG1 2=UTG2 3=LJ 4=HJ 5=CO 6=BTN 7=SB 8=BB
- * Hero occupies one of 0-6.  All seats with index < hero's index have folded.
- * SB (7) and BB (8) are always posted.
+ * Seat indices (0-based): 0=UTG 1=UTG1 2=UTG2 3=LJ 4=HJ 5=CO 6=BTN, then SB, BB.
+ * Hero occupies one of 0-6.  Seats with a lower index have folded to hero;
+ * seats with a higher index are still to act behind hero (the BTN among them —
+ * it is the reference seat and must always be on screen).  SB and BB are always
+ * posted and shown as blind chips.
  */
 
 const SEAT_POSITION_ORDER: Position[] = [
@@ -96,22 +73,40 @@ const SEAT_POSITION_ORDER: Position[] = [
 ];
 
 /**
- * Short display labels for the non-hero seats as shown across the top.
- * We show: seats before hero (folded), SB, BB.
+ * A non-hero seat as displayed across the top of the felt.
+ *
+ *  folded — acted before hero and folded (dimmed card backs)
+ *  toAct  — still to act behind hero (upright neutral card backs)
+ *  sb/bb  — the posted blinds
  */
-interface SeatInfo {
+export interface SeatInfo {
   label: string;
-  type: 'folded' | 'sb' | 'bb';
+  type: 'folded' | 'toAct' | 'sb' | 'bb';
+  /** The button seat is the key reference point — emphasised visually. */
+  isBtn?: boolean;
 }
 
-function buildSeats(heroPos: Position): SeatInfo[] {
+/** Display labels for the 7 non-blind seats, in action order. */
+const SEAT_LABELS = ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN'];
+
+/**
+ * Builds all 8 non-hero seats in action order: the six/seven non-blind seats
+ * other than hero's own, then SB and BB.
+ *
+ * Seats before hero have folded; seats after hero are still to act (the BTN
+ * among them — it must never disappear, it is the reference seat).
+ */
+export function buildSeats(heroPos: Position): SeatInfo[] {
   const heroIdx = SEAT_POSITION_ORDER.indexOf(heroPos);
   const seats: SeatInfo[] = [];
 
-  // All positions before hero in order (they fold to hero)
-  for (let i = 0; i < heroIdx; i++) {
-    const posLabels = ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN'];
-    seats.push({ label: posLabels[i], type: 'folded' });
+  for (let i = 0; i < SEAT_LABELS.length; i++) {
+    if (i === heroIdx) continue; // hero sits at the bottom, not in the row
+    seats.push({
+      label: SEAT_LABELS[i],
+      type: i < heroIdx ? 'folded' : 'toAct',
+      isBtn: i === SEAT_LABELS.length - 1,
+    });
   }
 
   // SB and BB are always present (behind hero)
@@ -119,6 +114,33 @@ function buildSeats(heroPos: Position): SeatInfo[] {
   seats.push({ label: 'BB', type: 'bb' });
 
   return seats;
+}
+
+/**
+ * The context line under the position label:
+ *   "3 players folded before you · 3 players to act behind you (BTN last)"
+ *
+ * foldedBefore = hero's seat index; toActBehind = the non-blind seats between
+ * hero and the button, button included.
+ */
+export function buildContextLine(heroPos: Position): string {
+  const heroIdx = SEAT_POSITION_ORDER.indexOf(heroPos);
+  const foldedBefore = heroIdx;
+  const toActBehind = SEAT_LABELS.length - 1 - heroIdx;
+
+  const foldedPart =
+    foldedBefore === 0
+      ? 'First in — nobody has acted'
+      : `${foldedBefore} player${foldedBefore === 1 ? '' : 's'} folded before you`;
+
+  const actPart =
+    toActBehind === 0
+      ? "0 to act behind you — you're on the button"
+      : toActBehind === 1
+        ? '1 player to act behind you (the BTN)'
+        : `${toActBehind} players to act behind you (BTN last)`;
+
+  return `${foldedPart} · ${actPart}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -132,6 +154,7 @@ export default function PreflopTable({ hero, position }: PreflopTableProps) {
   const seats = buildSeats(position);
   const posLabel = POSITION_LABEL[position];
   const posLong = POSITION_LONG[position];
+  const contextLine = buildContextLine(position);
 
   return (
     <section className={styles.table}>
@@ -140,29 +163,44 @@ export default function PreflopTable({ hero, position }: PreflopTableProps) {
           {/* Inner accent ring */}
           <div className={styles.accentRing} />
 
-          {/* Seats row — folded opponents + SB/BB blinds */}
+          {/* Seats row — folded seats, seats still to act, SB/BB blinds */}
           <div className={styles.seatsRow}>
-            {seats.map((seat, i) => (
-              <div key={i} className={styles.seat}>
+            {seats.map((seat) => (
+              <div
+                key={seat.label}
+                className={`${styles.seat}${seat.isBtn ? ` ${styles.seatBtn}` : ''}`}
+              >
                 {seat.type === 'folded' ? (
                   <div className={styles.seatCards}>
-                    <div className={styles.seatBack} />
-                    <div className={styles.seatBack} />
+                    <div className={`${styles.seatBack} ${styles.seatBackFolded}`} />
+                    <div className={`${styles.seatBack} ${styles.seatBackFolded}`} />
+                  </div>
+                ) : seat.type === 'toAct' ? (
+                  <div className={styles.seatCards}>
+                    <div className={`${styles.seatBack} ${styles.seatBackLive}`} />
+                    <div className={`${styles.seatBack} ${styles.seatBackLive}`} />
                   </div>
                 ) : seat.type === 'sb' ? (
                   <div className={`${styles.blindChip} ${styles.sbChip}`}>SB</div>
                 ) : (
                   <div className={`${styles.blindChip} ${styles.bbChip}`}>BB</div>
                 )}
-                <span className={styles.seatLabel}>{seat.label}</span>
+                <span
+                  className={`${styles.seatLabel}${
+                    seat.type === 'folded' ? ` ${styles.seatLabelFolded}` : ''
+                  }${seat.isBtn ? ` ${styles.seatLabelBtn}` : ''}`}
+                >
+                  {seat.label}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* Position label in the centre of the felt */}
+          {/* Position label + action context in the centre of the felt */}
           <div className={styles.positionLabel}>
             <span className={styles.positionName}>{posLabel}</span>
             <span className={styles.positionContext}>{posLong}</span>
+            <span className={styles.actionContext}>{contextLine}</span>
           </div>
 
           {/* Hero cards — overhanging felt bottom */}

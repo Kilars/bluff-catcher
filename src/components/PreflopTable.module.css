@@ -79,12 +79,22 @@
   color: var(--color-neutral-700);
 }
 
-/* ── Seats row (top arc — folded opponents + blinds) ───────────────────── */
+/* Action context — "3 players folded before you · 3 to act behind you". */
+.actionContext {
+  margin-top: var(--space-2);
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--color-neutral-400);
+  white-space: nowrap;
+}
+
+/* ── Seats row (top arc — the whole ring minus hero) ────────────────────── */
 /*
- * We lay out 8 other seats in a single absolute row across the top of the felt.
- * From hero's perspective in seat 0 (bottom), the seats going left-to-right
- * across the felt top are seats 1-8 (opponents).
- * We split them: UTG through BTN are "folded", SB and BB are "posted".
+ * All 8 non-hero seats sit in a single absolute row across the top of the felt,
+ * in action order: seats that folded before hero, seats still to act behind
+ * hero (BTN emphasised), then the SB and BB blinds.
+ * 8 seats × ~34px + 7 × 10px gap + 56px padding ≈ 400px inside the 820px felt.
  */
 
 .seatsRow {
@@ -95,8 +105,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 14px;
-  padding: 0 40px;
+  gap: 10px;
+  padding: 0 28px;
 }
 
 /* ── Individual seat chip ──────────────────────────────────────────────── */
@@ -108,7 +118,7 @@
   gap: 4px;
 }
 
-/* The "folded" back cards shown above the seat label */
+/* The back cards shown above the seat label (folded + still-to-act seats) */
 .seatCards {
   display: flex;
   gap: 2px;
@@ -120,6 +130,26 @@
   border-radius: 2px;
   background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900));
   box-shadow: inset 0 0 0 1px var(--color-accent-700);
+}
+
+/* Folded — dimmed and slightly shrunk so "out of the hand" reads instantly */
+.seatBackFolded {
+  opacity: 0.3;
+  transform: scale(0.92);
+}
+
+/* Still to act — upright, full opacity, neutral (not accent) backs */
+.seatBackLive {
+  background: linear-gradient(160deg, #34384a, #262937);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-700);
+}
+
+/* The button seat — the key reference point, always visible, accent-tinted */
+.seatBtn .seatBackLive {
+  background: linear-gradient(160deg, var(--color-accent-700), var(--color-accent-900));
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent-500),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 /* Blind chip (replaces the card backs for SB/BB) */
@@ -153,8 +183,22 @@
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--color-neutral-700);
+  color: var(--color-neutral-500);
   white-space: nowrap;
+}
+
+/* Folded seats recede */
+.seatLabelFolded {
+  color: var(--color-neutral-700);
+}
+
+/* Button label is emphasised — accent colour + faint ring */
+.seatLabelBtn {
+  color: var(--color-accent-300);
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
 /* ── Hero cards (overhanging felt bottom, identical to Table) ───────────── */
@@ -185,5 +229,17 @@
     transform: scale(var(--felt-scale, 0.45));
     transform-origin: top center;
     align-self: flex-start;
+  }
+
+  /* The felt is drawn at 820px and scaled to ~0.45 on phone, so felt-space type
+   * shrinks with it.  Size the counter line up here so it lands at ~10px on the
+   * device — this is the line the player reads at a glance, not fine print. */
+  .actionContext {
+    font-size: 22px;
+    line-height: 1.35;
+    white-space: normal;
+    max-width: 560px;
+    text-align: center;
+    color: var(--color-neutral-300);
   }
 }

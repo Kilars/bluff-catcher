@@ -21,17 +21,25 @@
   gap: 33.6px;
 }
 
-/* ── Left column — question text ────────────────────────────────────────── */
+/* ── Left column — hand class + Info button ─────────────────────────────── */
 
 .left {
   width: 274px;
   flex: none;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-5);
   padding-right: var(--space-8);
   border-right: 1px solid var(--color-divider);
+}
+
+/* Kicker + hand class stack (kept together when Info sits beside it on phone) */
+.leftText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .kicker {
@@ -164,6 +172,33 @@
   flex: none;
 }
 
+/* Info button — ghost, same language as .btnRange, always available */
+.btnInfo {
+  height: 32px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--color-neutral-700);
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+
+.btnInfo:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-200);
+}
+
+.btnInfo:active {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
 /* ── Post-commit: verdict placeholder + Next button ─────────────────────── */
 
 .postCommit {
@@ -270,14 +305,27 @@
     justify-content: flex-start;
   }
 
-  /* Left col — hand class, full-width, no right divider */
+  /* Left col — hand class on the left, Info button on the right (one row).
+   * Keeping Info here leaves the thumb row a clean two-button split in both
+   * the pre-commit (Fold / Open) and post-commit (Range / Next) states. */
   .left {
     width: auto;
     flex: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
     border-right: none;
     padding-right: 0;
     border-bottom: 1px solid var(--color-divider);
     padding-bottom: var(--space-3);
+  }
+
+  /* Info stays a compact tap target, never stretches */
+  .btnInfo {
+    height: 36px;
+    font-size: 14px;
+    touch-action: manipulation;
   }
 
   /* Hand class label smaller on phone — still legible */
