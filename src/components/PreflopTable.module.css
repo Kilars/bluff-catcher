@@ -1,8 +1,8 @@
 /* PreflopTable.module.css
  *
  * The preflop felt — reuses the same visual language as Table.module.css
- * (felt shape, accent ring, token values). No board; shows position label,
- * folded seats, hero cards, and blinds.
+ * (felt shape, accent ring, token values). No board; a real 9-max seat ring
+ * with a dealer button and posted blinds, hero at the bottom.
  */
 
 /* ── Section wrapper (same role as .table in Table.module.css) ─────────── */
@@ -48,40 +48,33 @@
   pointer-events: none;
 }
 
-/* ── Position label (centre of felt) ──────────────────────────────────── */
+/* ── Centre of the felt — long position name + the action counter ─────── */
 
-.positionLabel {
+.centre {
   position: absolute;
-  top: 50%;
+  /* Sits above hero's plaque, which is pinned just over hero's cards */
+  top: 38%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  /* Render behind seat indicators but above the felt background */
+  /* Behind the seats, above the felt background */
   z-index: 0;
 }
 
-.positionName {
+.centreName {
   font-family: var(--font-heading);
   font-weight: 500;
-  font-size: 13px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-neutral-600);
 }
 
-.positionContext {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-neutral-700);
-}
-
 /* Action context — "3 players folded before you · 3 to act behind you". */
 .actionContext {
-  margin-top: var(--space-2);
   font-size: 13px;
   line-height: 1.4;
   letter-spacing: 0.01em;
@@ -89,116 +82,136 @@
   white-space: nowrap;
 }
 
-/* ── Seats row (top arc — the whole ring minus hero) ────────────────────── */
+/* ── Seats ─────────────────────────────────────────────────────────────── */
 /*
- * All 8 non-hero seats sit in a single absolute row across the top of the felt,
- * in action order: seats that folded before hero, seats still to act behind
- * hero (BTN emphasised), then the SB and BB blinds.
- * 8 seats × ~34px + 7 × 10px gap + 56px padding ≈ 400px inside the 820px felt.
+ * Every seat is absolutely placed on the felt at the coordinates in
+ * SEAT_SLOTS and centred on that point. A seat is card backs (only if the
+ * player still holds cards) stacked over a name plaque.
  */
 
-.seatsRow {
-  position: absolute;
-  top: 22px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 0 28px;
-}
-
-/* ── Individual seat chip ──────────────────────────────────────────────── */
-
 .seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  z-index: 1;
 }
 
-/* The back cards shown above the seat label (folded + still-to-act seats) */
+/* Folded seats recede — they are out of the hand */
+.seatFolded {
+  opacity: 0.42;
+}
+
 .seatCards {
   display: flex;
   gap: 2px;
 }
 
+/* Face-down backs — neutral, no accent, nothing shouts for attention */
 .seatBack {
-  width: 16px;
-  height: 22px;
+  width: 17px;
+  height: 23px;
   border-radius: 2px;
-  background: linear-gradient(160deg, var(--color-accent-800), var(--color-accent-900));
-  box-shadow: inset 0 0 0 1px var(--color-accent-700);
+  background: linear-gradient(160deg, #343849, #262937);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
 }
 
-/* Folded — dimmed and slightly shrunk so "out of the hand" reads instantly */
-.seatBackFolded {
-  opacity: 0.3;
-  transform: scale(0.92);
-}
-
-/* Still to act — upright, full opacity, neutral (not accent) backs */
-.seatBackLive {
-  background: linear-gradient(160deg, #34384a, #262937);
-  box-shadow: inset 0 0 0 1px var(--color-neutral-700);
-}
-
-/* The button seat — the key reference point, always visible, accent-tinted */
-.seatBtn .seatBackLive {
-  background: linear-gradient(160deg, var(--color-accent-700), var(--color-accent-900));
-  box-shadow:
-    inset 0 0 0 1px var(--color-accent-500),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
-}
-
-/* Blind chip (replaces the card backs for SB/BB) */
-.blindChip {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+/* Name plaque — the little nameplate in front of each seat */
+.plaque {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 8px;
+  gap: 1px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #0e0f18 62%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-900);
+}
+
+.plaqueName {
   font-family: var(--font-heading);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sbChip {
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
-  color: var(--color-accent-300);
-}
-
-.bbChip {
-  background: color-mix(in srgb, var(--color-accent-2) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent-2) 45%, transparent);
-  color: var(--color-accent-2-300);
-}
-
-.seatLabel {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--color-neutral-300);
+  white-space: nowrap;
+}
+
+.plaqueStack {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--color-neutral-600);
+  white-space: nowrap;
+}
+
+/* Hero's plaque — same nameplate, marginally brighter so "you" reads first */
+.heroSeat .plaque {
+  background: color-mix(in srgb, #0e0f18 74%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+}
+
+.heroSeat .plaqueName {
+  color: var(--color-neutral-100);
+}
+
+.heroSeat .plaqueStack {
+  color: var(--color-neutral-500);
+}
+
+/* ── Posted blinds — a chip out in front of the seat ───────────────────── */
+
+.chipSpot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+
+/* A single chip, seen from above: dark body with a dashed edge pattern */
+.chip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #3c4055 0%, #222534 70%);
+  box-shadow:
+    inset 0 0 0 1px var(--color-neutral-600),
+    inset 0 0 0 3px #1b1d29,
+    0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.chipAmount {
+  font-size: 9px;
+  letter-spacing: 0.04em;
   color: var(--color-neutral-500);
   white-space: nowrap;
 }
 
-/* Folded seats recede */
-.seatLabelFolded {
-  color: var(--color-neutral-700);
-}
+/* ── Dealer button — the real thing: a cream disc with a D ─────────────── */
 
-/* Button label is emphasised — accent colour + faint ring */
-.seatLabelBtn {
-  color: var(--color-accent-300);
+.dealerButton {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, #f4f1e6, #d8d3c2);
+  color: #2a2b31;
+  font-family: var(--font-heading);
   font-weight: 500;
-  padding: 1px 5px;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 2px 5px rgba(0, 0, 0, 0.55);
+  z-index: 2;
 }
 
 /* ── Hero cards (overhanging felt bottom, identical to Table) ───────────── */
@@ -211,6 +224,7 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-3);
+  z-index: 2;
 }
 
 /* ── feltScaleWrap (identical contract to Table.module.css) ─────────────── */
@@ -232,14 +246,46 @@
   }
 
   /* The felt is drawn at 820px and scaled to ~0.45 on phone, so felt-space type
-   * shrinks with it.  Size the counter line up here so it lands at ~10px on the
-   * device — this is the line the player reads at a glance, not fine print. */
+   * shrinks with it.  Size the felt type up here so it lands legibly on the
+   * device — these are the lines the player reads at a glance, not fine print. */
   .actionContext {
-    font-size: 22px;
+    font-size: 21px;
     line-height: 1.35;
     white-space: normal;
-    max-width: 560px;
+    max-width: 520px;
     text-align: center;
     color: var(--color-neutral-300);
+  }
+
+  .centreName {
+    font-size: 15px;
+  }
+
+  .plaqueName {
+    font-size: 15px;
+  }
+
+  .plaqueStack {
+    font-size: 12px;
+  }
+
+  .chipAmount {
+    font-size: 14px;
+  }
+
+  .seatBack {
+    width: 20px;
+    height: 27px;
+  }
+
+  .dealerButton {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .chip {
+    width: 18px;
+    height: 18px;
   }
 }
