@@ -5,6 +5,9 @@
  * the available modes; the active one is marked. Selecting a mode switches
  * it and closes the menu.
  *
+ * Below the modes sits a "Tools" group with the RFI range charts, so the
+ * charts are reachable without playing a hand first.
+ *
  * Accessibility:
  *   - button has aria-label and aria-expanded
  *   - menu closes on Esc and on outside-click
@@ -28,9 +31,11 @@ const MENU_ITEMS: MenuItem[] = [
 interface MenuProps {
   currentMode: AppMode;
   onModeChange: (mode: AppMode) => void;
+  /** Opens the standalone RFI range-chart browser. */
+  onOpenRanges: () => void;
 }
 
-export default function Menu({ currentMode, onModeChange }: MenuProps) {
+export default function Menu({ currentMode, onModeChange, onOpenRanges }: MenuProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -82,6 +87,11 @@ export default function Menu({ currentMode, onModeChange }: MenuProps) {
     [onModeChange, close]
   );
 
+  const handleOpenRanges = useCallback(() => {
+    onOpenRanges();
+    close();
+  }, [onOpenRanges, close]);
+
   return (
     <div className={styles.wrapper}>
       <button
@@ -118,6 +128,16 @@ export default function Menu({ currentMode, onModeChange }: MenuProps) {
               )}
             </button>
           ))}
+
+          <div className={styles.separator} />
+          <span className={styles.groupLabel}>Tools</span>
+          <button
+            className={styles.item}
+            role="menuitem"
+            onClick={handleOpenRanges}
+          >
+            RFI range charts
+          </button>
         </div>
       )}
     </div>

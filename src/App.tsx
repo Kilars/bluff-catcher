@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useStats } from './hooks/useStats';
 import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
+import RangeSheet from './components/RangeSheet';
 import OddsTrainer from './modes/OddsTrainer';
 import PreflopTrainer from './modes/PreflopTrainer';
 import styles from './App.module.css';
@@ -58,6 +59,11 @@ function saveMode(mode: AppMode): void {
 
 export default function App() {
   const [mode, setMode] = useState<AppMode>(() => loadMode());
+
+  // Standalone RFI range-chart browser, opened from the header menu.
+  // Independent of the trainer's own range sheet: it always opens on UTG and
+  // is browsable from any mode, without a hand in play.
+  const [rangesOpen, setRangesOpen] = useState(false);
   const stats = useStats();
   const preflopStats = usePreflopStats();
 
@@ -87,6 +93,7 @@ export default function App() {
       <Header
         mode={mode}
         onModeChange={handleModeChange}
+        onOpenRanges={() => setRangesOpen(true)}
         oddsStats={
           mode === 'odds'
             ? {
@@ -113,7 +120,11 @@ export default function App() {
       {mode === 'odds' && <OddsTrainer stats={stats} />}
 
       {mode === 'preflop' && (
-        <PreflopTrainer onRecord={preflopStats.record} />
+        <PreflopTrainer onRecord={preflopStats.record} keysSuspended={rangesOpen} />
+      )}
+
+      {rangesOpen && (
+        <RangeSheet position="UTG" onClose={() => setRangesOpen(false)} />
       )}
     </div>
   );

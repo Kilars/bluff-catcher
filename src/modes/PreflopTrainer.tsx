@@ -22,6 +22,8 @@
  *  - onRecord(wasCorrect): called exactly once per commit to record the result
  *    in the preflop stats hook lifted to App root. The double-record guard is
  *    the committedRef check in handleCommit (already committed → early return).
+ *  - keysSuspended: true while an App-level overlay (the menu's range-chart
+ *    browser) is on top, so game keys do not fire behind it.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -38,11 +40,13 @@ type CommittedAction = 'open' | 'fold';
 interface PreflopTrainerProps {
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;
+  /** True while an overlay owned by App is open — all game keys go inert. */
+  keysSuspended?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
+export default function PreflopTrainer({ onRecord, keysSuspended = false }: PreflopTrainerProps) {
   // Current spot — initialised on mount via lazy initialiser
   const [spot, setSpot] = useState<PreflopSpot>(() => dealPreflopSpot());
 
@@ -97,6 +101,9 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // An App-level overlay owns the keyboard while it is open.
+      if (keysSuspended) return;
+
       // Ignore when a modifier is held or when the event comes from an input
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.repeat) return;
@@ -151,7 +158,7 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleCommit, handleNext, openInfo, openRange, rangeOpen, infoOpen]);
+  }, [handleCommit, handleNext, openInfo, openRange, rangeOpen, infoOpen, keysSuspended]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -251,7 +258,9 @@ export default function PreflopTrainer({ onRecord }: PreflopTrainerProps) {
       {/* Range sheet — rendered only after commit, when rangeOpen is true */}
       {rangeOpen && (
         <RangeSheet
+          key={spot.position}
           position={spot.position}
+          heroPosition={spot.position}
           highlight={spot.handClass}
           onClose={() => setRangeOpen(false)}
         />

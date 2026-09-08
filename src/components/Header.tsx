@@ -32,9 +32,17 @@ interface HeaderProps {
   onModeChange: (mode: AppMode) => void;
   oddsStats?: OddsStatsProps;
   preflopStats?: PreflopStatsProps;
+  /** Opens the standalone RFI range-chart browser from the menu. */
+  onOpenRanges: () => void;
 }
 
-export default function Header({ mode, onModeChange, oddsStats, preflopStats }: HeaderProps) {
+export default function Header({
+  mode,
+  onModeChange,
+  oddsStats,
+  preflopStats,
+  onOpenRanges,
+}: HeaderProps) {
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`
@@ -43,7 +51,11 @@ export default function Header({ mode, onModeChange, oddsStats, preflopStats }: 
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <Menu currentMode={mode} onModeChange={onModeChange} />
+        <Menu
+          currentMode={mode}
+          onModeChange={onModeChange}
+          onOpenRanges={onOpenRanges}
+        />
         <div className={styles.brand}>
           <span className={styles.brandName}>RUNOUT</span>
           <span className={styles.brandSub}>

@@ -95,6 +95,22 @@
   color: var(--color-text);
 }
 
+/* ── Tools group ──────────────────────────────────────────────────────────── */
+
+.separator {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--color-divider);
+}
+
+.groupLabel {
+  padding: var(--space-2) var(--space-6);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
 /* ── Active marker dot ────────────────────────────────────────────────────── */
 
 .activeMarker {
@@ -116,5 +132,9 @@
   .item {
     font-size: 12px;
     padding: var(--space-3) var(--space-4);
+  }
+
+  .groupLabel {
+    padding: var(--space-2) var(--space-4);
   }
 }
