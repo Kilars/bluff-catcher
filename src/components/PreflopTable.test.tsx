@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import PreflopTable, { buildSeats } from './PreflopTable';
+import PreflopTable, { buildSeats, seatSlotIndex } from './PreflopTable';
 import type { Card as CardCode } from '../lib/odds';
 
 const HERO: [CardCode, CardCode] = ['As', 'Kh'];
@@ -21,9 +21,11 @@ describe('PreflopTable seats', () => {
     for (const label of ['UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    // SB / BB appear twice each: once on the chip, once as the seat label
-    expect(screen.getAllByText('SB')).toHaveLength(2);
-    expect(screen.getAllByText('BB')).toHaveLength(2);
+    // Blinds are seats like any other — one plaque each, plus a posted chip
+    expect(screen.getByText('SB')).toBeInTheDocument();
+    expect(screen.getByText('BB')).toBeInTheDocument();
+    expect(screen.getByText('0.5')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
     expect(buildSeats('UTG')).toHaveLength(8);
   });
 
@@ -39,7 +41,7 @@ describe('PreflopTable seats', () => {
 
   it('omits hero’s own seat from the ring', () => {
     render(<PreflopTable hero={HERO} position="HJ" />);
-    // 'HJ' appears once only — as the centre position label, not as a seat
+    // 'HJ' appears once only — on hero's own plaque, not as a ring seat
     expect(screen.getAllByText('HJ')).toHaveLength(1);
     expect(buildSeats('HJ').map((s) => s.label)).toEqual([
       'UTG', 'UTG+1', 'UTG+2', 'LJ', 'CO', 'BTN', 'SB', 'BB',
@@ -55,6 +57,29 @@ describe('PreflopTable seats', () => {
       'HJ', 'CO', 'BTN',
     ]);
     expect(seats.find((s) => s.label === 'BTN')?.isBtn).toBe(true);
+  });
+
+  it('seats the ring clockwise from hero, blinds included', () => {
+    // Hero on the CO: the button is the next seat round, then SB and BB.
+    expect(seatSlotIndex('CO', 'BTN')).toBe(1);
+    expect(seatSlotIndex('CO', 'SB')).toBe(2);
+    expect(seatSlotIndex('CO', 'BB')).toBe(3);
+    expect(seatSlotIndex('CO', 'UTG')).toBe(4);
+    // …and the seat that acted just before hero sits on hero's right.
+    expect(seatSlotIndex('CO', 'HJ')).toBe(8);
+  });
+
+  it('puts hero in slot 0, so the button rides with hero on the BTN', () => {
+    expect(seatSlotIndex('BTN', 'BTN')).toBe(0);
+    expect(seatSlotIndex('UTG', 'UTG')).toBe(0);
+  });
+
+  it('always shows one dealer button', () => {
+    for (const pos of ['UTG', 'HJ', 'BTN'] as const) {
+      const { unmount } = render(<PreflopTable hero={HERO} position={pos} />);
+      expect(screen.getAllByLabelText('Dealer button')).toHaveLength(1);
+      unmount();
+    }
   });
 });
 
