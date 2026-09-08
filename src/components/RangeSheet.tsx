@@ -1,22 +1,36 @@
 /**
- * RangeSheet — sheet overlay that displays the full 13×13 opening range grid.
+ * RangeSheet — sheet overlay that displays the full 13×13 opening range grid,
+ * with navigation across every seat's chart.
  *
  * Reuses ExplainSheet's CSS module (backdrop, sheet, sheetInner, sheetHeader,
- * closeBtn, divider, footer, btnAccent, btnGhost) without forking the animation.
+ * closeBtn, divider, footer, btnAccent) without forking the animation; the
+ * navigator chrome lives in RangeSheet.module.css.
  *
- * Opens with the same riseSheet animation (220ms) defined in ExplainSheet.module.css.
- * Closes via backdrop click, × button, or Escape (Esc handled by parent).
+ * Navigation — four ways to move between positions:
+ *   1. ‹ / › arrow buttons beside the title
+ *   2. the position tab strip (UTG … BTN)
+ *   3. ArrowLeft / ArrowRight keys
+ *   4. horizontal wheel/trackpad scroll or touch swipe over the grid
+ * Movement is clamped at both ends (no wraparound) so the seat order stays
+ * legible as "earliest → latest position".
+ *
+ * The sheet is used from two places:
+ *   - PreflopTrainer, after a commit: opens on the hero's seat, hand highlighted.
+ *   - The header menu: opens standalone as a chart browser (no hand).
  *
  * Props:
- *   position    — hero's seat (used to render the range grid + position label).
- *   highlight   — hero's current hand class (highlighted cell in the grid).
+ *   position    — the seat to open on (initial only; the sheet owns it after).
+ *   highlight   — hero's current hand class; marked only on the hero's own chart.
+ *   heroPosition— seat of the hand being drilled, dotted in the tab strip.
  *   onClose     — called when the sheet should close.
  */
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import RangeGrid from './RangeGrid';
-import type { Position } from '../lib/preflop/ranges';
+import { POSITIONS, rangeComboCount, type Position } from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
 import styles from './ExplainSheet.module.css';
+import nav from './RangeSheet.module.css';
 
 // ─── Position display labels ──────────────────────────────────────────────────
 
@@ -30,18 +44,130 @@ const POSITION_LABELS: Record<Position, string> = {
   BTN: 'Button (BTN)',
 };
 
+/** Short labels for the tab strip — the full names do not fit on a phone. */
+const POSITION_SHORT: Record<Position, string> = {
+  UTG: 'UTG',
+  UTG1: 'UTG+1',
+  UTG2: 'UTG+2',
+  LJ: 'LJ',
+  HJ: 'HJ',
+  CO: 'CO',
+  BTN: 'BTN',
+};
+
+/** Total preflop combos (52 choose 2) — denominator for the range percentage. */
+const TOTAL_COMBOS = 1326;
+
+// ─── Gesture tuning ───────────────────────────────────────────────────────────
+
+/** Horizontal px that must accumulate before a wheel gesture steps a position. */
+const WHEEL_STEP_PX = 60;
+/** Minimum horizontal px of a touch drag that counts as a swipe. */
+const SWIPE_MIN_PX = 50;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface RangeSheetProps {
   position: Position;
   highlight?: HandClass;
+  heroPosition?: Position;
   onClose: () => void;
 }
 
-export default function RangeSheet({ position, highlight, onClose }: RangeSheetProps) {
+export default function RangeSheet({
+  position,
+  highlight,
+  heroPosition,
+  onClose,
+}: RangeSheetProps) {
+  // The chart currently on screen. Seeded from `position`, then owned here so
+  // the user can browse away from the seat the sheet opened on. The sheet is
+  // mounted only while open, so the seed is re-read on every open; callers that
+  // keep it mounted across spots should pass a `key` to force a remount.
+  const [viewPos, setViewPos] = useState<Position>(position);
+
+  const idx = POSITIONS.indexOf(viewPos);
+  const canPrev = idx > 0;
+  const canNext = idx < POSITIONS.length - 1;
+
+  const step = useCallback((delta: number) => {
+    setViewPos((cur) => {
+      const next = POSITIONS.indexOf(cur) + delta;
+      if (next < 0 || next >= POSITIONS.length) return cur;
+      return POSITIONS[next];
+    });
+  }, []);
+
+  // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        step(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        step(1);
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [step, onClose]);
+
+  // ── Wheel: horizontal trackpad scroll steps a position ───────────────────
+  // Only deltaX is consumed, so vertical scrolling of a tall grid still works.
+  const wheelAccum = useRef(0);
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      wheelAccum.current += e.deltaX;
+      if (wheelAccum.current >= WHEEL_STEP_PX) {
+        wheelAccum.current = 0;
+        step(1);
+      } else if (wheelAccum.current <= -WHEEL_STEP_PX) {
+        wheelAccum.current = 0;
+        step(-1);
+      }
+    },
+    [step]
+  );
+
+  // ── Touch: horizontal swipe steps a position ─────────────────────────────
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      const start = touchStart.current;
+      touchStart.current = null;
+      if (!start) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      // Ignore mostly-vertical drags — those are scrolls, not swipes.
+      if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return;
+      step(dx < 0 ? 1 : -1);
+    },
+    [step]
+  );
+
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
   }
+
+  // Only mark the hand on the chart it was actually dealt in.
+  const heroSeat = heroPosition ?? (highlight ? position : undefined);
+  const gridHighlight = viewPos === heroSeat ? highlight : undefined;
+
+  const combos = rangeComboCount(viewPos);
+  const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
 
   return (
     <>
@@ -58,12 +184,30 @@ export default function RangeSheet({ position, highlight, onClose }: RangeSheetP
           <div className={styles.sheetHeader}>
             <div className={styles.headerLeft}>
               <span className={styles.headerKicker}>Opening range</span>
-              <h1 className={styles.headerTitle}>
-                {POSITION_LABELS[position]}
-              </h1>
+              <div className={nav.titleRow}>
+                <button
+                  type="button"
+                  className={nav.arrow}
+                  onClick={() => step(-1)}
+                  disabled={!canPrev}
+                  aria-label="Previous position"
+                >
+                  ‹
+                </button>
+                <h1 className={styles.headerTitle}>{POSITION_LABELS[viewPos]}</h1>
+                <button
+                  type="button"
+                  className={nav.arrow}
+                  onClick={() => step(1)}
+                  disabled={!canNext}
+                  aria-label="Next position"
+                >
+                  ›
+                </button>
+              </div>
               <p className={styles.headerSubline}>
-                Green = open · Dark = fold
-                {highlight ? ` · Your hand: ${highlight}` : ''}
+                {combos} combos · {pct}% · green = open, dark = fold
+                {gridHighlight ? ` · Your hand: ${gridHighlight}` : ''}
               </p>
             </div>
             <button
@@ -76,12 +220,36 @@ export default function RangeSheet({ position, highlight, onClose }: RangeSheetP
             </button>
           </div>
 
+          {/* Position tab strip */}
+          <div className={nav.tabs} role="tablist" aria-label="Position">
+            {POSITIONS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                role="tab"
+                aria-selected={p === viewPos}
+                className={`${nav.tab} ${p === viewPos ? nav.tabActive : ''}`}
+                onClick={() => setViewPos(p)}
+              >
+                {POSITION_SHORT[p]}
+                {p === heroSeat && (
+                  <span className={nav.heroDot} aria-label="(your seat)" />
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* Divider */}
           <div className={styles.divider} />
 
-          {/* Grid body */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <RangeGrid position={position} highlight={highlight} />
+          {/* Grid body — swipe / horizontal-scroll target */}
+          <div
+            className={nav.body}
+            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <RangeGrid position={viewPos} highlight={gridHighlight} />
           </div>
 
           {/* Footer */}
@@ -91,8 +259,11 @@ export default function RangeSheet({ position, highlight, onClose }: RangeSheetP
               className={styles.btnAccent}
               onClick={onClose}
             >
-              Back to the table
+              Close
             </button>
+            <span className={nav.navHint}>
+              ← / → arrows, tabs or swipe to change position
+            </span>
           </div>
         </div>
       </div>

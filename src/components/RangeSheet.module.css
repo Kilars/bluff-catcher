@@ -1,0 +1,114 @@
+/* RangeSheet.module.css — navigation chrome for the range-chart sheet.
+ *
+ * The sheet shell (backdrop, panel, header, footer) is reused from
+ * ExplainSheet.module.css; this module only adds the position navigator:
+ * prev/next arrows, the position tab strip, and the swipeable body.
+ */
+
+/* ── Arrow buttons ────────────────────────────────────────────────────────── */
+
+.arrow {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--color-neutral-700);
+  color: var(--color-neutral-300);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.arrow:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-200);
+}
+
+.arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Title row: ‹ title › so the arrows sit next to what they move. */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ── Position tab strip ───────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-800);
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.tab:hover {
+  color: var(--color-text);
+  border-color: var(--color-neutral-700);
+}
+
+.tabActive,
+.tabActive:hover {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-neutral-900));
+  border-color: var(--color-accent);
+  color: var(--color-accent-100);
+}
+
+/* Dot marking the seat of the hand currently being drilled. */
+.heroDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--band-green);
+  vertical-align: middle;
+}
+
+/* ── Swipe/scroll body ────────────────────────────────────────────────────── */
+
+.body {
+  flex: 1;
+  overflow: auto;
+  touch-action: pan-y;
+}
+
+.navHint {
+  align-self: center;
+  font-size: 12px;
+  color: var(--color-neutral-600);
+}
+
+@media (max-width: 820px) {
+  .tab {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .navHint {
+    display: none;
+  }
+}
