@@ -14,14 +14,29 @@ import {
   strengthRank,
   combosForClass,
 } from './hands';
-import { type Position, POSITIONS, isOpen, getRangeSet } from './ranges';
+import {
+  type Depth,
+  type Position,
+  DEFAULT_DEPTH,
+  POSITIONS,
+  isOpen,
+  getRangeSet,
+} from './ranges';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface PreflopSpot {
   position: Position;
+  /** The stack tier this spot was dealt at. */
+  depth: Depth;
   cards: [Card, Card];
   handClass: HandClass;
+  /**
+   * The correct aggressive action is always spelled 'open' here, at every
+   * depth — it means "put chips in" as opposed to folding. At the 10bb tier
+   * the UI renders it as "jam" via DEPTH_META[depth].actionLabel; the data
+   * layer does not need two words for one decision.
+   */
   correct: 'open' | 'fold';
 }
 
@@ -30,6 +45,8 @@ export interface DealPreflopOpts {
   rng?: () => number;
   /** Override pool strategy. Default: ACTIVE_POOL. */
   pool?: Pool;
+  /** Stack tier to deal for. Default: DEFAULT_DEPTH ('deep', the 40bb+ chart). */
+  depth?: Depth;
 }
 
 // ─── Pool strategy interface ──────────────────────────────────────────────────
@@ -40,7 +57,7 @@ export interface DealPreflopOpts {
  */
 export interface Pool {
   readonly name: string;
-  weight(pos: Position, hc: HandClass): number;
+  weight(pos: Position, hc: HandClass, depth: Depth): number;
 }
 
 // ─── Built-in pool strategies ─────────────────────────────────────────────────
@@ -51,7 +68,7 @@ export interface Pool {
  */
 export const uniformPool: Pool = {
   name: 'uniform',
-  weight(_pos: Position, _hc: HandClass): number {
+  weight(_pos: Position, _hc: HandClass, _depth: Depth): number {
     return 1;
   },
 };
@@ -91,12 +108,12 @@ const TRASH_WEIGHT = 0.25;
  *   among all excluded classes)
  * - boundaryMidRank: midpoint used to define the edge band
  */
-function computeBoundary(pos: Position): {
+function computeBoundary(pos: Position, depth: Depth): {
   weakestOpenRank: number;
   strongestFoldRank: number;
   boundaryMidRank: number;
 } {
-  const rangeSet = getRangeSet(pos);
+  const rangeSet = getRangeSet(pos, depth);
 
   let weakestOpenRank = -1;
   let strongestFoldRank = HAND_STRENGTH_RANKING.length;
@@ -116,23 +133,24 @@ function computeBoundary(pos: Position): {
   return { weakestOpenRank, strongestFoldRank, boundaryMidRank };
 }
 
-/** Cached boundary data per position. */
-const BOUNDARY_CACHE = new Map<Position, ReturnType<typeof computeBoundary>>();
+/** Cached boundary data, keyed by depth + position — each tier has its own edge. */
+const BOUNDARY_CACHE = new Map<string, ReturnType<typeof computeBoundary>>();
 
-function getBoundary(pos: Position): ReturnType<typeof computeBoundary> {
-  if (!BOUNDARY_CACHE.has(pos)) {
-    BOUNDARY_CACHE.set(pos, computeBoundary(pos));
+function getBoundary(pos: Position, depth: Depth): ReturnType<typeof computeBoundary> {
+  const key = `${depth}:${pos}`;
+  if (!BOUNDARY_CACHE.has(key)) {
+    BOUNDARY_CACHE.set(key, computeBoundary(pos, depth));
   }
-  return BOUNDARY_CACHE.get(pos)!;
+  return BOUNDARY_CACHE.get(key)!;
 }
 
 export const edgeSkewPool: Pool = {
   name: 'edgeSkew',
-  weight(pos: Position, hc: HandClass): number {
+  weight(pos: Position, hc: HandClass, depth: Depth): number {
     const rank = strengthRank(hc);
     if (rank === -1) return 1; // shouldn't happen
 
-    const { boundaryMidRank } = getBoundary(pos);
+    const { boundaryMidRank } = getBoundary(pos, depth);
     const distance = Math.abs(rank - boundaryMidRank);
 
     if (distance <= EDGE_BAND_HALF_WIDTH) {
@@ -169,7 +187,12 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
  * Uses combo-count weighting (pairs 6x, suited 4x, offsuit 12x) combined with
  * the pool's per-class weight.
  */
-function sampleHandClass(pos: Position, pool: Pool, rng: () => number): HandClass {
+function sampleHandClass(
+  pos: Position,
+  pool: Pool,
+  rng: () => number,
+  depth: Depth
+): HandClass {
   const total169 = HAND_STRENGTH_RANKING;
 
   // Compute total weight
@@ -177,7 +200,7 @@ function sampleHandClass(pos: Position, pool: Pool, rng: () => number): HandClas
   const weights: number[] = new Array(total169.length);
   for (let i = 0; i < total169.length; i++) {
     const hc = total169[i];
-    const w = pool.weight(pos, hc) * combosForClass(hc);
+    const w = pool.weight(pos, hc, depth) * combosForClass(hc);
     weights[i] = w;
     totalWeight += w;
   }
@@ -236,21 +259,28 @@ function dealConcreteCards(hc: HandClass, rng: () => number): [Card, Card] {
  * 1. Pick a position uniformly over the 7 non-blind seats.
  * 2. Sample a hand class via the pool strategy (default: edgeSkewPool).
  * 3. Deal a random concrete card pair for that hand class.
- * 4. Derive correct action from isOpen(pos, handClass).
+ * 4. Derive correct action from isOpen(pos, handClass, depth).
+ *
+ * The RNG is consumed in a fixed order (position, hand class, suits) that does
+ * not depend on the depth, so a given seed picks the same seat and the same
+ * hand at every tier — only the verdict changes. That makes the tiers directly
+ * comparable in tests.
  *
  * @param opts.rng - Injectable RNG for deterministic tests
  * @param opts.pool - Override pool strategy (default: ACTIVE_POOL)
+ * @param opts.depth - Stack tier (default: DEFAULT_DEPTH)
  */
 export function dealPreflopSpot(opts?: DealPreflopOpts): PreflopSpot {
   const rng = opts?.rng ?? Math.random;
   const pool = opts?.pool ?? ACTIVE_POOL;
+  const depth = opts?.depth ?? DEFAULT_DEPTH;
 
   // 1. Pick position uniformly
   const posIdx = Math.floor(rng() * POSITIONS.length);
   const position = POSITIONS[posIdx];
 
   // 2. Sample hand class
-  const hc = sampleHandClass(position, pool, rng);
+  const hc = sampleHandClass(position, pool, rng, depth);
 
   // 3. Deal concrete cards
   const cards = dealConcreteCards(hc, rng);
@@ -259,10 +289,11 @@ export function dealPreflopSpot(opts?: DealPreflopOpts): PreflopSpot {
   const verifiedClass = handClass(cards[0], cards[1]);
 
   // 5. Derive correct action
-  const correct: 'open' | 'fold' = isOpen(position, verifiedClass) ? 'open' : 'fold';
+  const correct: 'open' | 'fold' = isOpen(position, verifiedClass, depth) ? 'open' : 'fold';
 
   return {
     position,
+    depth,
     cards,
     handClass: verifiedClass,
     correct,

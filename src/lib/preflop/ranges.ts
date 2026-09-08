@@ -1,19 +1,43 @@
 /**
- * Preflop RFI (Raise First In) ranges for 7 non-blind positions.
+ * Preflop RFI (Raise First In) ranges for 7 non-blind positions, at three
+ * tournament stack depths.
  * Pure, no UI imports.
  *
- * Each range is an explicit set of hand classes (not a prefix of the strength ranking).
- * The chart is transcribed from docs/PLAN-preflop.md with conservative expansions
- * to reach the stated target percentages (±1.5%).
+ * Each range is an explicit set of hand classes (not a prefix of the strength
+ * ranking). The deep chart is transcribed from docs/PLAN-preflop.md; the two
+ * shorter charts are derived from it (see the per-depth notes below).
  *
- * Position  | Plan target | Implemented | Combos
- * ----------|-------------|-------------|-------
- * UTG       |       ~15%  |      13.6%  |  180
- * UTG1      |       ~16%  |      14.6%  |  194
- * UTG2 (LJ) |       ~19%  |      17.5%  |  232
- * HJ        |       ~22%  |      21.3%  |  282
- * CO        |       ~28%  |      26.7%  |  354
- * BTN       |       ~45%  |      45.4%  |  602
+ * ── Why three depths, and only three ──────────────────────────────────────
+ * RFI hand selection barely moves between 40bb and 100bb — a "60bb chart" and
+ * a "100bb chart" differ by a couple of combos, which is noise to a learner.
+ * So the deep chart is labelled 40bb+ and covers everything from 40bb up.
+ * What actually changes in a tournament is the way *down*:
+ *
+ *   deep  (40bb+) — full playability. Suited connectors and small pairs are
+ *                   worth opening because there is money behind to win.
+ *   mid   (20bb)  — same overall width, different shape. Implied odds are
+ *                   gone (no set-mining, no big suited-connector pots), so
+ *                   the weak connectors/gappers come out and high-card equity
+ *                   (Ax, offsuit broadways, suited kings) goes in. Early
+ *                   position tightens; late position widens, because fold
+ *                   equity is worth more than playability.
+ *   short (10bb)  — raise-folding no longer exists. You are jamming or
+ *                   folding, so the chart is driven by raw showdown equity
+ *                   plus fold equity: every pair, every suited ace, and a
+ *                   much wider late-position range than any deep chart.
+ *
+ * ── Implemented widths (% of 1326 combos) ─────────────────────────────────
+ * Position  | deep 40bb+ | mid 20bb | short 10bb
+ * ----------|------------|----------|-----------
+ * UTG       |     13.6%  |   12.5%  |    15.2%
+ * UTG1      |     14.6%  |   13.6%  |    16.7%
+ * UTG2 (LJ) |     17.8%  |   17.3%  |    20.1%
+ * HJ        |     21.3%  |   21.6%  |    24.3%
+ * CO        |     26.7%  |   27.9%  |    32.1%
+ * BTN       |     45.4%  |   44.8%  |    50.2%
+ *
+ * (The exact figures are asserted in ranges.test.ts, which is the source of
+ * truth if this table drifts.)
  *
  * Expansion decisions are documented inline.
  */
@@ -28,6 +52,79 @@ export type Position = (typeof POSITIONS)[number];
 
 // Note: Per the plan, UTG2 and LJ refer to the same seat.
 // The positions enum includes both for completeness; the range for 'LJ' equals 'UTG2'.
+
+// ─── Stack depth ──────────────────────────────────────────────────────────────
+
+/** The three tournament stack tiers, deepest first. */
+export const DEPTHS = ['deep', 'mid', 'short'] as const;
+export type Depth = (typeof DEPTHS)[number];
+
+/** The tier every existing caller gets when it does not name one. */
+export const DEFAULT_DEPTH: Depth = 'deep';
+
+export interface DepthMeta {
+  id: Depth;
+  /** Stack size as shown in tabs and menus, e.g. "40bb+". */
+  label: string;
+  /** One-word tier name, e.g. "Deep". */
+  name: string;
+  /** Stack figure written on the felt plaques, e.g. "40+ bb". */
+  stackLabel: string;
+  /** The aggressive action at this depth. Fold is always the other option. */
+  action: 'open' | 'jam';
+  /** Button / key-hint label for the aggressive action. */
+  actionLabel: string;
+  /** Noun phrase for verdict copy: "Wrong — this is an open". */
+  actionNoun: string;
+  /** Kicker above a range chart: "Opening range" / "Jamming range". */
+  rangeKicker: string;
+  /** The prompt on the felt: "Open or fold?" / "Jam or fold?". */
+  prompt: string;
+  /** One line on what makes this tier different. */
+  tagline: string;
+}
+
+export const DEPTH_META: Record<Depth, DepthMeta> = {
+  deep: {
+    id: 'deep',
+    label: '40bb+',
+    name: 'Deep',
+    stackLabel: '40+ bb',
+    action: 'open',
+    actionLabel: 'Open',
+    actionNoun: 'an open',
+    rangeKicker: 'Opening range',
+    prompt: 'Open or fold?',
+    tagline:
+      'Full playability — enough chips behind to set-mine and to win a big pot with a suited connector.',
+  },
+  mid: {
+    id: 'mid',
+    label: '20bb',
+    name: 'Mid',
+    stackLabel: '20 bb',
+    action: 'open',
+    actionLabel: 'Open',
+    actionNoun: 'an open',
+    rangeKicker: 'Opening range',
+    prompt: 'Open or fold?',
+    tagline:
+      'Implied odds are gone. Weak connectors out, high-card hands in — and late position widens on fold equity.',
+  },
+  short: {
+    id: 'short',
+    label: '10bb',
+    name: 'Short',
+    stackLabel: '10 bb',
+    action: 'jam',
+    actionLabel: 'Jam',
+    actionNoun: 'a jam',
+    rangeKicker: 'Jamming range',
+    prompt: 'Jam or fold?',
+    tagline:
+      'No raise-folding left. Every chip goes in or none do, so raw equity plus fold equity decides it.',
+  },
+};
 
 // ─── Range expansion helpers ─────────────────────────────────────────────────
 
@@ -90,7 +187,7 @@ function expandOffsuit(hiRank: string, loRankMin: string): HandClass[] {
   return result;
 }
 
-// ─── Range definitions ────────────────────────────────────────────────────────
+// ─── Range definitions — deep (40bb+) ─────────────────────────────────────────
 
 /**
  * Build the UTG opening range.
@@ -297,41 +394,413 @@ function buildBTN(): Set<HandClass> {
   ]);
 }
 
+
+// ─── Range definitions — mid (20bb) ───────────────────────────────────────────
+/*
+ * The 20bb charts are the deep charts re-shaped, not simply tightened.
+ *
+ * What comes out: hands whose whole value was implied odds. Small suited
+ * connectors and gappers (65s, 76s, 85s, 64s), and small pairs from early
+ * position — with 20bb behind you cannot set-mine at 7.5:1 and you cannot win
+ * a stack with 65s on a good board, because there is no stack left to win.
+ *
+ * What goes in: hands that win at showdown or fold out better hands. Suited
+ * aces (blockers to the jams behind), offsuit broadways, suited kings.
+ *
+ * Net effect: early position tightens a point or two, late position widens a
+ * point or two. The width barely moves; the shape moves a lot. That is the
+ * lesson this tier is here to teach.
+ */
+
+/**
+ * UTG @ 20bb.
+ *
+ * vs deep: 98s, 87s, 76s, 65s and KJo out (no implied odds, and KJo plays
+ * badly against the calls it gets); 44, A9s and A5s in.
+ *
+ * 11 pairs (66) + 13 suited (52) + 4 offsuit (48) = 166 = 12.5%
+ */
+function buildMidUTG(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 44+ — 33/22 open-fold poorly at 20bb from the first seat
+    ...expandPairs('4'),
+
+    // Suited: A9s+, A5s, KTs+, QTs+, JTs, T9s
+    ...expandSuited('A', '9'),           // A9s, ATs, AJs, AQs, AKs
+    'A5s',                               // the one wheel ace — blocker + nut flush
+    ...expandSuited('K', 'T'),           // KTs, KJs, KQs
+    ...expandSuited('Q', 'T'),           // QTs, QJs
+    'JTs',
+    'T9s',
+
+    // Offsuit: AJo+, KQo
+    ...expandOffsuit('A', 'J'),          // AJo, AQo, AKo
+    'KQo',
+  ]);
+}
+
+/**
+ * UTG+1 @ 20bb.
+ *
+ * vs deep: 87s, 98s and KJo out; 33 and A8s in.
+ *
+ * 12 pairs (72) + 15 suited (60) + 4 offsuit (48) = 180 = 13.6%
+ */
+function buildMidUTG1(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 33+
+    ...expandPairs('3'),
+
+    // Suited: A8s+, A5s-A4s, KTs+, QTs+, JTs, T9s
+    ...expandSuited('A', '8'),           // A8s through AKs (6 classes)
+    ...expandSuitedRange('A', '5', '4'), // A5s, A4s
+    ...expandSuited('K', 'T'),           // KTs, KJs, KQs
+    ...expandSuited('Q', 'T'),           // QTs, QJs
+    'JTs',
+    'T9s',
+
+    // Offsuit: AJo+, KQo
+    ...expandOffsuit('A', 'J'),
+    'KQo',
+  ]);
+}
+
+/**
+ * UTG+2 / LJ @ 20bb.
+ *
+ * vs deep: 76s and 65s out, J9s out; 22, A7s and K9s-shape kept, 98s kept.
+ *
+ * 13 pairs (78) + 20 suited (80) + 6 offsuit (72) = 230 = 17.3%
+ */
+function buildMidUTG2(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 22+
+    ...expandPairs('2'),
+
+    // Suited: A7s+, A5s-A2s, K9s+, QTs+, JTs, T9s, 98s
+    ...expandSuited('A', '7'),           // A7s through AKs (7 classes)
+    ...expandSuitedRange('A', '5', '2'), // A5s, A4s, A3s, A2s
+    ...expandSuited('K', '9'),           // K9s, KTs, KJs, KQs
+    ...expandSuited('Q', 'T'),           // QTs, QJs
+    'JTs',
+    'T9s',
+    '98s',
+
+    // Offsuit: ATo+, KJo+
+    ...expandOffsuit('A', 'T'),          // ATo through AKo
+    ...expandOffsuit('K', 'J'),          // KJo, KQo
+  ]);
+}
+
+/**
+ * HJ @ 20bb.
+ *
+ * vs deep: T8s, 97s and 86s out (the gappers); K8s, 87s, and A9o+ instead of
+ * ATo+ in. Nearly identical width (286 vs 282), visibly different chart.
+ *
+ * 13 pairs (78) + 25 suited (100) + 9 offsuit (108) = 286 = 21.6%
+ */
+function buildMidHJ(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 22+
+    ...expandPairs('2'),
+
+    // Suited: A2s+, K8s+, Q9s+, J9s+, T9s, 98s, 87s
+    ...expandSuited('A', '2'),           // A2s through AKs (12 classes)
+    ...expandSuited('K', '8'),           // K8s through KQs (5 classes)
+    ...expandSuited('Q', '9'),           // Q9s, QTs, QJs
+    ...expandSuited('J', '9'),           // J9s, JTs
+    'T9s',
+    '98s',
+    '87s',
+
+    // Offsuit: A9o+, KTo+, QJo
+    ...expandOffsuit('A', '9'),          // A9o through AKo (5 classes)
+    ...expandOffsuit('K', 'T'),          // KTo, KJo, KQo
+    'QJo',
+  ]);
+}
+
+/**
+ * CO @ 20bb.
+ *
+ * vs deep: wider, not tighter — the CO's fold equity against two blinds is
+ * worth more at 20bb than the playability it gives up. K6s+ and A7o+ in,
+ * 86s and 75s trimmed to the connectors that still flop well.
+ *
+ * 13 pairs (78) + 31 suited (124) + 14 offsuit (168) = 370 = 27.9%
+ */
+function buildMidCO(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 22+
+    ...expandPairs('2'),
+
+    // Suited: A2s+, K6s+, Q8s+, J8s+, T8s+, 98s, 87s, 76s
+    ...expandSuited('A', '2'),           // 12 classes
+    ...expandSuited('K', '6'),           // K6s through KQs (7 classes)
+    ...expandSuited('Q', '8'),           // Q8s through QJs (4 classes)
+    ...expandSuited('J', '8'),           // J8s, J9s, JTs
+    ...expandSuited('T', '8'),           // T8s, T9s
+    '98s',
+    '87s',
+    '76s',
+
+    // Offsuit: A7o+, K9o+, QTo+, JTo
+    ...expandOffsuit('A', '7'),          // A7o through AKo (7 classes)
+    ...expandOffsuit('K', '9'),          // K9o through KQo (4 classes)
+    ...expandOffsuit('Q', 'T'),          // QTo, QJo
+    'JTo',
+  ]);
+}
+
+/**
+ * BTN @ 20bb.
+ *
+ * vs deep: every suited king (K2s+) instead of K5s+ — a suited king is a
+ * blocker and a top-pair hand, both of which matter more at 20bb than the
+ * 85s/64s speculative hands it replaces. Offsuit bottom trimmed (97o out).
+ *
+ * 13 pairs (78) + 45 suited (180) + 28 offsuit (336) = 594 = 44.8%
+ */
+function buildMidBTN(): Set<HandClass> {
+  return new Set<HandClass>([
+    // Pairs: 22+
+    ...expandPairs('2'),
+
+    // Suited: A2s+, K2s+, Q6s+, J7s+, T7s+, 96s+, 86s+, 75s+, 65s, 54s
+    ...expandSuited('A', '2'),           // 12 classes
+    ...expandSuited('K', '2'),           // K2s through KQs (11 classes)
+    ...expandSuited('Q', '6'),           // Q6s through QJs (6 classes)
+    ...expandSuited('J', '7'),           // J7s through JTs (4 classes)
+    ...expandSuited('T', '7'),           // T7s, T8s, T9s
+    ...expandSuited('9', '6'),           // 96s, 97s, 98s
+    ...expandSuited('8', '6'),           // 86s, 87s
+    ...expandSuited('7', '5'),           // 75s, 76s
+    '65s',
+    '54s',
+
+    // Offsuit: A2o+, K7o+, Q8o+, J8o+, T8o+, 98o
+    ...expandOffsuit('A', '2'),          // 12 classes
+    ...expandOffsuit('K', '7'),          // K7o through KQo (6 classes)
+    ...expandOffsuit('Q', '8'),          // Q8o through QJo (4 classes)
+    ...expandOffsuit('J', '8'),          // J8o, J9o, JTo
+    ...expandOffsuit('T', '8'),          // T8o, T9o
+    '98o',
+  ]);
+}
+
+// ─── Range definitions — short (10bb, jam or fold) ────────────────────────────
+/*
+ * At 10bb there is no raise-fold: an open commits you, so the only two actions
+ * are shove and fold. That changes what a hand is worth.
+ *
+ *   - Every pocket pair jams from every seat. 22 is a coinflip against two
+ *     overcards and it never has to play a turn.
+ *   - Every suited ace jams from every seat, for the same reason plus the
+ *     ace blocker against the calls behind.
+ *   - Small suited connectors mostly stay out until late position: they are
+ *     the worst hands to get called by, since they need to make something.
+ *   - Late position explodes. The BTN jams over half its hands because seven
+ *     players are already out and only two blinds can call.
+ *
+ * Widths are noticeably wider than the deep chart at every seat — that is
+ * correct, and it is the counter-intuitive bit worth drilling. Jamming buys
+ * fold equity that a raise-fold line never gets.
+ */
+
+/**
+ * UTG @ 10bb jam.
+ *
+ * 13 pairs (78) + 19 suited (76) + 4 offsuit (48) = 202 = 15.2%
+ */
+function buildShortUTG(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),                 // every pair jams
+    ...expandSuited('A', '2'),           // every suited ace jams
+    ...expandSuited('K', '9'),           // K9s through KQs (4 classes)
+    ...expandSuited('Q', 'T'),           // QTs, QJs
+    'JTs',
+    ...expandOffsuit('A', 'J'),          // AJo, AQo, AKo
+    'KQo',
+  ]);
+}
+
+/**
+ * UTG+1 @ 10bb jam.
+ *
+ * 13 pairs (78) + 21 suited (84) + 5 offsuit (60) = 222 = 16.7%
+ */
+function buildShortUTG1(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),
+    ...expandSuited('A', '2'),
+    ...expandSuited('K', '8'),           // K8s through KQs (5 classes)
+    ...expandSuited('Q', 'T'),           // QTs, QJs
+    'JTs',
+    'T9s',
+    ...expandOffsuit('A', 'T'),          // ATo through AKo (4 classes)
+    'KQo',
+  ]);
+}
+
+/**
+ * UTG+2 / LJ @ 10bb jam.
+ *
+ * 13 pairs (78) + 26 suited (104) + 7 offsuit (84) = 266 = 20.1%
+ */
+function buildShortUTG2(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),
+    ...expandSuited('A', '2'),
+    ...expandSuited('K', '6'),           // K6s through KQs (7 classes)
+    ...expandSuited('Q', '9'),           // Q9s, QTs, QJs
+    ...expandSuited('J', '9'),           // J9s, JTs
+    'T9s',
+    '98s',
+    ...expandOffsuit('A', 'T'),          // ATo through AKo
+    ...expandOffsuit('K', 'J'),          // KJo, KQo
+    'QJo',
+  ]);
+}
+
+/**
+ * HJ @ 10bb jam.
+ *
+ * 13 pairs (78) + 34 suited (136) + 9 offsuit (108) = 322 = 24.3%
+ */
+function buildShortHJ(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),
+    ...expandSuited('A', '2'),
+    ...expandSuited('K', '2'),           // every suited king (11 classes)
+    ...expandSuited('Q', '8'),           // Q8s through QJs (4 classes)
+    ...expandSuited('J', '8'),           // J8s, J9s, JTs
+    ...expandSuited('T', '8'),           // T8s, T9s
+    '98s',
+    '87s',
+    ...expandOffsuit('A', '9'),          // A9o through AKo (5 classes)
+    ...expandOffsuit('K', 'T'),          // KTo, KJo, KQo
+    'QJo',
+  ]);
+}
+
+/**
+ * CO @ 10bb jam.
+ *
+ * 13 pairs (78) + 45 suited (180) + 14 offsuit (168) = 426 = 32.1%
+ */
+function buildShortCO(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),
+    ...expandSuited('A', '2'),
+    ...expandSuited('K', '2'),           // 11 classes
+    ...expandSuited('Q', '5'),           // Q5s through QJs (7 classes)
+    ...expandSuited('J', '7'),           // J7s through JTs (4 classes)
+    ...expandSuited('T', '7'),           // T7s, T8s, T9s
+    ...expandSuited('9', '6'),           // 96s, 97s, 98s
+    ...expandSuited('8', '6'),           // 86s, 87s
+    ...expandSuited('7', '5'),           // 75s, 76s
+    '65s',
+    ...expandOffsuit('A', '7'),          // A7o through AKo (7 classes)
+    ...expandOffsuit('K', '9'),          // K9o through KQo (4 classes)
+    ...expandOffsuit('Q', 'T'),          // QTo, QJo
+    'JTo',
+  ]);
+}
+
+/**
+ * BTN @ 10bb jam.
+ *
+ * Seven players are already gone and only the blinds can call, so this is the
+ * widest chart in the app — over half of all hands.
+ *
+ * 13 pairs (78) + 57 suited (228) + 30 offsuit (360) = 666 = 50.2%
+ */
+function buildShortBTN(): Set<HandClass> {
+  return new Set<HandClass>([
+    ...expandPairs('2'),
+    ...expandSuited('A', '2'),           // 12 classes
+    ...expandSuited('K', '2'),           // 11 classes
+    ...expandSuited('Q', '2'),           // 10 classes
+    ...expandSuited('J', '5'),           // J5s through JTs (6 classes)
+    ...expandSuited('T', '6'),           // T6s through T9s (4 classes)
+    ...expandSuited('9', '5'),           // 95s through 98s (4 classes)
+    ...expandSuited('8', '5'),           // 85s, 86s, 87s
+    ...expandSuited('7', '4'),           // 74s, 75s, 76s
+    ...expandSuited('6', '4'),           // 64s, 65s
+    ...expandSuited('5', '3'),           // 53s, 54s
+    ...expandOffsuit('A', '2'),          // 12 classes
+    ...expandOffsuit('K', '5'),          // K5o through KQo (8 classes)
+    ...expandOffsuit('Q', '8'),          // Q8o through QJo (4 classes)
+    ...expandOffsuit('J', '8'),          // J8o, J9o, JTo
+    ...expandOffsuit('T', '8'),          // T8o, T9o
+    '98o',
+  ]);
+}
+
 // ─── Range registry ───────────────────────────────────────────────────────────
 
-const RANGES: Record<Position, Set<HandClass>> = {
-  UTG: buildUTG(),
-  UTG1: buildUTG1(),
-  UTG2: buildUTG2(),
-  LJ: buildUTG2(), // LJ = UTG2 per plan
-  HJ: buildHJ(),
-  CO: buildCO(),
-  BTN: buildBTN(),
+const RANGES: Record<Depth, Record<Position, Set<HandClass>>> = {
+  deep: {
+    UTG: buildUTG(),
+    UTG1: buildUTG1(),
+    UTG2: buildUTG2(),
+    LJ: buildUTG2(), // LJ = UTG2 per plan
+    HJ: buildHJ(),
+    CO: buildCO(),
+    BTN: buildBTN(),
+  },
+  mid: {
+    UTG: buildMidUTG(),
+    UTG1: buildMidUTG1(),
+    UTG2: buildMidUTG2(),
+    LJ: buildMidUTG2(),
+    HJ: buildMidHJ(),
+    CO: buildMidCO(),
+    BTN: buildMidBTN(),
+  },
+  short: {
+    UTG: buildShortUTG(),
+    UTG1: buildShortUTG1(),
+    UTG2: buildShortUTG2(),
+    LJ: buildShortUTG2(),
+    HJ: buildShortHJ(),
+    CO: buildShortCO(),
+    BTN: buildShortBTN(),
+  },
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
+//
+// `depth` is a trailing optional argument on every lookup so that callers that
+// predate the tiers — and every existing test — keep reading the deep chart
+// without change.
 
 /**
- * Check if a hand class is an opening hand for the given position.
+ * Check if a hand class is played (opened at 40bb+/20bb, jammed at 10bb) from
+ * the given position.
  */
-export function isOpen(pos: Position, hc: HandClass): boolean {
-  return RANGES[pos].has(hc);
+export function isOpen(pos: Position, hc: HandClass, depth: Depth = DEFAULT_DEPTH): boolean {
+  return RANGES[depth][pos].has(hc);
 }
 
 /**
- * Get the full opening range set for a position.
- * Returns a read-only copy.
+ * Get the full range set for a position at a depth.
+ * Returns a read-only view of the stored set (same reference across calls).
  */
-export function getRangeSet(pos: Position): ReadonlySet<HandClass> {
-  return RANGES[pos];
+export function getRangeSet(
+  pos: Position,
+  depth: Depth = DEFAULT_DEPTH
+): ReadonlySet<HandClass> {
+  return RANGES[depth][pos];
 }
 
 /**
- * Count the number of concrete combos in a position's range.
+ * Count the number of concrete combos in a position's range at a depth.
  */
-export function rangeComboCount(pos: Position): number {
+export function rangeComboCount(pos: Position, depth: Depth = DEFAULT_DEPTH): number {
   let count = 0;
-  for (const hc of RANGES[pos]) {
+  for (const hc of RANGES[depth][pos]) {
     const { type } = (() => {
       if (hc.length === 2) return { type: 'pair' as const };
       return { type: (hc[2] === 's' ? 'suited' : 'offsuit') as 'suited' | 'offsuit' };

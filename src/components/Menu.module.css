@@ -95,6 +95,22 @@
   color: var(--color-text);
 }
 
+/*
+ * Depth items carry a second line, so the label stacks instead of sitting on
+ * the item's own baseline. The active-marker dot stays on the flex row beside
+ * it, vertically centred against both lines.
+ */
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.itemNote {
+  font-size: 11px;
+  color: var(--color-neutral-600);
+}
+
 /* ── Tools group ──────────────────────────────────────────────────────────── */
 
 .separator {

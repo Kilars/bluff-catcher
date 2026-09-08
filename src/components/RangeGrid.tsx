@@ -8,11 +8,12 @@
  *   - Lower-left triangle: offsuit hands (row rank < col rank → hiRank=col, loRank=row, suffix 'o').
  *
  * Props:
- *   position  — the hero's seat; used to colour open vs fold cells via isOpen().
+ *   position  — the hero's seat; used to colour play vs fold cells via isOpen().
+ *   depth     — the stack tier whose chart to draw (default: the 40bb+ chart).
  *   highlight — optional HandClass to mark with a distinct outline (hero's current hand).
  */
 
-import { isOpen, type Position } from '../lib/preflop/ranges';
+import { DEFAULT_DEPTH, DEPTH_META, isOpen, type Depth, type Position } from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
 import styles from './RangeGrid.module.css';
 
@@ -52,9 +53,18 @@ function cellClass(row: number, col: number): HandClass {
 interface RangeGridProps {
   position: Position;
   highlight?: HandClass;
+  depth?: Depth;
 }
 
-export default function RangeGrid({ position, highlight }: RangeGridProps) {
+export default function RangeGrid({
+  position,
+  highlight,
+  depth = DEFAULT_DEPTH,
+}: RangeGridProps) {
+  // "open" at 40bb+/20bb, "jam" at 10bb — the cell colour means the same
+  // thing either way, only the word for it changes.
+  const actionWord = DEPTH_META[depth].action;
+
   return (
     <div className={styles.gridWrapper}>
       {/* Corner spacer + column headers */}
@@ -76,7 +86,7 @@ export default function RangeGrid({ position, highlight }: RangeGridProps) {
           {/* Data cells */}
           {RANK_LABELS.map((_, colIdx) => {
             const hc = cellClass(rowIdx, colIdx);
-            const open = isOpen(position, hc);
+            const open = isOpen(position, hc, depth);
             const isHighlighted = highlight === hc;
 
             // Determine triangle region for semantic class
@@ -101,7 +111,7 @@ export default function RangeGrid({ position, highlight }: RangeGridProps) {
                   .filter(Boolean)
                   .join(' ')}
                 title={hc}
-                aria-label={`${hc}: ${open ? 'open' : 'fold'}${isHighlighted ? ' (your hand)' : ''}`}
+                aria-label={`${hc}: ${open ? actionWord : 'fold'}${isHighlighted ? ' (your hand)' : ''}`}
               >
                 <span className={styles.cellLabel}>{hc}</span>
               </div>

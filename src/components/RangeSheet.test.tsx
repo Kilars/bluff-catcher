@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import RangeSheet from './RangeSheet';
-import { POSITIONS } from '../lib/preflop/ranges';
+import { DEPTHS, DEPTH_META, POSITIONS, rangeComboCount } from '../lib/preflop/ranges';
 
 function title() {
   return screen.getByRole('heading', { level: 1 }).textContent ?? '';
@@ -25,7 +25,9 @@ function tab(name: string) {
 describe('RangeSheet navigation', () => {
   it('renders one tab per position', () => {
     render(<RangeSheet position="UTG" onClose={() => {}} />);
-    expect(screen.getAllByRole('tab')).toHaveLength(POSITIONS.length);
+    // Two tablists now — seats and stack depths — so scope to the seat strip.
+    const seats = within(screen.getByRole('tablist', { name: 'Position' }));
+    expect(seats.getAllByRole('tab')).toHaveLength(POSITIONS.length);
   });
 
   it('next/prev arrows step through the seat order', () => {
@@ -99,5 +101,50 @@ describe('RangeSheet navigation', () => {
     // Move away — the same cell is no longer marked as the player's hand
     fireEvent.click(tab('UTG'));
     expect(document.querySelector('[aria-label="72o: fold (your hand)"]')).toBeNull();
+  });
+
+  // ── Stack-depth strip ─────────────────────────────────────────────────────
+
+  it('renders one tab per stack depth', () => {
+    render(<RangeSheet position="UTG" onClose={() => {}} />);
+    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
+    expect(depths.getAllByRole('tab')).toHaveLength(DEPTHS.length);
+  });
+
+  it('opens on the depth it was handed, and switching redraws the chart', () => {
+    render(<RangeSheet position="CO" depth="deep" onClose={() => {}} />);
+    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
+
+    // Deep CO: 354 combos, and the chart is an *opening* range.
+    expect(screen.getByText(/354 combos/)).toBeInTheDocument();
+    expect(screen.getByText(/Opening range · 40bb\+/)).toBeInTheDocument();
+
+    // Flip to 10bb — same seat, a jamming chart of a different size.
+    fireEvent.click(depths.getByRole('tab', { name: /10bb/ }));
+    expect(
+      screen.getByText(new RegExp(`${rangeComboCount('CO', 'short')} combos`)),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Jamming range · 10bb/)).toBeInTheDocument();
+    expect(screen.getByText(/green = jam, dark = fold/)).toBeInTheDocument();
+  });
+
+  it('changing depth keeps the seat you were looking at', () => {
+    render(<RangeSheet position="UTG" onClose={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Next position'));
+    expect(title()).toContain('UTG+1');
+
+    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
+    fireEvent.click(depths.getByRole('tab', { name: /20bb/ }));
+    expect(title()).toContain('UTG+1');
+    expect(
+      screen.getByText(new RegExp(`${rangeComboCount('UTG1', 'mid')} combos`)),
+    ).toBeInTheDocument();
+  });
+
+  it('grid cells announce jam rather than open at 10bb', () => {
+    render(<RangeSheet position="BTN" depth="short" onClose={() => {}} />);
+    // 22 jams from every seat at 10bb — see the short-tier notes in ranges.ts.
+    expect(screen.getByLabelText('22: jam')).toBeInTheDocument();
+    expect(DEPTH_META.short.action).toBe('jam');
   });
 });

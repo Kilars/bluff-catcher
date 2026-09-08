@@ -13,6 +13,9 @@
  *  9. onRecord is called once per commit with the correct boolean.
  * 10. The situation info sheet opens on mount, closes via × / Escape / backdrop,
  *     re-opens via the Info button and the I key, and swallows game keys while open.
+ * 11. Stack depth: the 10bb tier relabels the aggressive action as "Jam" in the
+ *     button, the prompt, the verdict and the briefing, and the depth is passed
+ *     down to the dealer.
  *
  * The info sheet is open on every mount, so tests that exercise keyboard game
  * keys close it first via closeInfo().
@@ -29,6 +32,7 @@ import type { PreflopSpot } from '../lib/preflop/deal';
 
 const SPOT_A: PreflopSpot = {
   position: 'BTN',
+  depth: 'deep',
   cards: ['As', 'Kh'],
   handClass: 'AKo',
   correct: 'open',
@@ -36,6 +40,7 @@ const SPOT_A: PreflopSpot = {
 
 const SPOT_B: PreflopSpot = {
   position: 'UTG',
+  depth: 'deep',
   cards: ['7d', '2c'],
   handClass: '72o',
   correct: 'fold',
@@ -219,7 +224,7 @@ describe('PreflopTrainer', () => {
     render(<PreflopTrainer onRecord={onRecord} />);
     expect(screen.getByText('Open or fold, first in')).toBeInTheDocument();
     expect(
-      screen.getByText(/9-handed tournament table · ~60bb effective/i),
+      screen.getByText(/9-handed tournament table · 40bb\+ effective/i),
     ).toBeInTheDocument();
   });
 
@@ -272,5 +277,63 @@ describe('PreflopTrainer', () => {
     fireEvent.click(screen.getByRole('button', { name: /^r range$/i }));
     expect(screen.queryByText('Open or fold, first in')).not.toBeInTheDocument();
     expect(screen.getByText(/opening range/i)).toBeInTheDocument();
+  });
+
+  // ── Stack depth ───────────────────────────────────────────────────────────
+
+  describe('stack depth', () => {
+    it('deals at the depth it is given', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      expect(dealSpy).toHaveBeenCalledWith({ depth: 'short' });
+    });
+
+    it('labels the aggressive action "Jam" at 10bb', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      closeInfo();
+
+      expect(screen.getByRole('button', { name: /^J\s*Jam$/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /open/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/Action folds to you\. Jam or fold\?/)).toBeInTheDocument();
+      expect(screen.getByText(/Keys: F = Fold · J = Jam/)).toBeInTheDocument();
+    });
+
+    // SPOT_A.correct === 'open' — the data layer's word for "put chips in" at
+    // every tier. Both verdicts below must say "jam" instead.
+    it('says "Correct — jam" when the player jams a jamming hand', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      closeInfo();
+      fireEvent.click(screen.getByRole('button', { name: /jam/i }));
+      expect(screen.getByText('Correct — jam')).toBeInTheDocument();
+    });
+
+    it('says "Wrong — this is a jam" when the player folds one', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      closeInfo();
+      fireEvent.click(screen.getByRole('button', { name: /fold/i }));
+      expect(screen.getByText('Wrong — this is a jam')).toBeInTheDocument();
+    });
+
+    it('the J key still commits the aggressive action at 10bb', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      closeInfo();
+      fireEvent.keyDown(window, { key: 'j' });
+      expect(onRecord).toHaveBeenCalledTimes(1);
+      expect(onRecord).toHaveBeenCalledWith(true);
+    });
+
+    it('briefs the jam-or-fold situation at 10bb', () => {
+      render(<PreflopTrainer depth="short" onRecord={onRecord} />);
+      expect(screen.getByText('Jam or fold, first in')).toBeInTheDocument();
+      expect(
+        screen.getByText(/9-handed tournament table · 10bb effective/i),
+      ).toBeInTheDocument();
+    });
+
+    it('writes the tier stack size on the felt plaques', () => {
+      render(<PreflopTrainer depth="mid" onRecord={onRecord} />);
+      closeInfo();
+      expect(screen.getByText('you · 20 bb')).toBeInTheDocument();
+      expect(screen.queryByText(/60 bb/)).not.toBeInTheDocument();
+    });
   });
 });
