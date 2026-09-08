@@ -14,6 +14,7 @@ const vitestConfig = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/bluff-catcher/',
   plugins: [
     react(),
     VitePWA({
