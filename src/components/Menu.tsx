@@ -5,8 +5,11 @@
  * the available modes; the active one is marked. Selecting a mode switches
  * it and closes the menu.
  *
- * Below the modes sits a "Tools" group with the RFI range charts, so the
- * charts are reachable without playing a hand first.
+ * Below the modes sits a "Stack depth" group — the three tournament tiers the
+ * preflop trainer drills (40bb+, 20bb, 10bb jam) — and then a "Tools" group
+ * with the RFI range charts, so the charts are reachable without playing a
+ * hand first. The depth group is shown only in preflop mode, since it means
+ * nothing to the odds trainer.
  *
  * Accessibility:
  *   - button has aria-label and aria-expanded
@@ -16,6 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppMode } from '../App';
+import { DEPTHS, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
 interface MenuItem {
@@ -31,11 +35,20 @@ const MENU_ITEMS: MenuItem[] = [
 interface MenuProps {
   currentMode: AppMode;
   onModeChange: (mode: AppMode) => void;
+  /** Stack tier the preflop trainer is drilling. */
+  currentDepth: Depth;
+  onDepthChange: (depth: Depth) => void;
   /** Opens the standalone RFI range-chart browser. */
   onOpenRanges: () => void;
 }
 
-export default function Menu({ currentMode, onModeChange, onOpenRanges }: MenuProps) {
+export default function Menu({
+  currentMode,
+  onModeChange,
+  currentDepth,
+  onDepthChange,
+  onOpenRanges,
+}: MenuProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,6 +100,15 @@ export default function Menu({ currentMode, onModeChange, onOpenRanges }: MenuPr
     [onModeChange, close]
   );
 
+  const handleSelectDepth = useCallback(
+    (depth: Depth) => {
+      onDepthChange(depth);
+      close();
+      buttonRef.current?.focus();
+    },
+    [onDepthChange, close]
+  );
+
   const handleOpenRanges = useCallback(() => {
     onOpenRanges();
     close();
@@ -128,6 +150,31 @@ export default function Menu({ currentMode, onModeChange, onOpenRanges }: MenuPr
               )}
             </button>
           ))}
+
+          {currentMode === 'preflop' && (
+            <>
+              <div className={styles.separator} />
+              <span className={styles.groupLabel}>Stack depth</span>
+              {DEPTHS.map((d) => (
+                <button
+                  key={d}
+                  className={`${styles.item} ${d === currentDepth ? styles.itemActive : ''}`}
+                  role="menuitem"
+                  onClick={() => handleSelectDepth(d)}
+                >
+                  <span className={styles.itemMain}>
+                    {DEPTH_META[d].label}
+                    <span className={styles.itemNote}>
+                      {DEPTH_META[d].name} · {DEPTH_META[d].actionLabel.toLowerCase()} or fold
+                    </span>
+                  </span>
+                  {d === currentDepth && (
+                    <span className={styles.activeMarker} aria-label="(active)" />
+                  )}
+                </button>
+              ))}
+            </>
+          )}
 
           <div className={styles.separator} />
           <span className={styles.groupLabel}>Tools</span>

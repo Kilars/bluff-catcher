@@ -10,6 +10,7 @@
 
 import Menu from './Menu';
 import type { AppMode } from '../App';
+import { DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -30,6 +31,9 @@ interface PreflopStatsProps {
 interface HeaderProps {
   mode: AppMode;
   onModeChange: (mode: AppMode) => void;
+  /** Stack tier the preflop trainer is drilling; switched from the menu. */
+  depth: Depth;
+  onDepthChange: (depth: Depth) => void;
   oddsStats?: OddsStatsProps;
   preflopStats?: PreflopStatsProps;
   /** Opens the standalone RFI range-chart browser from the menu. */
@@ -39,6 +43,8 @@ interface HeaderProps {
 export default function Header({
   mode,
   onModeChange,
+  depth,
+  onDepthChange,
   oddsStats,
   preflopStats,
   onOpenRanges,
@@ -54,12 +60,16 @@ export default function Header({
         <Menu
           currentMode={mode}
           onModeChange={onModeChange}
+          currentDepth={depth}
+          onDepthChange={onDepthChange}
           onOpenRanges={onOpenRanges}
         />
         <div className={styles.brand}>
           <span className={styles.brandName}>RUNOUT</span>
           <span className={styles.brandSub}>
-            {mode === 'odds' ? 'Odds trainer' : 'Preflop RFI'}
+            {mode === 'odds'
+              ? 'Odds trainer'
+              : `Preflop RFI · ${DEPTH_META[depth].label}`}
           </span>
         </div>
       </div>

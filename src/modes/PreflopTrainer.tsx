@@ -8,7 +8,8 @@
  *
  * Keyboard bindings:
  *  - F = Fold (when uncommitted)
- *  - J = Open (when uncommitted)
+ *  - J = Open / Jam (when uncommitted — the label depends on stack depth,
+ *    the key does not)
  *  - Space / Enter = Next hand (when committed)
  *  - R = Range grid (when committed)
  *  - I = Situation info sheet (always)
@@ -19,6 +20,10 @@
  * inert.
  *
  * Props:
+ *  - depth: which stack tier to drill (40bb+ / 20bb / 10bb). At 10bb the
+ *    aggressive action is a jam, not an open; the decision is still binary, so
+ *    only the wording changes. App remounts this component on a depth change
+ *    (via `key`), which re-deals and re-opens the briefing for the new tier.
  *  - onRecord(wasCorrect): called exactly once per commit to record the result
  *    in the preflop stats hook lifted to App root. The double-record guard is
  *    the committedRef check in handleCommit (already committed → early return).
@@ -28,6 +33,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealPreflopSpot, type PreflopSpot } from '../lib/preflop/deal';
+import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import PreflopTable from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
@@ -38,6 +44,8 @@ import styles from './PreflopTrainer.module.css';
 type CommittedAction = 'open' | 'fold';
 
 interface PreflopTrainerProps {
+  /** Stack tier to drill. Default: the 40bb+ chart. */
+  depth?: Depth;
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;
   /** True while an overlay owned by App is open — all game keys go inert. */
@@ -46,9 +54,15 @@ interface PreflopTrainerProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PreflopTrainer({ onRecord, keysSuspended = false }: PreflopTrainerProps) {
+export default function PreflopTrainer({
+  depth = DEFAULT_DEPTH,
+  onRecord,
+  keysSuspended = false,
+}: PreflopTrainerProps) {
+  const meta = DEPTH_META[depth];
+
   // Current spot — initialised on mount via lazy initialiser
-  const [spot, setSpot] = useState<PreflopSpot>(() => dealPreflopSpot());
+  const [spot, setSpot] = useState<PreflopSpot>(() => dealPreflopSpot({ depth }));
 
   // null = waiting for input; 'open'|'fold' = committed
   const [committed, setCommitted] = useState<CommittedAction | null>(null);
@@ -81,10 +95,10 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
   }, [onRecord]);
 
   const handleNext = useCallback(() => {
-    setSpot(dealPreflopSpot());
+    setSpot(dealPreflopSpot({ depth }));
     setCommitted(null);
     setRangeOpen(false);
-  }, []);
+  }, [depth]);
 
   // Only one sheet at a time — opening one closes the other.
   const openInfo = useCallback(() => {
@@ -166,16 +180,20 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
 
   // Verdict copy — only defined after commit
   const wasCorrect = isCommitted ? committed === spot.correct : null;
+  // 'open' is the data layer's word for the aggressive action at every tier;
+  // at 10bb the player knows it as a jam, so read the verb off the tier.
+  const correctWord = spot.correct === 'open' ? meta.action : 'fold';
+  const correctNoun = spot.correct === 'open' ? meta.actionNoun : 'a fold';
   const verdictText = isCommitted
     ? wasCorrect
-      ? `Correct — ${spot.correct}`
-      : `Wrong — this is ${spot.correct === 'open' ? 'an open' : 'a fold'}`
+      ? `Correct — ${correctWord}`
+      : `Wrong — this is ${correctNoun}`
     : null;
 
   return (
     <>
       {/* Felt — shows position, seats, hero cards */}
-      <PreflopTable hero={spot.cards} position={spot.position} />
+      <PreflopTable hero={spot.cards} position={spot.position} depth={depth} />
 
       {/* Controls dock */}
       <div className={styles.dock}>
@@ -200,8 +218,10 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
           {!isCommitted ? (
             <>
               <p className={styles.prompt}>
-                Action folds to you. Open or fold?
-                <span className={styles.promptHint}>Keys: F = Fold · J = Open</span>
+                Action folds to you. {meta.prompt}
+                <span className={styles.promptHint}>
+                  Keys: F = Fold · J = {meta.actionLabel}
+                </span>
               </p>
               <div className={styles.buttons}>
                 <button
@@ -220,7 +240,7 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
                   disabled={isCommitted}
                 >
                   <span className={styles.keyHint}>J</span>
-                  Open
+                  {meta.actionLabel}
                 </button>
               </div>
             </>
@@ -258,8 +278,9 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
       {/* Range sheet — rendered only after commit, when rangeOpen is true */}
       {rangeOpen && (
         <RangeSheet
-          key={spot.position}
+          key={`${depth}:${spot.position}`}
           position={spot.position}
+          depth={depth}
           heroPosition={spot.position}
           highlight={spot.handClass}
           onClose={() => setRangeOpen(false)}
@@ -267,7 +288,9 @@ export default function PreflopTrainer({ onRecord, keysSuspended = false }: Pref
       )}
 
       {/* Situation info sheet — open on mount, re-openable via Info / I */}
-      {infoOpen && <PreflopInfoSheet onClose={() => setInfoOpen(false)} />}
+      {infoOpen && (
+        <PreflopInfoSheet depth={depth} onClose={() => setInfoOpen(false)} />
+      )}
     </>
   );
 }

@@ -1,9 +1,27 @@
 /**
  * Tests for preflop RFI range data.
+ *
+ * The suites above the divider predate the stack tiers and call the lookups
+ * without a depth argument, so they pin the deep (40bb+) chart — which is
+ * exactly the guarantee the rename needs: relabelling 60bb → 40bb+ must not
+ * have moved a single combo.
+ *
+ * Below the divider are the 20bb and 10bb tiers: widths, the shape changes
+ * that justify having them at all, and the invariants that hold everywhere.
  */
 
 import { describe, it, expect } from 'vitest';
-import { isOpen, getRangeSet, rangeComboCount, POSITIONS, type Position } from './ranges';
+import {
+  isOpen,
+  getRangeSet,
+  rangeComboCount,
+  DEPTHS,
+  DEPTH_META,
+  DEFAULT_DEPTH,
+  POSITIONS,
+  type Depth,
+  type Position,
+} from './ranges';
 
 // Total combos in a full deck: C(52,2) = 1326
 const TOTAL_COMBOS = 1326;
@@ -282,5 +300,212 @@ describe('POSITIONS constant', () => {
     for (const p of ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN']) {
       expect(posSet.has(p as Position)).toBe(true);
     }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Stack tiers
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('DEPTHS / DEPTH_META', () => {
+  it('has exactly three tiers, deepest first', () => {
+    expect([...DEPTHS]).toEqual(['deep', 'mid', 'short']);
+  });
+
+  it('defaults to the deep chart, so depth-less callers are unchanged', () => {
+    expect(DEFAULT_DEPTH).toBe('deep');
+    for (const pos of POSITIONS) {
+      expect(rangeComboCount(pos)).toBe(rangeComboCount(pos, 'deep'));
+      expect(getRangeSet(pos)).toBe(getRangeSet(pos, 'deep'));
+    }
+  });
+
+  it('describes 40bb+ / 20bb / 10bb, and only 10bb is a jam', () => {
+    expect(DEPTH_META.deep.label).toBe('40bb+');
+    expect(DEPTH_META.mid.label).toBe('20bb');
+    expect(DEPTH_META.short.label).toBe('10bb');
+
+    expect(DEPTH_META.deep.action).toBe('open');
+    expect(DEPTH_META.mid.action).toBe('open');
+    expect(DEPTH_META.short.action).toBe('jam');
+  });
+
+  it('has metadata for every tier, keyed by its own id', () => {
+    for (const d of DEPTHS) {
+      expect(DEPTH_META[d].id).toBe(d);
+      expect(DEPTH_META[d].label.length).toBeGreaterThan(0);
+      expect(DEPTH_META[d].tagline.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * Implemented widths per tier. These are exact — a chart edit that moves a
+ * count has to move the number here too, deliberately.
+ */
+const EXPECTED_BY_DEPTH: Record<Depth, Record<Position, number>> = {
+  deep: {
+    UTG: 180, UTG1: 194, UTG2: 236, LJ: 236, HJ: 282, CO: 354, BTN: 602,
+  },
+  mid: {
+    UTG: 166, UTG1: 180, UTG2: 230, LJ: 230, HJ: 286, CO: 370, BTN: 594,
+  },
+  short: {
+    UTG: 202, UTG1: 222, UTG2: 266, LJ: 266, HJ: 322, CO: 426, BTN: 666,
+  },
+};
+
+describe('rangeComboCount() across tiers', () => {
+  for (const depth of DEPTHS) {
+    for (const pos of POSITIONS) {
+      it(`${depth} ${pos} = ${EXPECTED_BY_DEPTH[depth][pos]} combos`, () => {
+        expect(rangeComboCount(pos, depth)).toBe(EXPECTED_BY_DEPTH[depth][pos]);
+      });
+    }
+  }
+});
+
+describe('invariants that hold at every tier', () => {
+  const ordered: Position[] = ['UTG', 'UTG1', 'UTG2', 'HJ', 'CO', 'BTN'];
+
+  for (const depth of DEPTHS) {
+    it(`${depth}: ranges widen from UTG to BTN`, () => {
+      for (let i = 1; i < ordered.length; i++) {
+        expect(rangeComboCount(ordered[i], depth)).toBeGreaterThan(
+          rangeComboCount(ordered[i - 1], depth)
+        );
+      }
+    });
+
+    it(`${depth}: LJ is the same seat as UTG2`, () => {
+      expect(getRangeSet('LJ', depth)).toEqual(getRangeSet('UTG2', depth));
+    });
+
+    it(`${depth}: premiums are played from every seat`, () => {
+      for (const pos of POSITIONS) {
+        for (const hand of ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo']) {
+          expect(isOpen(pos, hand, depth)).toBe(true);
+        }
+      }
+    });
+
+    it(`${depth}: hopeless trash is folded from every seat`, () => {
+      for (const pos of POSITIONS) {
+        for (const hand of ['72o', '82o', '32o', '42o', '52o']) {
+          expect(isOpen(pos, hand, depth)).toBe(false);
+        }
+      }
+    });
+
+    it(`${depth}: no seat opens more than the button`, () => {
+      for (const pos of POSITIONS) {
+        expect(rangeComboCount(pos, depth)).toBeLessThanOrEqual(
+          rangeComboCount('BTN', depth)
+        );
+      }
+    });
+  }
+});
+
+/**
+ * The point of the 20bb tier is that the *shape* moves while the width barely
+ * does. If these two suites ever both fail, the tier has stopped teaching
+ * anything and should be reconsidered rather than patched.
+ */
+describe('mid (20bb) — same width, different shape', () => {
+  it('stays within 2 percentage points of the deep chart at every seat', () => {
+    for (const pos of POSITIONS) {
+      const deepPct = (rangeComboCount(pos, 'deep') / TOTAL_COMBOS) * 100;
+      const midPct = (rangeComboCount(pos, 'mid') / TOTAL_COMBOS) * 100;
+      expect(Math.abs(midPct - deepPct)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('drops the hands whose value was implied odds', () => {
+    // UTG suited connectors: playable deep, not at 20bb.
+    for (const hand of ['65s', '76s', '87s', '98s']) {
+      expect(isOpen('UTG', hand, 'deep')).toBe(true);
+      expect(isOpen('UTG', hand, 'mid')).toBe(false);
+    }
+    // Small pairs from the first seat: no set-mining odds left.
+    expect(isOpen('UTG', '33', 'deep')).toBe(false);
+    expect(isOpen('UTG', '33', 'mid')).toBe(false);
+    // BTN speculative gappers.
+    for (const hand of ['85s', '64s']) {
+      expect(isOpen('BTN', hand, 'deep')).toBe(true);
+      expect(isOpen('BTN', hand, 'mid')).toBe(false);
+    }
+  });
+
+  it('adds the high-card hands that win without a flop', () => {
+    // A9s / A5s open UTG at 20bb but not deep.
+    for (const hand of ['A9s', 'A5s']) {
+      expect(isOpen('UTG', hand, 'deep')).toBe(false);
+      expect(isOpen('UTG', hand, 'mid')).toBe(true);
+    }
+    // Every suited king from the button — blocker plus top-pair value.
+    for (const hand of ['K2s', 'K3s', 'K4s']) {
+      expect(isOpen('BTN', hand, 'deep')).toBe(false);
+      expect(isOpen('BTN', hand, 'mid')).toBe(true);
+    }
+    // A9o from the hijack.
+    expect(isOpen('HJ', 'A9o', 'deep')).toBe(false);
+    expect(isOpen('HJ', 'A9o', 'mid')).toBe(true);
+  });
+
+  it('tightens early position and widens late position', () => {
+    for (const pos of ['UTG', 'UTG1', 'UTG2'] as Position[]) {
+      expect(rangeComboCount(pos, 'mid')).toBeLessThan(rangeComboCount(pos, 'deep'));
+    }
+    for (const pos of ['HJ', 'CO'] as Position[]) {
+      expect(rangeComboCount(pos, 'mid')).toBeGreaterThan(rangeComboCount(pos, 'deep'));
+    }
+  });
+});
+
+describe('short (10bb) — jam or fold', () => {
+  it('jams every pocket pair from every seat', () => {
+    const pairs = ['22', '33', '44', '55', '66', '77', '88', '99', 'TT', 'JJ', 'QQ', 'KK', 'AA'];
+    for (const pos of POSITIONS) {
+      for (const hand of pairs) {
+        expect(isOpen(pos, hand, 'short')).toBe(true);
+      }
+    }
+    // Which is not true deep — UTG folds 22/33/44 there.
+    expect(isOpen('UTG', '22', 'deep')).toBe(false);
+  });
+
+  it('jams every suited ace from every seat', () => {
+    for (const pos of POSITIONS) {
+      for (const lo of ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']) {
+        expect(isOpen(pos, `A${lo}s`, 'short')).toBe(true);
+      }
+    }
+    expect(isOpen('UTG', 'A2s', 'deep')).toBe(false);
+  });
+
+  it('is wider than the deep chart at every seat — fold equity, not playability', () => {
+    for (const pos of POSITIONS) {
+      expect(rangeComboCount(pos, 'short')).toBeGreaterThan(
+        rangeComboCount(pos, 'deep')
+      );
+    }
+  });
+
+  it('keeps small suited connectors out of early position', () => {
+    // The worst hands to be called by: they need to make something.
+    for (const hand of ['54s', '65s', '76s']) {
+      expect(isOpen('UTG', hand, 'short')).toBe(false);
+      expect(isOpen('UTG1', hand, 'short')).toBe(false);
+    }
+    // But the button jams them — nobody is left to call.
+    for (const hand of ['54s', '65s', '76s']) {
+      expect(isOpen('BTN', hand, 'short')).toBe(true);
+    }
+  });
+
+  it('jams over half of all hands on the button', () => {
+    const pct = (rangeComboCount('BTN', 'short') / TOTAL_COMBOS) * 100;
+    expect(pct).toBeGreaterThan(50);
   });
 });

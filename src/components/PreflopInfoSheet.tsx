@@ -8,17 +8,78 @@
  * Opens with the same riseSheet animation (220ms) defined in ExplainSheet.module.css.
  * Closes via backdrop click, × button, or Escape (Esc handled by parent).
  *
+ * The copy is depth-aware: the 40bb+ and 20bb tiers brief an open-or-fold
+ * decision, the 10bb tier briefs a jam-or-fold one. The per-tier wording lives
+ * in DEPTH_BRIEF below, next to the layout that renders it, rather than in the
+ * range data — it is presentation, not poker.
+ *
  * Props:
+ *   depth   — the tier being drilled.
  *   onClose — called when the sheet should close.
  */
 
+import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './ExplainSheet.module.css';
 
+// ─── Per-tier briefing copy ───────────────────────────────────────────────────
+
+interface DepthBrief {
+  /** Sheet title. */
+  title: string;
+  /** Step 01 — the table. */
+  table: string;
+  /** Step 03 — the decision. */
+  decision: string;
+  /** Step 04 — the thing this tier specifically teaches. */
+  lessonTitle: string;
+  lesson: string;
+}
+
+const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
+  deep: {
+    title: 'Open or fold, first in',
+    table:
+      '9-handed tournament, 40 big blinds or more. Anything from 40bb to 100bb opens the same hands, so this one chart covers all of it.',
+    decision:
+      'Open-raise to ~2.2–2.5bb, or fold. No limping — those are the only two options.',
+    lessonTitle: 'Why position matters',
+    lesson:
+      'The earlier you sit, the more players act behind you, so the tighter you open. UTG is the tightest; the button has only the blinds left and opens widest.',
+  },
+  mid: {
+    title: 'Open or fold, first in',
+    table:
+      '9-handed tournament, 20 big blinds. Deep enough to raise and fold, too shallow to win a big pot after the flop.',
+    decision:
+      'Open-raise to ~2.2bb, or fold. You can still fold to a re-raise — that changes at 10bb.',
+    lessonTitle: 'What changes at 20bb',
+    lesson:
+      'Implied odds are gone: 22 cannot set-mine profitably and 65s has no stack left to win. Those come out. Suited aces, suited kings and offsuit broadways go in — hands that make top pair or block the jams behind you. Early position tightens, late position gets wider, because fold equity now beats playability.',
+  },
+  short: {
+    title: 'Jam or fold, first in',
+    table:
+      '9-handed tournament, 10 big blinds. A normal raise would commit a third of your stack, so raising and folding is no longer a real option.',
+    decision:
+      'Shove all-in, or fold. Nothing in between — if the hand is worth playing, it is worth all 10bb.',
+    lessonTitle: 'What changes at 10bb',
+    lesson:
+      'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat. Small suited connectors mostly stay out — they are the worst hands to be called by. And the button jams over half its hands, because seven players are already gone and only two blinds can call.',
+  },
+};
+
 interface PreflopInfoSheetProps {
+  depth?: Depth;
   onClose: () => void;
 }
 
-export default function PreflopInfoSheet({ onClose }: PreflopInfoSheetProps) {
+export default function PreflopInfoSheet({
+  depth = DEFAULT_DEPTH,
+  onClose,
+}: PreflopInfoSheetProps) {
+  const meta = DEPTH_META[depth];
+  const brief = DEPTH_BRIEF[depth];
+
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
   }
@@ -35,9 +96,9 @@ export default function PreflopInfoSheet({ onClose }: PreflopInfoSheetProps) {
           <div className={styles.sheetHeader}>
             <div className={styles.headerLeft}>
               <span className={styles.headerKicker}>The situation</span>
-              <h1 className={styles.headerTitle}>Open or fold, first in</h1>
+              <h1 className={styles.headerTitle}>{brief.title}</h1>
               <p className={styles.headerSubline}>
-                9-handed tournament table · ~60bb effective
+                9-handed tournament table · {meta.label} effective
               </p>
             </div>
             <button
@@ -60,10 +121,7 @@ export default function PreflopInfoSheet({ onClose }: PreflopInfoSheetProps) {
                 <span className={styles.stepIndex}>01</span>
                 <div className={styles.stepContent}>
                   <h2 className={styles.stepTitle}>The table</h2>
-                  <p className={styles.stepBody}>
-                    9-handed tournament, ~60 big blinds effective. You get a seat
-                    and two cards.
-                  </p>
+                  <p className={styles.stepBody}>{brief.table}</p>
                 </div>
               </div>
 
@@ -82,22 +140,15 @@ export default function PreflopInfoSheet({ onClose }: PreflopInfoSheetProps) {
                 <span className={styles.stepIndex}>03</span>
                 <div className={styles.stepContent}>
                   <h2 className={styles.stepTitle}>Your decision</h2>
-                  <p className={styles.stepBody}>
-                    Open-raise to ~2.2–2.5bb, or fold. No limping — those are the
-                    only two options.
-                  </p>
+                  <p className={styles.stepBody}>{brief.decision}</p>
                 </div>
               </div>
 
               <div className={styles.step}>
                 <span className={styles.stepIndex}>04</span>
                 <div className={styles.stepContent}>
-                  <h2 className={styles.stepTitle}>Why position matters</h2>
-                  <p className={styles.stepBody}>
-                    The earlier you sit, the more players act behind you, so the
-                    tighter you open. UTG is the tightest; the button has only
-                    the blinds left and opens widest.
-                  </p>
+                  <h2 className={styles.stepTitle}>{brief.lessonTitle}</h2>
+                  <p className={styles.stepBody}>{brief.lesson}</p>
                 </div>
               </div>
             </div>
@@ -113,7 +164,7 @@ export default function PreflopInfoSheet({ onClose }: PreflopInfoSheetProps) {
                   </div>
                   <div className={styles.memoriseRow}>
                     <span>J</span>
-                    <span className={styles.memoriseValue}>Open</span>
+                    <span className={styles.memoriseValue}>{meta.actionLabel}</span>
                   </div>
                   <div className={styles.memoriseRow}>
                     <span>Space</span>

@@ -10,14 +10,14 @@ Branch: `feat/preflop-rfi-trainer`.
 
 ## What we are building (settled with owner, 2026-09-05)
 
-A **preflop raise-first-in (RFI) trainer**, 9-max, 60bb.
+A **preflop raise-first-in (RFI) trainer**, 9-max, across three tournament stack tiers.
 
 - **Scope:** hero is dealt in one of the **7 non-blind seats** — UTG, UTG+1, UTG+2, LJ, HJ,
   CO, BTN. Action folds to hero. Blinds (SB/BB) are never the hero seat. Decision is a pure
   binary **Open / Fold** (no limps, no mixed frequencies).
-- **60bb is a label.** RFI hand selection at 60bb ≈ 100bb; we use one standard chart. Open
-  *sizing* differences are out of scope.
-- **Ranges:** hardcoded standard chart (owner reviews/tweaks the explicit combos in code).
+- **Stack depth** (settled with owner, 2026-09-08): three tiers, no more. See
+  "Stack depth tiers" below. The original 60bb chart is now labelled **40bb+**, unchanged.
+- **Ranges:** hardcoded standard charts (owner reviews/tweaks the explicit combos in code).
 - **Spot display:** two real cards on the felt + a position label + folded seats in front;
   blinds shown posted behind. Reuses the app's felt identity.
 - **Sampling:** uniform base with two soft adjustments — a **gentle ~2× skew** toward
@@ -37,6 +37,50 @@ A **preflop raise-first-in (RFI) trainer**, 9-max, 60bb.
   RFI**. Whole-view swap. Last-used mode persisted; Odds trainer is the first-ever default.
 
 ---
+
+## Stack depth tiers (settled with owner, 2026-09-08)
+
+RFI hand selection barely moves between 40bb and 100bb — a 60bb chart and a 100bb chart
+differ by a couple of combos, which is noise to a learner. Shipping both would teach that a
+distinction matters when it doesn't. So the original chart is **relabelled 40bb+** and covers
+everything from 40bb up; 80bb and 100bb are deliberately *not* separate tiers.
+
+What actually changes in a tournament is the way **down**:
+
+| Tier    | Label | Action     | What it teaches |
+|---------|-------|------------|-----------------|
+| `deep`  | 40bb+ | Open/Fold  | Baseline RFI shape by position. Full playability — set-mining and suited connectors are worth it. |
+| `mid`   | 20bb  | Open/Fold  | Same width, different shape. Implied odds are gone: weak connectors/gappers out, suited aces + suited kings + offsuit broadways in. EP tightens, LP widens on fold equity. |
+| `short` | 10bb  | **Jam**/Fold | Raise-folding no longer exists. Raw showdown equity + fold equity: every pair and every suited ace jams from every seat; BTN jams >50%. |
+
+Implemented widths (% of 1326 combos):
+
+| Pos        | deep 40bb+ | mid 20bb | short 10bb |
+|------------|------------|----------|------------|
+| UTG        |     13.6%  |   12.5%  |     15.2%  |
+| UTG+1      |     14.6%  |   13.6%  |     16.7%  |
+| UTG+2 (LJ) |     17.8%  |   17.3%  |     20.1%  |
+| HJ         |     21.3%  |   21.6%  |     24.3%  |
+| CO         |     26.7%  |   27.9%  |     32.1%  |
+| BTN        |     45.4%  |   44.8%  |     50.2%  |
+
+Notes on the implementation:
+
+- `Depth = 'deep' | 'mid' | 'short'` lives in `lib/preflop/ranges.ts` alongside `DEPTH_META`,
+  which carries every user-facing string for a tier (label, stack figure on the plaques,
+  action verb, verdict noun, prompt). The UI never hardcodes "Open" or "60 bb" again.
+- `isOpen` / `getRangeSet` / `rangeComboCount` take `depth` as an **optional trailing**
+  argument defaulting to `'deep'`. Every pre-tier test therefore still pins the deep chart
+  unchanged — which is the proof the rename moved no combos.
+- `PreflopSpot.correct` stays `'open' | 'fold'` at all three tiers. `'open'` means "put chips
+  in"; the UI renders it as "jam" at 10bb via `DEPTH_META[depth].actionLabel`. The data layer
+  does not need two words for one binary decision.
+- Depth is chosen from the header menu, persisted to `bluff-catcher:preflop-depth:v1`, and
+  App remounts `PreflopTrainer` on a change (`key={depth}`) so the spot re-deals and the
+  briefing re-opens for the new tier.
+- The **J key** commits the aggressive action at every tier — only its label changes.
+- Stats stay a single pool across tiers. Splitting accuracy per depth is deliberately out of
+  scope: the point is the big picture, not a per-tier scoreboard.
 
 ## Hand model
 

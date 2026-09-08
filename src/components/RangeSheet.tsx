@@ -1,6 +1,6 @@
 /**
- * RangeSheet — sheet overlay that displays the full 13×13 opening range grid,
- * with navigation across every seat's chart.
+ * RangeSheet — sheet overlay that displays the full 13×13 range grid, with
+ * navigation across every seat's chart and every stack depth.
  *
  * Reuses ExplainSheet's CSS module (backdrop, sheet, sheetInner, sheetHeader,
  * closeBtn, divider, footer, btnAccent) without forking the animation; the
@@ -14,12 +14,18 @@
  * Movement is clamped at both ends (no wraparound) so the seat order stays
  * legible as "earliest → latest position".
  *
+ * A second strip above the seats switches stack depth (40bb+ / 20bb / 10bb),
+ * so the same seat can be compared across tiers without closing the sheet.
+ * Depth is sheet-local: browsing to 10bb here does not change the tier the
+ * trainer is drilling.
+ *
  * The sheet is used from two places:
  *   - PreflopTrainer, after a commit: opens on the hero's seat, hand highlighted.
  *   - The header menu: opens standalone as a chart browser (no hand).
  *
  * Props:
  *   position    — the seat to open on (initial only; the sheet owns it after).
+ *   depth       — the tier to open on (initial only; the sheet owns it after).
  *   highlight   — hero's current hand class; marked only on the hero's own chart.
  *   heroPosition— seat of the hand being drilled, dotted in the tab strip.
  *   onClose     — called when the sheet should close.
@@ -27,7 +33,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import RangeGrid from './RangeGrid';
-import { POSITIONS, rangeComboCount, type Position } from '../lib/preflop/ranges';
+import {
+  DEFAULT_DEPTH,
+  DEPTHS,
+  DEPTH_META,
+  POSITIONS,
+  rangeComboCount,
+  type Depth,
+  type Position,
+} from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
 import styles from './ExplainSheet.module.css';
 import nav from './RangeSheet.module.css';
@@ -69,6 +83,7 @@ const SWIPE_MIN_PX = 50;
 
 interface RangeSheetProps {
   position: Position;
+  depth?: Depth;
   highlight?: HandClass;
   heroPosition?: Position;
   onClose: () => void;
@@ -76,6 +91,7 @@ interface RangeSheetProps {
 
 export default function RangeSheet({
   position,
+  depth = DEFAULT_DEPTH,
   highlight,
   heroPosition,
   onClose,
@@ -85,6 +101,11 @@ export default function RangeSheet({
   // mounted only while open, so the seed is re-read on every open; callers that
   // keep it mounted across spots should pass a `key` to force a remount.
   const [viewPos, setViewPos] = useState<Position>(position);
+
+  // Same story for the tier: seeded from the caller, then owned here so the
+  // player can flip 40bb+ → 20bb → 10bb on one seat and watch the chart move.
+  const [viewDepth, setViewDepth] = useState<Depth>(depth);
+  const meta = DEPTH_META[viewDepth];
 
   const idx = POSITIONS.indexOf(viewPos);
   const canPrev = idx > 0;
@@ -166,7 +187,7 @@ export default function RangeSheet({
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
   const gridHighlight = viewPos === heroSeat ? highlight : undefined;
 
-  const combos = rangeComboCount(viewPos);
+  const combos = rangeComboCount(viewPos, viewDepth);
   const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
 
   return (
@@ -183,7 +204,9 @@ export default function RangeSheet({
           {/* Header */}
           <div className={styles.sheetHeader}>
             <div className={styles.headerLeft}>
-              <span className={styles.headerKicker}>Opening range</span>
+              <span className={styles.headerKicker}>
+                {meta.rangeKicker} · {meta.label}
+              </span>
               <div className={nav.titleRow}>
                 <button
                   type="button"
@@ -206,7 +229,7 @@ export default function RangeSheet({
                 </button>
               </div>
               <p className={styles.headerSubline}>
-                {combos} combos · {pct}% · green = open, dark = fold
+                {combos} combos · {pct}% · green = {meta.action}, dark = fold
                 {gridHighlight ? ` · Your hand: ${gridHighlight}` : ''}
               </p>
             </div>
@@ -218,6 +241,23 @@ export default function RangeSheet({
             >
               ×
             </button>
+          </div>
+
+          {/* Stack-depth strip — the same seat, three tiers */}
+          <div className={nav.depths} role="tablist" aria-label="Stack depth">
+            {DEPTHS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                role="tab"
+                aria-selected={d === viewDepth}
+                className={`${nav.depthTab} ${d === viewDepth ? nav.depthTabActive : ''}`}
+                onClick={() => setViewDepth(d)}
+              >
+                <span className={nav.depthLabel}>{DEPTH_META[d].label}</span>
+                <span className={nav.depthName}>{DEPTH_META[d].name}</span>
+              </button>
+            ))}
           </div>
 
           {/* Position tab strip */}
@@ -249,7 +289,7 @@ export default function RangeSheet({
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <RangeGrid position={viewPos} highlight={gridHighlight} />
+            <RangeGrid position={viewPos} depth={viewDepth} highlight={gridHighlight} />
           </div>
 
           {/* Footer */}
@@ -262,7 +302,7 @@ export default function RangeSheet({
               Close
             </button>
             <span className={nav.navHint}>
-              ← / → arrows, tabs or swipe to change position
+              ← / → arrows, tabs or swipe to change position · {meta.tagline}
             </span>
           </div>
         </div>

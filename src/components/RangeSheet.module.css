@@ -2,7 +2,8 @@
  *
  * The sheet shell (backdrop, panel, header, footer) is reused from
  * ExplainSheet.module.css; this module only adds the position navigator:
- * prev/next arrows, the position tab strip, and the swipeable body.
+ * prev/next arrows, the stack-depth strip, the position tab strip, and the
+ * swipeable body.
  */
 
 /* ── Arrow buttons ────────────────────────────────────────────────────────── */
@@ -41,6 +42,59 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
+}
+
+/* ── Stack-depth strip ────────────────────────────────────────────────────── */
+/*
+ * Sits above the seats because depth is the outer axis: it changes what the
+ * whole chart means (open vs jam), where a seat only changes which chart.
+ * Tabs are two-line — the stack figure reads first, the tier name qualifies it.
+ */
+
+.depths {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.depthTab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-800);
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.depthTab:hover {
+  color: var(--color-text);
+  border-color: var(--color-neutral-700);
+}
+
+.depthTabActive,
+.depthTabActive:hover {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-neutral-900));
+  border-color: var(--color-accent);
+  color: var(--color-accent-100);
+}
+
+.depthLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.depthName {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.62;
 }
 
 /* ── Position tab strip ───────────────────────────────────────────────────── */
@@ -106,6 +160,18 @@
   .tab {
     padding: 5px 9px;
     font-size: 11px;
+  }
+
+  .depthTab {
+    padding: 5px 10px;
+  }
+
+  .depthLabel {
+    font-size: 12px;
+  }
+
+  .depthName {
+    font-size: 9px;
   }
 
   .navHint {

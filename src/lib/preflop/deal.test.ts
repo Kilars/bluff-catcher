@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { dealPreflopSpot, uniformPool, edgeSkewPool, ACTIVE_POOL } from './deal';
-import { isOpen } from './ranges';
+import { isOpen, DEPTHS, DEFAULT_DEPTH } from './ranges';
 import { handClass as computeHandClass, ALL_169, HAND_STRENGTH_RANKING } from './hands';
 import { type Position, POSITIONS } from './ranges';
 
@@ -295,5 +295,67 @@ describe('dealPreflopSpot() — seeded determinism', () => {
     // Just check it runs without error
     expect(spot1).toBeDefined();
     expect(spot2).toBeDefined();
+  });
+});
+
+describe('dealPreflopSpot() — stack depth', () => {
+  it('defaults to the deep tier when no depth is given', () => {
+    const spot = dealPreflopSpot({ rng: makeRng(7) });
+    expect(spot.depth).toBe(DEFAULT_DEPTH);
+    expect(spot.depth).toBe('deep');
+  });
+
+  it('reports back the depth it was asked for', () => {
+    for (const depth of DEPTHS) {
+      const spot = dealPreflopSpot({ rng: makeRng(7), depth });
+      expect(spot.depth).toBe(depth);
+    }
+  });
+
+  it('grades against the chart for that depth', () => {
+    for (const depth of DEPTHS) {
+      const rng = makeRng(2024);
+      for (let i = 0; i < 400; i++) {
+        const spot = dealPreflopSpot({ rng, depth, pool: uniformPool });
+        const expected = isOpen(spot.position, spot.handClass, depth) ? 'open' : 'fold';
+        expect(spot.correct).toBe(expected);
+      }
+    }
+  });
+
+  it('a seed picks the same seat and hand at every depth — only the verdict moves', () => {
+    // The RNG draw order does not depend on the tier under uniformPool, so the
+    // three tiers are directly comparable: same spot, possibly different answer.
+    const spots = DEPTHS.map((depth) =>
+      dealPreflopSpot({ rng: makeRng(31337), depth, pool: uniformPool })
+    );
+    for (const spot of spots) {
+      expect(spot.position).toBe(spots[0].position);
+      expect(spot.handClass).toBe(spots[0].handClass);
+    }
+  });
+
+  it('at 10bb every pocket pair grades as a play, from any seat', () => {
+    const rng = makeRng(555);
+    let pairsSeen = 0;
+    for (let i = 0; i < 3000; i++) {
+      const spot = dealPreflopSpot({ rng, depth: 'short', pool: uniformPool });
+      if (spot.handClass.length === 2) {
+        pairsSeen++;
+        expect(spot.correct).toBe('open'); // rendered as "jam" in the UI
+      }
+    }
+    expect(pairsSeen).toBeGreaterThan(100);
+  });
+
+  it('edgeSkewPool skews to each tier\u2019s own boundary, not the deep one', () => {
+    // A2s is on the deep UTG edge band but well inside the 10bb chart (every
+    // suited ace jams), so its sampling weight has to differ between tiers.
+    expect(edgeSkewPool.weight('UTG', 'A2s', 'deep')).toBe(2);
+    expect(edgeSkewPool.weight('UTG', 'A2s', 'mid')).toBe(1);
+
+    // And the 20bb chart has its own edge, in a different place again.
+    expect(edgeSkewPool.weight('UTG', 'A8s', 'deep')).toBe(1);
+    expect(edgeSkewPool.weight('UTG', 'A8s', 'mid')).toBe(2);
   });
 });

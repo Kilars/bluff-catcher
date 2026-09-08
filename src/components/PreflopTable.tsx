@@ -21,7 +21,7 @@ import { Fragment } from 'react';
 import Card from './Card';
 import styles from './PreflopTable.module.css';
 import type { Card as CardCode } from '../lib/odds';
-import type { Position } from '../lib/preflop/ranges';
+import { DEFAULT_DEPTH, DEPTH_META, type Depth, type Position } from '../lib/preflop/ranges';
 
 // ─── Position → display label ─────────────────────────────────────────────────
 
@@ -200,6 +200,8 @@ export function buildContextLine(heroPos: Position): string {
 interface PreflopTableProps {
   hero: [CardCode, CardCode];
   position: Position;
+  /** Stack tier — drives the figure written on every plaque. */
+  depth?: Depth;
 }
 
 /** Face-down pair shown at seats still holding cards. */
@@ -212,7 +214,14 @@ function SeatCards() {
   );
 }
 
-export default function PreflopTable({ hero, position }: PreflopTableProps) {
+export default function PreflopTable({
+  hero,
+  position,
+  depth = DEFAULT_DEPTH,
+}: PreflopTableProps) {
+  // Everyone at the table is on the same effective stack — that is the whole
+  // premise of a single-depth chart, so one label covers every plaque.
+  const stackLabel = DEPTH_META[depth].stackLabel;
   const seats = buildSeats(position);
   const posLabel = POSITION_LABEL[position];
   const posLong = POSITION_LONG[position];
@@ -245,7 +254,7 @@ export default function PreflopTable({ hero, position }: PreflopTableProps) {
                   <div className={styles.plaque}>
                     <span className={styles.plaqueName}>{seat.label}</span>
                     <span className={styles.plaqueStack}>
-                      {isFolded ? 'folded' : '60 bb'}
+                      {isFolded ? 'folded' : stackLabel}
                     </span>
                   </div>
                 </div>
@@ -288,7 +297,7 @@ export default function PreflopTable({ hero, position }: PreflopTableProps) {
           >
             <div className={styles.plaque}>
               <span className={styles.plaqueName}>{posLabel}</span>
-              <span className={styles.plaqueStack}>you · 60 bb</span>
+              <span className={styles.plaqueStack}>you · {stackLabel}</span>
             </div>
           </div>
 
