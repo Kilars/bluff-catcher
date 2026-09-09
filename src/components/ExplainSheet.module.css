@@ -40,6 +40,46 @@
   animation: riseSheet 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
+/*
+ * Centred-dialog variant (PreflopInfoSheet).  Its briefing is short: pinned to
+ * the bottom of a full-height panel it left the lower half of a desktop screen
+ * empty.  Here it sizes to its content and sits in the middle of the frame,
+ * which is what a briefing wants to be. On phone it stays the full-height
+ * sheet the rest of the media query already describes.
+ */
+@keyframes riseCenteredSheet {
+  from {
+    transform: translate(-50%, calc(-50% + 24px));
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 821px) {
+  .sheetCentered {
+    top: 50%;
+    bottom: auto;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: min(1180px, calc(100% - 112px));
+    max-height: calc(100% - 96px);
+    animation-name: riseCenteredSheet;
+  }
+
+  .sheetCentered .sheetInner {
+    height: auto;
+    max-height: 100%;
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 0 0 1px var(--color-neutral-700),
+      0 40px 100px rgba(0, 0, 0, 0.7);
+  }
+}
+
 .sheetInner {
   height: 100%;
   box-sizing: border-box;
@@ -52,6 +92,44 @@
   display: flex;
   flex-direction: column;
   gap: 16.8px;
+}
+
+/*
+ * The sheet panel spans the whole frame (it is the backdrop for the felt), but
+ * its contents are prose and cards — running them to 1400 px would leave
+ * unreadable line lengths and a lopsided page. Each block keeps the panel's
+ * full width up to a measure, then centres, so a wide monitor reads as a
+ * centred document rather than a left-hugging column with dead space beside it.
+ */
+.sheetInner > * {
+  width: 100%;
+  max-width: var(--sheet-measure, 1180px);
+  margin-inline: auto;
+}
+
+/*
+ * Desktop: the panel itself does not scroll — the header (what the sheet is)
+ * and the footer (how to leave it) stay put and only the body scrolls.  On a
+ * short laptop screen the old whole-panel scroll pushed "Back to the table"
+ * and "Deal me another" below the fold with nothing to say they were there.
+ * Phone keeps the single whole-sheet scroll (see the media query at the end).
+ */
+@media (min-width: 821px) {
+  .sheetInner {
+    overflow: hidden;
+  }
+
+  .sheetHeader,
+  .divider,
+  .footer {
+    flex: none;
+  }
+
+  .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 
 /* ── Header ── */
@@ -131,12 +209,14 @@
   display: flex;
   gap: 44.8px;
   align-items: flex-start;
+  justify-content: space-between;
 }
 
 /* Left column */
 .leftCol {
   flex: 1;
   min-width: 0;
+  max-width: 760px;
   display: flex;
   flex-direction: column;
   gap: var(--space-8);

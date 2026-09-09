@@ -10,6 +10,17 @@
   background: radial-gradient(ellipse 70% 60% at 50% 40%, #1d1f2f 0%, #161826 78%);
 }
 
+/*
+ * The felt is drawn at its 820 × 380 design size and transform-scaled to fit
+ * the table region: down on a phone, up on a desktop with height to spare.
+ * --felt-scale is computed in App.tsx; origin is centre on desktop (the region
+ * is centred) and top centre on phone (the region is a reserved slab).
+ */
+.feltScaleWrap {
+  transform: scale(var(--felt-scale, 1));
+  transform-origin: center;
+}
+
 .felt {
   position: relative;
   width: 820px;
@@ -159,9 +170,8 @@
     justify-content: center;
   }
 
-  /* The wrapper that owns the scale transform */
+  /* Scale itself is in the base rule; phone only re-anchors the origin. */
   .feltScaleWrap {
-    transform: scale(var(--felt-scale, 0.45));
     transform-origin: top center;
     /* Push it to the top of the table so scaled felt sits flush to top */
     align-self: flex-start;

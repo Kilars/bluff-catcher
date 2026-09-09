@@ -199,7 +199,12 @@ export default function RangeSheet({
       <div className={styles.sheet} style={{ top: '0px' }}>
         <div
           className={styles.sheetInner}
-          style={{ borderRadius: '0px' }}
+          /* Narrower measure than the explain sheet: the chart is square and
+             height-bound, so it never gets wide.  A measure that hugs it keeps
+             the header, the tabs and the grid reading as one centred column
+             instead of a heading stranded away from its chart.
+             See ExplainSheet.module.css → .sheetInner > *. */
+          style={{ borderRadius: '0px', '--sheet-measure': '760px' } as React.CSSProperties}
         >
           {/* Header */}
           <div className={styles.sheetHeader}>

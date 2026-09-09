@@ -89,9 +89,11 @@ export default function PreflopInfoSheet({
       {/* Backdrop — reuses ExplainSheet backdrop class for identical styling */}
       <div className={styles.backdrop} onClick={handleBackdropClick} />
 
-      {/* Sheet — top:0 (full-screen) so the whole briefing fits without scrolling */}
-      <div className={styles.sheet} style={{ top: '0px' }}>
-        <div className={styles.sheetInner} style={{ borderRadius: '0px' }}>
+      {/* Sheet — a centred dialog on desktop (the briefing is short, and a
+          full-height panel left the bottom half of the screen empty); the
+          phone media query turns it back into the usual full-height sheet. */}
+      <div className={`${styles.sheet} ${styles.sheetCentered}`}>
+        <div className={styles.sheetInner}>
           {/* Header */}
           <div className={styles.sheetHeader}>
             <div className={styles.headerLeft}>

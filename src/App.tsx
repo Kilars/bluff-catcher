@@ -87,6 +87,27 @@ function saveDepth(depth: Depth): void {
   }
 }
 
+// ─── Viewport scaling constants ───────────────────────────────────────────────
+
+/** Below this the layout reflows into the phone column (see App.module.css). */
+const PHONE_MAX_WIDTH = 820;
+/** The canvas the desktop layout was designed against. */
+const DESIGN_WIDTH = 1280;
+const DESIGN_HEIGHT = 860;
+/** Fixed chrome heights, in logical px (Header.module.css / Dock.module.css). */
+const HEADER_HEIGHT = 54;
+const DOCK_HEIGHT = 226;
+/** Felt is 820 × 380; hero cards overhang 32 px, and it wants breathing room. */
+const FELT_WIDTH = 820;
+const FELT_BLOCK_HEIGHT = 500;
+/** Past this the UI is simply large, not more readable. */
+const MAX_UI_SCALE = 1.6;
+const MAX_FELT_SCALE = 1.25;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -110,16 +131,47 @@ export default function App() {
     saveDepth(next);
   }, []);
 
-  // ── Phone felt scale ──────────────────────────────────────────────────────
-  // The felt (both modes) is a fixed 820 px design; on phone it is scaled to
-  // fit the viewport via CSS transform.  CSS calc cannot divide length by
-  // length to produce a unitless scale factor, so we compute the ratio in JS
-  // and expose it as --felt-scale on :root.  Both Table and PreflopTable
-  // consume it.  Runs once here so it covers both modes (not per-mode).
+  // ── Viewport scaling ──────────────────────────────────────────────────────
+  // Two unitless factors, both computed here because CSS calc cannot divide a
+  // length by a length to produce a plain number:
+  //
+  //   --ui-scale    how much the whole frame is magnified (App.module.css).
+  //                 The frame is laid out at viewport / ui-scale and then
+  //                 transform-scaled back up, so a large monitor gets a large
+  //                 UI while the layout itself stays fluid. 1 on phone.
+  //   --felt-scale  how much the 820 × 380 felt is scaled inside the table
+  //                 region — down to fit a phone, up to claim the leftover
+  //                 desktop height. Consumed by Table and PreflopTable.
+  //
+  // Runs once here so it covers both modes (not per-mode).
   useEffect(() => {
     const setScale = () => {
-      const scale = Math.min(1, (window.innerWidth * 0.96) / 820);
-      document.documentElement.style.setProperty('--felt-scale', String(scale));
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const root = document.documentElement.style;
+
+      if (w <= PHONE_MAX_WIDTH) {
+        root.setProperty('--ui-scale', '1');
+        root.setProperty('--felt-scale', String(Math.min(1, (w * 0.96) / FELT_WIDTH)));
+        return;
+      }
+
+      // Never shrink the chrome below the design size; cap the magnification so
+      // a 4K panel does not end up with 40 px body text.
+      const ui = clamp(Math.min(w / DESIGN_WIDTH, h / DESIGN_HEIGHT), 1, MAX_UI_SCALE);
+      const logicalW = w / ui;
+      const logicalH = h / ui;
+
+      // Height left for the felt once header and dock have taken their cut.
+      const feltRegionH = logicalH - HEADER_HEIGHT - DOCK_HEIGHT;
+      const felt = clamp(
+        Math.min((logicalW - 64) / FELT_WIDTH, feltRegionH / FELT_BLOCK_HEIGHT),
+        0.4,
+        MAX_FELT_SCALE
+      );
+
+      root.setProperty('--ui-scale', ui.toFixed(4));
+      root.setProperty('--felt-scale', felt.toFixed(4));
     };
     setScale();
     window.addEventListener('resize', setScale);
