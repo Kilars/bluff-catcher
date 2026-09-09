@@ -132,27 +132,31 @@
 
 /* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 /*
- * The felt is 820 × 380 px (aspect ratio ≈ 2.16:1).  On the phone tree we
- * scale it
- * down uniformly so its rendered width equals 100vw, using:
+ * The felt is 820 × 380 px (aspect ratio ≈ 2.16:1) and the phone tree shrinks it
+ * with a uniform transform:
  *
- *   transform: scale(phoneWidth / 820)
- *   transform-origin: top center
+ *   transform: scale(var(--felt-scale))   (in the base .feltScaleWrap rule)
+ *   transform-origin: top center          (re-anchored below)
  *
- * Because transform does not affect document flow, the table section would
- * collapse to 0 height without an explicit height.  We give .table the exact
- * scaled height the felt will visually occupy:
+ * --felt-scale used to be recomputed per resize as `viewportWidth * 0.96 / 820`
+ * — 0.4566 on a 390px phone.  It is now the flat 0.45 pinned in App.module.css,
+ * because this whole block is scaffolding: PLAN-phone §5.1 deletes the felt from
+ * the phone tree entirely, so the board cards can render at their native 66 × 94
+ * instead of 30 × 43.  The constant only has to hold until phases 4 and 7.
  *
- *   scaledFeltH = 380 * (100vw / 820) = 380vw / 820 ≈ 46.34vw
+ * Because a transform does not affect document flow, the table section would
+ * collapse to 0 height without an explicit one.  We give .table the exact scaled
+ * height the felt visually occupies:
  *
- * The hero cards overhang by 32px below the felt bottom, so add that too
- * (also scaled): 32 * (100vw / 820) ≈ 3.9vw → round up to 4vw.
+ *   scaledFeltH  = 380 × 0.45 = 171px
+ *   heroOverhang =  32 × 0.45 ≈  14px    (hero cards hang below the felt edge)
+ *   total        = 412 × 0.45 ≈ 185px
  *
- * Total table block height ≈ 46.34vw + 4vw = 50.34vw → we use 51vw.
+ * which is the calc() below, written against --felt-scale so the two stay tied.
  *
  * The felt wrapper (.feltScaleWrap) holds transform-origin and clips nothing;
- * it must be added to Table.tsx as a wrapping div around .felt.
- * See Table.tsx: the <div className={styles.feltScaleWrap}> wrapper.
+ * see Table.tsx: the <div className={styles.feltScaleWrap}> wrapper around
+ * .felt.
  */
 
 :root[data-layout="phone"] .table {
