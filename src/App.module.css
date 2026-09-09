@@ -1,8 +1,20 @@
 /*
  * App.module.css — frame shell for the Runout drill.
  *
- * Desktop: fixed 1280 × 860 canvas, overflow hidden.
- * The frame is a fixed-size island that sits in the page; no desktop globals needed.
+ * The frame always covers the whole viewport. On desktop it is laid out at a
+ * *logical* size (100vw / --ui-scale × 100dvh / --ui-scale) and then scaled up
+ * by --ui-scale with a transform, so a big monitor gets a big UI instead of a
+ * 1280 × 860 island stranded in the top-left corner:
+ *
+ *   1366 × 768   →  scale 1.00, logical 1366 × 768   (design size, unscaled)
+ *   1920 × 1080  →  scale 1.26, logical 1528 × 860
+ *   2560 × 1440  →  scale 1.60, logical 1600 × 900   (capped)
+ *
+ * Because the logical size is derived from the real viewport, the layout stays
+ * fluid — the header, dock and sheets stretch to the full width, there is no
+ * letterboxing — while every px in the component CSS grows by --ui-scale.
+ * --ui-scale is computed in App.tsx (CSS cannot divide a length by a length to
+ * get a unitless factor); it is 1 on phone, so the phone path is unchanged.
  *
  * Phone portrait: @media (max-width: 820px)
  * 820 px = the exact felt width.  Anything narrower cannot show the felt at
@@ -21,10 +33,12 @@
 /* ── Frame ───────────────────────────────────────────────────────────────── */
 
 .frame {
-  /* Desktop values — IDENTICAL to the former inline styles in App.tsx */
   position: relative;
-  width: 1280px;
-  height: 860px;
+  width: calc(100vw / var(--ui-scale, 1));
+  height: calc(100vh / var(--ui-scale, 1)); /* fallback */
+  height: calc(100dvh / var(--ui-scale, 1)); /* excludes dynamic browser chrome */
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: top left;
   overflow: hidden;
   background: var(--color-bg);
   display: flex;
@@ -36,11 +50,9 @@
 
 @media (max-width: 820px) {
   .frame {
-    width: 100vw;
-    height: 100vh;        /* fallback for browsers without dvh */
-    height: 100dvh;       /* preferred: excludes dynamic browser chrome */
+    /* --ui-scale is pinned to 1 on phone, so the sizes above already resolve
+       to 100vw × 100dvh; only the overflow behaviour differs. */
     overflow: hidden;     /* outer clips; inner sections scroll if needed */
     overflow-y: auto;     /* allow vertical scroll on very small screens */
   }
 }
-

@@ -60,16 +60,24 @@
 
 /* ── Right column — prompt + action buttons ─────────────────────────────── */
 
+/*
+ * Desktop: the prompt reads on the left and the action buttons sit at the far
+ * right of the dock, so the row spans the full width instead of huddling in the
+ * left third of a wide screen (and the buttons land in the same place before and
+ * after the commit). Phone stacks them again — see the media query below.
+ */
 .right {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-6);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
 }
 
 .prompt {
+  max-width: 620px;
   font-family: var(--font-heading);
   font-weight: 500;
   font-size: 22px;
@@ -202,8 +210,10 @@
 /* ── Post-commit: verdict placeholder + Next button ─────────────────────── */
 
 .postCommit {
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-8);
 }
 
@@ -337,7 +347,10 @@
   .right {
     flex: 1;
     min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: flex-start;
+    gap: var(--space-6);
   }
 
   /* Prompt text smaller on phone */

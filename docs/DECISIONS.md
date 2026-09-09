@@ -218,8 +218,12 @@ Keep each string as terse as the hand-written originals. The sheet's structure (
 
 ## Layout — responsive from day 1
 
-- **Desktop:** recreate the 1280×860 design pixel-accurately per the handoff README
-  (header / table / dock bands, the guess rail mechanic, the bottom-sheet explanation).
+- **Desktop:** the 1280×860 design is the *layout unit*, not a fixed canvas. The frame
+  fills the viewport: it is laid out at `viewport / --ui-scale` and transform-scaled back
+  up (`--ui-scale = clamp(1, min(vw/1280, vh/860), 1.6)`, computed in `App.tsx`), so the
+  bands, the rail mechanic and the sheets keep their proportions while a large monitor
+  gets a large UI instead of a small island in the corner. The felt takes the leftover
+  height on top of that via `--felt-scale`. Everything else is per the handoff README.
 - **Portrait phone:** single vertical column — compact header → scaled felt + cards →
   hand read → you/actual result → **rail pinned in the thumb zone** near the bottom. The
   explanation is a bottom sheet (already the right mobile gesture). No landscape lock.

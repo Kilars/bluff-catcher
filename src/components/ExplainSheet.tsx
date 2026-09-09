@@ -28,7 +28,14 @@ export default function ExplainSheet({
   onNext,
   layout = 'Bottom sheet',
 }: ExplainSheetProps) {
-  const sheetTop = layout === 'Full screen' ? '0px' : '240px';
+  // Bottom sheet: 240px down from the top of the frame at the design height of
+  // 860px, but never leaving the sheet less than 620px — on a short laptop the
+  // fixed 240px cost the sheet the room its body needs. `100%` here is the
+  // frame's height (the sheet's containing block).
+  const sheetTop =
+    layout === 'Full screen'
+      ? '0px'
+      : 'clamp(96px, calc(100% - 620px), 240px)';
   const borderRadius =
     layout === 'Full screen' ? '0px' : 'var(--radius-lg) var(--radius-lg) 0 0';
 
