@@ -115,8 +115,10 @@ describe('RangeSheet navigation', () => {
     render(<RangeSheet position="CO" depth="deep" onClose={() => {}} />);
     const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
 
-    // Deep CO: 354 combos, and the chart is an *opening* range.
-    expect(screen.getByText(/354 combos/)).toBeInTheDocument();
+    // Deep CO, and the chart is an *opening* range.
+    expect(
+      screen.getByText(new RegExp(`${rangeComboCount('CO', 'deep')} combos`)),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Opening range · 40bb\+/)).toBeInTheDocument();
 
     // Flip to 10bb — same seat, a jamming chart of a different size.

@@ -32,7 +32,7 @@ import { DEFAULT_DEPTH, DEPTH_META, type Depth, type Position } from '../lib/pre
  *   UTG   → "UTG"
  *   UTG1  → "UTG+1"
  *   UTG2  → "UTG+2"
- *   LJ    → "LJ"      (same seat as UTG2 per spec, but shown as LJ)
+ *   LJ    → "LJ"      (its own seat, one later than UTG+2)
  *   HJ    → "HJ"
  *   CO    → "CO"
  *   BTN   → "BTN"

@@ -51,10 +51,10 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
     table:
       '9-handed tournament, 20 big blinds. Deep enough to raise and fold, too shallow to win a big pot after the flop.',
     decision:
-      'Open-raise to ~2.2bb, or fold. You can still fold to a re-raise — that changes at 10bb.',
+      'Open-raise to ~2bb, or fold. You can still fold to a re-raise — that changes at 10bb.',
     lessonTitle: 'What changes at 20bb',
     lesson:
-      'Implied odds are gone: 22 cannot set-mine profitably and 65s has no stack left to win. Those come out. Suited aces, suited kings and offsuit broadways go in — hands that make top pair or block the jams behind you. Early position tightens, late position gets wider, because fold equity now beats playability.',
+      'Implied odds are gone: 65s has no stack left to win, so hands like that come out and suited kings and offsuit broadways go in. The surprise is where the range shrinks. UTG barely moves — it was never opening for implied odds. The button drops seven points, because its widest hands were only ever profitable for the position it had after the flop, and there is no meaningful after-the-flop left.',
   },
   short: {
     title: 'Jam or fold, first in',
@@ -64,7 +64,7 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
       'Shove all-in, or fold. Nothing in between — if the hand is worth playing, it is worth all 10bb.',
     lessonTitle: 'What changes at 10bb',
     lesson:
-      'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat. Small suited connectors mostly stay out — they are the worst hands to be called by. And the button jams over half its hands, because seven players are already gone and only two blinds can call.',
+      'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat, while small suited connectors stay out until late position — they are the worst hands to be called by. Note the ranges are about as wide as the 40bb+ ones, not wider: fold equity buys the bottom of the range, and being unable to fold to a re-raise sells the top back. Different hands, similar count.',
   },
 };
 

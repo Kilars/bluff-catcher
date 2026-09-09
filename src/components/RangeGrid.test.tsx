@@ -45,11 +45,12 @@ describe('RangeGrid', () => {
       ['UTG', 'AKs', true],
       ['UTG', 'AA',  true],
       ['UTG', '72o', false],
-      ['UTG', '87s', true],   // expanded addition
-      ['UTG', '54s', false],  // not in UTG range
-      // CO boundary hands from the plan spec
-      ['CO', 'K7s', true],
-      ['CO', 'K6s', false],
+      ['UTG', 'A9s', true],   // suited aces open from the first seat
+      ['UTG', '87s', false],  // small connectors do not
+      ['UTG', '54s', false],
+      // CO boundary hands
+      ['CO', 'Q4s', true],
+      ['CO', 'Q3s', false],
     ] as [string, string, boolean][])(
       'position=%s hand=%s → isOpen=%s',
       (position, hc, expected) => {
