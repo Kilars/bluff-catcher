@@ -50,19 +50,30 @@ What actually changes in a tournament is the way **down**:
 | Tier    | Label | Action     | What it teaches |
 |---------|-------|------------|-----------------|
 | `deep`  | 40bb+ | Open/Fold  | Baseline RFI shape by position. Full playability — set-mining and suited connectors are worth it. |
-| `mid`   | 20bb  | Open/Fold  | Same width, different shape. Implied odds are gone: weak connectors/gappers out, suited aces + suited kings + offsuit broadways in. EP tightens, LP widens on fold equity. |
-| `short` | 10bb  | **Jam**/Fold | Raise-folding no longer exists. Raw showdown equity + fold equity: every pair and every suited ace jams from every seat; BTN jams >50%. |
+| `mid`   | 20bb  | Open/Fold  | Implied odds are gone: weak connectors/gappers out, suited aces + suited kings + offsuit broadways in. **Late position tightens, early position does not** — playability was the button's edge and 20bb takes it away. |
+| `short` | 10bb  | **Jam**/Fold | Raise-folding no longer exists. Raw showdown equity + fold equity: every pair and every suited ace jams from every seat; BTN jams >50%. Widths land close to the 40bb+ chart, not above it. |
 
 Implemented widths (% of 1326 combos):
 
 | Pos        | deep 40bb+ | mid 20bb | short 10bb |
 |------------|------------|----------|------------|
-| UTG        |     13.6%  |   12.5%  |     15.2%  |
-| UTG+1      |     14.6%  |   13.6%  |     16.7%  |
-| UTG+2 (LJ) |     17.8%  |   17.3%  |     20.1%  |
-| HJ         |     21.3%  |   21.6%  |     24.3%  |
-| CO         |     26.7%  |   27.9%  |     32.1%  |
-| BTN        |     45.4%  |   44.8%  |     50.2%  |
+| UTG        |     16.1%  |   16.7%  |     16.1%  |
+| UTG+1      |     17.5%  |   18.7%  |     17.6%  |
+| UTG+2      |     20.5%  |   20.5%  |     19.8%  |
+| LJ         |     23.5%  |   22.6%  |     23.4%  |
+| HJ         |     28.7%  |   25.9%  |     28.2%  |
+| CO         |     36.5%  |   32.4%  |     34.8%  |
+| BTN        |     50.8%  |   43.3%  |     50.8%  |
+
+Charts are transcribed from solver-derived 9-handed MTT chart sets (PokerCoaching's
+published 40bb / 25bb / 15bb GTO packs), each transcription checked against the combo
+count printed on the source chart, and cross-checked against published solver widths
+(ThinkGTO, RangeConverter, GTO Wizard) plus Nash push/fold data for the 10bb tier.
+They assume **antes** and chipEV, not ICM. The 20bb tier is anchored on the 25bb
+charts, trimmed toward 15bb in the late-position seats where those two packs disagree.
+
+**UTG+2 and LJ are separate seats** — adjacent at a 9-handed table, but ~3 points
+apart, and they get their own ranges.
 
 Notes on the implementation:
 

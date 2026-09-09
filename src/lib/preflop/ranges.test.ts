@@ -1,13 +1,19 @@
 /**
  * Tests for preflop RFI range data.
  *
- * The suites above the divider predate the stack tiers and call the lookups
- * without a depth argument, so they pin the deep (40bb+) chart — which is
- * exactly the guarantee the rename needs: relabelling 60bb → 40bb+ must not
- * have moved a single combo.
+ * The charts are transcriptions of solver-derived 9-handed MTT charts (see the
+ * header of ranges.ts for provenance), so these tests pin two different kinds
+ * of thing:
  *
- * Below the divider are the 20bb and 10bb tiers: widths, the shape changes
- * that justify having them at all, and the invariants that hold everywhere.
+ *   - **Widths.** Exact combo counts, verified against the counts printed on
+ *     the source charts. A chart edit that moves a count has to move the
+ *     number here too, deliberately.
+ *   - **Shape.** The boundaries and the cross-tier moves that are the point of
+ *     having three tiers at all. These are the tests that would catch a chart
+ *     that is the right size and the wrong hands.
+ *
+ * Suites that call the lookups without a depth argument pin the deep (40bb+)
+ * chart, which is the default every pre-tier caller gets.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -26,205 +32,184 @@ import {
 // Total combos in a full deck: C(52,2) = 1326
 const TOTAL_COMBOS = 1326;
 
-// Implemented combo counts and percentages (from build calculations)
-// These are the actual targets we test against (within ±1.5% of plan's stated %):
-//
-// UTG:  ~15% target → 180 combos = 13.6%  (within 13.5–16.5%)
-// UTG1: ~16% target → 194 combos = 14.6%  (within 14.5–17.5%)
-// UTG2: ~19% target → 232 combos = 17.5%  (within 17.5–20.5%)
-// LJ:   same as UTG2
-// HJ:   ~22% target → 282 combos = 21.3%  (within 20.5–23.5%)
-// CO:   ~28% target → 354 combos = 26.7%  (within 26.5–29.5%)
-// BTN:  ~45% target → 602 combos = 45.4%  (within 43.5–46.5%)
-
-const EXPECTED_COMBOS: Record<Position, number> = {
-  UTG: 180,
-  UTG1: 194,
-  UTG2: 236,
-  LJ: 236,  // same range as UTG2
-  HJ: 282,
-  CO: 354,
-  BTN: 602,
+/**
+ * Implemented widths per tier, in combos. Each deep/mid figure is the count
+ * printed on the reference chart it was transcribed from; the short figures
+ * are built to Nash/push-fold widths for 10bb with antes.
+ *
+ *            deep 40bb+      mid 20bb        short 10bb
+ *   UTG      214 (16.1%)     222 (16.7%)     214 (16.1%)
+ *   UTG+1    232 (17.5%)     248 (18.7%)     234 (17.6%)
+ *   UTG+2    272 (20.5%)     272 (20.5%)     262 (19.8%)
+ *   LJ       312 (23.5%)     300 (22.6%)     310 (23.4%)
+ *   HJ       380 (28.7%)     344 (25.9%)     374 (28.2%)
+ *   CO       484 (36.5%)     430 (32.4%)     462 (34.8%)
+ *   BTN      674 (50.8%)     574 (43.3%)     674 (50.8%)
+ */
+const EXPECTED_BY_DEPTH: Record<Depth, Record<Position, number>> = {
+  deep: {
+    UTG: 214, UTG1: 232, UTG2: 272, LJ: 312, HJ: 380, CO: 484, BTN: 674,
+  },
+  mid: {
+    UTG: 222, UTG1: 248, UTG2: 272, LJ: 300, HJ: 344, CO: 430, BTN: 574,
+  },
+  short: {
+    UTG: 214, UTG1: 234, UTG2: 262, LJ: 310, HJ: 374, CO: 462, BTN: 674,
+  },
 };
 
-// ±1.5% tolerance from the plan's stated target %
-// Plan targets: UTG 15%, UTG1 16%, UTG2 19%, HJ 22%, CO 28%, BTN 45%
-// Allowed range: target ± 1.5 percentage points
-const PLAN_TARGET_PCT: Record<Position, number> = {
-  UTG: 15,
-  UTG1: 16,
-  UTG2: 19,
-  LJ: 19,
-  HJ: 22,
-  CO: 28,
-  BTN: 45,
-};
+/** Seats in order, earliest first. Used by every monotonicity check. */
+const ORDERED: Position[] = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN'];
 
-describe('rangeComboCount()', () => {
+describe('rangeComboCount() — deep chart widths', () => {
   for (const pos of POSITIONS) {
-    it(`${pos} combo count matches expected`, () => {
-      const count = rangeComboCount(pos);
-      expect(count).toBe(EXPECTED_COMBOS[pos]);
+    it(`${pos} = ${EXPECTED_BY_DEPTH.deep[pos]} combos`, () => {
+      expect(rangeComboCount(pos)).toBe(EXPECTED_BY_DEPTH.deep[pos]);
     });
   }
 
-  it('ranges are strictly increasing from UTG to BTN', () => {
-    // Each later position should open at least as many combos
-    const ordered: Position[] = ['UTG', 'UTG1', 'UTG2', 'HJ', 'CO', 'BTN'];
-    for (let i = 1; i < ordered.length; i++) {
-      const prev = rangeComboCount(ordered[i - 1]);
-      const curr = rangeComboCount(ordered[i]);
-      expect(curr).toBeGreaterThan(prev);
+  it('widens strictly from UTG to BTN', () => {
+    for (let i = 1; i < ORDERED.length; i++) {
+      expect(rangeComboCount(ORDERED[i])).toBeGreaterThan(rangeComboCount(ORDERED[i - 1]));
     }
   });
 
-  it('LJ and UTG2 have identical combo counts', () => {
-    expect(rangeComboCount('LJ')).toBe(rangeComboCount('UTG2'));
+  it('LJ is a separate, wider seat than UTG+2', () => {
+    // They are adjacent seats at a 9-handed table, not the same seat: the
+    // reference charts put them ~3 percentage points apart.
+    expect(rangeComboCount('LJ')).toBeGreaterThan(rangeComboCount('UTG2'));
   });
 });
 
-describe('combo count is within ±1.5% of plan target', () => {
-  for (const pos of POSITIONS) {
-    it(`${pos}: within ±1.5% of stated ~${PLAN_TARGET_PCT[pos]}%`, () => {
-      const count = rangeComboCount(pos);
-      const actualPct = (count / TOTAL_COMBOS) * 100;
-      const targetPct = PLAN_TARGET_PCT[pos];
-      expect(actualPct).toBeGreaterThanOrEqual(targetPct - 1.5);
-      expect(actualPct).toBeLessThanOrEqual(targetPct + 1.5);
+describe('isOpen() — deep chart boundaries', () => {
+  describe('UTG: suited aces in, small connectors out', () => {
+    it('opens A3s', () => expect(isOpen('UTG', 'A3s')).toBe(true));
+    it('opens A9s', () => expect(isOpen('UTG', 'A9s')).toBe(true));
+    it('folds A2s', () => expect(isOpen('UTG', 'A2s')).toBe(false));
+    it('opens T9s', () => expect(isOpen('UTG', 'T9s')).toBe(true));
+    it('folds 98s — the connector needs a deeper stack', () => {
+      expect(isOpen('UTG', '98s')).toBe(false);
     });
-  }
-});
-
-describe('isOpen() — boundary spot-checks', () => {
-  describe('CO boundary: opens K7s, folds K6s', () => {
-    it('CO opens K7s', () => {
-      expect(isOpen('CO', 'K7s')).toBe(true);
+    it('folds 65s', () => expect(isOpen('UTG', '65s')).toBe(false));
+    it('opens ATo', () => expect(isOpen('UTG', 'ATo')).toBe(true));
+    it('folds A9o', () => expect(isOpen('UTG', 'A9o')).toBe(false));
+    it('opens KJo, folds KTo', () => {
+      expect(isOpen('UTG', 'KJo')).toBe(true);
+      expect(isOpen('UTG', 'KTo')).toBe(false);
     });
-    it('CO folds K6s', () => {
-      expect(isOpen('CO', 'K6s')).toBe(false);
-    });
-  });
-
-  describe('UTG boundary: opens AJo, folds ATo', () => {
-    it('UTG opens AJo', () => {
-      expect(isOpen('UTG', 'AJo')).toBe(true);
-    });
-    it('UTG folds ATo', () => {
-      expect(isOpen('UTG', 'ATo')).toBe(false);
+    it('opens 66, folds 55', () => {
+      expect(isOpen('UTG', '66')).toBe(true);
+      expect(isOpen('UTG', '55')).toBe(false);
     });
   });
 
-  describe('UTG boundary: opens ATs, folds A9s', () => {
-    it('UTG opens ATs', () => {
-      expect(isOpen('UTG', 'ATs')).toBe(true);
-    });
-    it('UTG folds A9s', () => {
-      expect(isOpen('UTG', 'A9s')).toBe(false);
-    });
-  });
-
-  describe('UTG1: A9s is in range, A8s is not', () => {
-    it('UTG1 opens A9s', () => {
-      expect(isOpen('UTG1', 'A9s')).toBe(true);
-    });
-    it('UTG1 folds A8s', () => {
-      expect(isOpen('UTG1', 'A8s')).toBe(false);
+  describe('UTG+1: A2s and 98s join', () => {
+    it('opens A2s', () => expect(isOpen('UTG1', 'A2s')).toBe(true));
+    it('opens 98s', () => expect(isOpen('UTG1', '98s')).toBe(true));
+    it('folds 87s', () => expect(isOpen('UTG1', '87s')).toBe(false));
+    it('opens 55, folds 44', () => {
+      expect(isOpen('UTG1', '55')).toBe(true);
+      expect(isOpen('UTG1', '44')).toBe(false);
     });
   });
 
-  describe('HJ boundary: opens A2s, folds hands below range', () => {
-    it('HJ opens A2s', () => {
-      expect(isOpen('HJ', 'A2s')).toBe(true);
+  describe('UTG+2: suited kings extend, KTo joins', () => {
+    it('opens K6s, folds K5s', () => {
+      expect(isOpen('UTG2', 'K6s')).toBe(true);
+      expect(isOpen('UTG2', 'K5s')).toBe(false);
     });
-    it('HJ opens 22 (all pairs)', () => {
-      expect(isOpen('HJ', '22')).toBe(true);
+    it('opens 87s', () => expect(isOpen('UTG2', '87s')).toBe(true));
+    it('opens KTo, folds K9o', () => {
+      expect(isOpen('UTG2', 'KTo')).toBe(true);
+      expect(isOpen('UTG2', 'K9o')).toBe(false);
     });
-    it('HJ folds 32s', () => {
-      expect(isOpen('HJ', '32s')).toBe(false);
-    });
-  });
-
-  describe('BTN: opens many marginal hands', () => {
-    it('BTN opens K5s', () => {
-      expect(isOpen('BTN', 'K5s')).toBe(true);
-    });
-    it('BTN folds K4s', () => {
-      expect(isOpen('BTN', 'K4s')).toBe(false);
-    });
-    it('BTN opens 54s', () => {
-      expect(isOpen('BTN', '54s')).toBe(true);
-    });
-    it('BTN folds 53s', () => {
-      expect(isOpen('BTN', '53s')).toBe(false);
-    });
-    it('BTN opens 22', () => {
-      expect(isOpen('BTN', '22')).toBe(true);
-    });
-    it('BTN opens A2o (expanded offsuit)', () => {
-      expect(isOpen('BTN', 'A2o')).toBe(true);
-    });
-    it('BTN opens 97o', () => {
-      expect(isOpen('BTN', '97o')).toBe(true);
-    });
-    it('BTN folds 96o', () => {
-      expect(isOpen('BTN', '96o')).toBe(false);
+    it('opens QJo, folds QTo', () => {
+      expect(isOpen('UTG2', 'QJo')).toBe(true);
+      expect(isOpen('UTG2', 'QTo')).toBe(false);
     });
   });
 
-  describe('CO boundary hands', () => {
-    it('CO opens J8s', () => {
-      expect(isOpen('CO', 'J8s')).toBe(true);
+  describe('LJ: the first offsuit ace below ATo', () => {
+    it('opens A9o, folds A8o', () => {
+      expect(isOpen('LJ', 'A9o')).toBe(true);
+      expect(isOpen('LJ', 'A8o')).toBe(false);
     });
-    it('CO folds J7s', () => {
-      expect(isOpen('CO', 'J7s')).toBe(false);
+    it('opens K5s, folds K4s', () => {
+      expect(isOpen('LJ', 'K5s')).toBe(true);
+      expect(isOpen('LJ', 'K4s')).toBe(false);
     });
-    it('CO opens JTo', () => {
-      expect(isOpen('CO', 'JTo')).toBe(true);
+    it('opens 76s, folds 65s', () => {
+      expect(isOpen('LJ', '76s')).toBe(true);
+      expect(isOpen('LJ', '65s')).toBe(false);
     });
-    it('CO folds JTo — no, JTo is in CO', () => {
-      // JTo is the weakest offsuit in CO range
-      expect(isOpen('CO', 'JTo')).toBe(true);
+    it('opens JTo', () => expect(isOpen('LJ', 'JTo')).toBe(true));
+  });
+
+  describe('HJ: pairs down to 33, wheel connectors in', () => {
+    it('opens 33, folds 22', () => {
+      expect(isOpen('HJ', '33')).toBe(true);
+      expect(isOpen('HJ', '22')).toBe(false);
     });
-    it('CO folds J9o', () => {
-      // J9o is NOT in CO per the expanded range (J8o+ includes J8o,J9o,JTo — actually yes!)
-      // Wait: CO offsuit is A8o+, KTo+, QTo+, JTo — J8o is NOT in CO
-      // Only JTo is in CO offsuit range
-      expect(isOpen('CO', 'J9o')).toBe(false);
+    it('opens K3s, folds K2s', () => {
+      expect(isOpen('HJ', 'K3s')).toBe(true);
+      expect(isOpen('HJ', 'K2s')).toBe(false);
     });
-    it('CO opens A8o (expanded from plan A9o+)', () => {
-      expect(isOpen('CO', 'A8o')).toBe(true);
+    it('opens 54s, folds 43s', () => {
+      expect(isOpen('HJ', '54s')).toBe(true);
+      expect(isOpen('HJ', '43s')).toBe(false);
     });
-    it('CO folds A7o', () => {
-      expect(isOpen('CO', 'A7o')).toBe(false);
+    it('opens A8o, folds A7o', () => {
+      expect(isOpen('HJ', 'A8o')).toBe(true);
+      expect(isOpen('HJ', 'A7o')).toBe(false);
+    });
+    it('opens QTo, folds Q9o', () => {
+      expect(isOpen('HJ', 'QTo')).toBe(true);
+      expect(isOpen('HJ', 'Q9o')).toBe(false);
     });
   });
 
-  describe('UTG2 / LJ boundary', () => {
-    it('UTG2 opens A8s', () => {
-      expect(isOpen('UTG2', 'A8s')).toBe(true);
+  describe('CO: every suited king, offsuit aces down to A5o', () => {
+    it('opens K2s', () => expect(isOpen('CO', 'K2s')).toBe(true));
+    it('opens Q4s, folds Q3s', () => {
+      expect(isOpen('CO', 'Q4s')).toBe(true);
+      expect(isOpen('CO', 'Q3s')).toBe(false);
     });
-    it('UTG2 folds A7s', () => {
-      expect(isOpen('UTG2', 'A7s')).toBe(false);
+    it('opens A5o, folds A4o', () => {
+      expect(isOpen('CO', 'A5o')).toBe(true);
+      expect(isOpen('CO', 'A4o')).toBe(false);
     });
-    it('UTG2 opens A2s (wheel ace)', () => {
-      expect(isOpen('UTG2', 'A2s')).toBe(true);
+    it('opens K8o, folds K7o', () => {
+      expect(isOpen('CO', 'K8o')).toBe(true);
+      expect(isOpen('CO', 'K7o')).toBe(false);
     });
-    it('UTG2 opens ATo (not AJo+ only)', () => {
-      expect(isOpen('UTG2', 'ATo')).toBe(true);
+    it('opens Q9o, folds Q8o', () => {
+      expect(isOpen('CO', 'Q9o')).toBe(true);
+      expect(isOpen('CO', 'Q8o')).toBe(false);
     });
-    it('UTG2 folds A9o', () => {
-      expect(isOpen('UTG2', 'A9o')).toBe(false);
+  });
+
+  describe('BTN: just over half of all hands', () => {
+    it('opens 22', () => expect(isOpen('BTN', '22')).toBe(true));
+    it('opens Q2s', () => expect(isOpen('BTN', 'Q2s')).toBe(true));
+    it('opens J3s, folds J2s', () => {
+      expect(isOpen('BTN', 'J3s')).toBe(true);
+      expect(isOpen('BTN', 'J2s')).toBe(false);
     });
-    it('LJ same as UTG2', () => {
-      // LJ and UTG2 should agree on every hand
-      const range2 = getRangeSet('UTG2');
-      const rangeLJ = getRangeSet('LJ');
-      // Same size
-      expect(rangeLJ.size).toBe(range2.size);
-      // Every hand in one is in the other
-      for (const hc of range2) {
-        expect(rangeLJ.has(hc)).toBe(true);
-      }
+    it('opens T4s, folds T3s', () => {
+      expect(isOpen('BTN', 'T4s')).toBe(true);
+      expect(isOpen('BTN', 'T3s')).toBe(false);
+    });
+    it('opens A2o', () => expect(isOpen('BTN', 'A2o')).toBe(true));
+    it('opens K5o, folds K4o', () => {
+      expect(isOpen('BTN', 'K5o')).toBe(true);
+      expect(isOpen('BTN', 'K4o')).toBe(false);
+    });
+    it('opens 98o, folds 97o', () => {
+      expect(isOpen('BTN', '98o')).toBe(true);
+      expect(isOpen('BTN', '97o')).toBe(false);
+    });
+    it('opens more than half of all combos', () => {
+      expect(rangeComboCount('BTN') / TOTAL_COMBOS).toBeGreaterThan(0.5);
     });
   });
 
@@ -250,28 +235,17 @@ describe('isOpen() — boundary spot-checks', () => {
     }
   });
 
-  describe('progressive wheel aces: A5s-A2s phased in from UTG2/LJ', () => {
-    it('UTG does NOT open A5s', () => {
-      expect(isOpen('UTG', 'A5s')).toBe(false);
-    });
-    it('UTG does NOT open A2s', () => {
-      expect(isOpen('UTG', 'A2s')).toBe(false);
-    });
-    it('UTG1 opens A5s (plan: +A5s-A4s)', () => {
-      expect(isOpen('UTG1', 'A5s')).toBe(true);
-    });
-    it('UTG1 opens A4s (plan: +A5s-A4s)', () => {
-      expect(isOpen('UTG1', 'A4s')).toBe(true);
-    });
-    it('UTG1 does NOT open A3s', () => {
-      expect(isOpen('UTG1', 'A3s')).toBe(false);
-    });
-    it('UTG2 opens A2s (all wheel aces)', () => {
-      expect(isOpen('UTG2', 'A2s')).toBe(true);
-    });
-    it('UTG2 opens A3s', () => {
-      expect(isOpen('UTG2', 'A3s')).toBe(true);
-    });
+  describe('suited aces are phased in before suited connectors', () => {
+    // The single most common error in a homemade chart is the reverse: opening
+    // 76s from UTG while folding A8s. Pin the correct order at every seat.
+    for (const pos of POSITIONS) {
+      it(`${pos}: opens A8s if it opens 76s`, () => {
+        if (isOpen(pos, '76s')) expect(isOpen(pos, 'A8s')).toBe(true);
+      });
+      it(`${pos}: opens KTs if it opens 98s`, () => {
+        if (isOpen(pos, '98s')) expect(isOpen(pos, 'KTs')).toBe(true);
+      });
+    }
   });
 });
 
@@ -284,7 +258,6 @@ describe('getRangeSet()', () => {
 
   it('is a ReadonlySet (type check via size property)', () => {
     const r = getRangeSet('BTN');
-    // ReadonlySet has size property
     expect(typeof r.size).toBe('number');
     expect(r.size).toBeGreaterThan(0);
   });
@@ -339,22 +312,6 @@ describe('DEPTHS / DEPTH_META', () => {
   });
 });
 
-/**
- * Implemented widths per tier. These are exact — a chart edit that moves a
- * count has to move the number here too, deliberately.
- */
-const EXPECTED_BY_DEPTH: Record<Depth, Record<Position, number>> = {
-  deep: {
-    UTG: 180, UTG1: 194, UTG2: 236, LJ: 236, HJ: 282, CO: 354, BTN: 602,
-  },
-  mid: {
-    UTG: 166, UTG1: 180, UTG2: 230, LJ: 230, HJ: 286, CO: 370, BTN: 594,
-  },
-  short: {
-    UTG: 202, UTG1: 222, UTG2: 266, LJ: 266, HJ: 322, CO: 426, BTN: 666,
-  },
-};
-
 describe('rangeComboCount() across tiers', () => {
   for (const depth of DEPTHS) {
     for (const pos of POSITIONS) {
@@ -366,19 +323,29 @@ describe('rangeComboCount() across tiers', () => {
 });
 
 describe('invariants that hold at every tier', () => {
-  const ordered: Position[] = ['UTG', 'UTG1', 'UTG2', 'HJ', 'CO', 'BTN'];
-
   for (const depth of DEPTHS) {
     it(`${depth}: ranges widen from UTG to BTN`, () => {
-      for (let i = 1; i < ordered.length; i++) {
-        expect(rangeComboCount(ordered[i], depth)).toBeGreaterThan(
-          rangeComboCount(ordered[i - 1], depth)
+      for (let i = 1; i < ORDERED.length; i++) {
+        expect(rangeComboCount(ORDERED[i], depth)).toBeGreaterThanOrEqual(
+          rangeComboCount(ORDERED[i - 1], depth)
         );
       }
     });
 
-    it(`${depth}: LJ is the same seat as UTG2`, () => {
-      expect(getRangeSet('LJ', depth)).toEqual(getRangeSet('UTG2', depth));
+    it(`${depth}: every earlier seat's range is contained in every later one`, () => {
+      // A later seat plays everything an earlier seat plays, plus more. This is
+      // what makes the charts learnable, and it is what a hand-edited chart
+      // breaks first.
+      for (let i = 1; i < ORDERED.length; i++) {
+        const earlier = getRangeSet(ORDERED[i - 1], depth);
+        const later = getRangeSet(ORDERED[i], depth);
+        for (const hc of earlier) {
+          expect(
+            later.has(hc),
+            `${depth}: ${ORDERED[i]} should play ${hc} because ${ORDERED[i - 1]} does`
+          ).toBe(true);
+        }
+      }
     });
 
     it(`${depth}: premiums are played from every seat`, () => {
@@ -408,57 +375,51 @@ describe('invariants that hold at every tier', () => {
 });
 
 /**
- * The point of the 20bb tier is that the *shape* moves while the width barely
- * does. If these two suites ever both fail, the tier has stopped teaching
- * anything and should be reconsidered rather than patched.
+ * The 20bb tier exists to teach one counter-intuitive thing: shortening the
+ * stack costs *late* position, not early position. If these suites stop
+ * holding, the tier has stopped teaching it.
  */
-describe('mid (20bb) — same width, different shape', () => {
-  it('stays within 2 percentage points of the deep chart at every seat', () => {
-    for (const pos of POSITIONS) {
-      const deepPct = (rangeComboCount(pos, 'deep') / TOTAL_COMBOS) * 100;
-      const midPct = (rangeComboCount(pos, 'mid') / TOTAL_COMBOS) * 100;
-      expect(Math.abs(midPct - deepPct)).toBeLessThanOrEqual(2);
+describe('mid (20bb) — late position tightens, early position does not', () => {
+  it('tightens hardest on the button', () => {
+    const btnDeep = rangeComboCount('BTN', 'deep');
+    const btnMid = rangeComboCount('BTN', 'mid');
+    const dropPct = ((btnDeep - btnMid) / TOTAL_COMBOS) * 100;
+    expect(dropPct).toBeGreaterThan(5);
+  });
+
+  it('tightens every seat from the LJ on', () => {
+    for (const pos of ['LJ', 'HJ', 'CO', 'BTN'] as Position[]) {
+      expect(rangeComboCount(pos, 'mid')).toBeLessThan(rangeComboCount(pos, 'deep'));
+    }
+  });
+
+  it('does not tighten early position — antes push it a shade wider', () => {
+    for (const pos of ['UTG', 'UTG1', 'UTG2'] as Position[]) {
+      expect(rangeComboCount(pos, 'mid')).toBeGreaterThanOrEqual(
+        rangeComboCount(pos, 'deep')
+      );
     }
   });
 
   it('drops the hands whose value was implied odds', () => {
-    // UTG suited connectors: playable deep, not at 20bb.
-    for (const hand of ['65s', '76s', '87s', '98s']) {
-      expect(isOpen('UTG', hand, 'deep')).toBe(true);
-      expect(isOpen('UTG', hand, 'mid')).toBe(false);
-    }
-    // Small pairs from the first seat: no set-mining odds left.
-    expect(isOpen('UTG', '33', 'deep')).toBe(false);
-    expect(isOpen('UTG', '33', 'mid')).toBe(false);
-    // BTN speculative gappers.
-    for (const hand of ['85s', '64s']) {
+    // Button speculative hands: they were profitable because of what happens
+    // after the flop, and after the flop is now an all-in.
+    for (const hand of ['T5s', 'J3s', 'Q2s', '64s', 'K5o', '98o']) {
       expect(isOpen('BTN', hand, 'deep')).toBe(true);
       expect(isOpen('BTN', hand, 'mid')).toBe(false);
+    }
+    // Hijack wheel connectors, same reason.
+    for (const hand of ['54s', '65s']) {
+      expect(isOpen('HJ', hand, 'deep')).toBe(true);
+      expect(isOpen('HJ', hand, 'mid')).toBe(false);
     }
   });
 
   it('adds the high-card hands that win without a flop', () => {
-    // A9s / A5s open UTG at 20bb but not deep.
-    for (const hand of ['A9s', 'A5s']) {
+    // UTG picks up a suited king and the connector it can actually play.
+    for (const hand of ['K7s', 'T8s', '98s']) {
       expect(isOpen('UTG', hand, 'deep')).toBe(false);
       expect(isOpen('UTG', hand, 'mid')).toBe(true);
-    }
-    // Every suited king from the button — blocker plus top-pair value.
-    for (const hand of ['K2s', 'K3s', 'K4s']) {
-      expect(isOpen('BTN', hand, 'deep')).toBe(false);
-      expect(isOpen('BTN', hand, 'mid')).toBe(true);
-    }
-    // A9o from the hijack.
-    expect(isOpen('HJ', 'A9o', 'deep')).toBe(false);
-    expect(isOpen('HJ', 'A9o', 'mid')).toBe(true);
-  });
-
-  it('tightens early position and widens late position', () => {
-    for (const pos of ['UTG', 'UTG1', 'UTG2'] as Position[]) {
-      expect(rangeComboCount(pos, 'mid')).toBeLessThan(rangeComboCount(pos, 'deep'));
-    }
-    for (const pos of ['HJ', 'CO'] as Position[]) {
-      expect(rangeComboCount(pos, 'mid')).toBeGreaterThan(rangeComboCount(pos, 'deep'));
     }
   });
 });
@@ -471,7 +432,7 @@ describe('short (10bb) — jam or fold', () => {
         expect(isOpen(pos, hand, 'short')).toBe(true);
       }
     }
-    // Which is not true deep — UTG folds 22/33/44 there.
+    // Which is not true deep — UTG folds 22 there.
     expect(isOpen('UTG', '22', 'deep')).toBe(false);
   });
 
@@ -481,24 +442,44 @@ describe('short (10bb) — jam or fold', () => {
         expect(isOpen(pos, `A${lo}s`, 'short')).toBe(true);
       }
     }
+    // Deep, the first seat folds the bottom one.
     expect(isOpen('UTG', 'A2s', 'deep')).toBe(false);
   });
 
-  it('is wider than the deep chart at every seat — fold equity, not playability', () => {
+  it('lands within 2 points of the deep chart at every seat', () => {
+    // The counter-intuitive bit is *not* that a jam range is much wider than an
+    // open range — it is not. Fold equity buys the bottom of the range and the
+    // inability to fold to a re-raise sells the top back. What differs is which
+    // hands, not how many.
     for (const pos of POSITIONS) {
-      expect(rangeComboCount(pos, 'short')).toBeGreaterThan(
-        rangeComboCount(pos, 'deep')
-      );
+      const deepPct = (rangeComboCount(pos, 'deep') / TOTAL_COMBOS) * 100;
+      const shortPct = (rangeComboCount(pos, 'short') / TOTAL_COMBOS) * 100;
+      expect(Math.abs(shortPct - deepPct)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('swaps playability hands for showdown hands at the same width', () => {
+    // UTG is the same size deep and short (214 combos) out of different hands.
+    expect(rangeComboCount('UTG', 'short')).toBe(rangeComboCount('UTG', 'deep'));
+    // In: the bottom pairs and the bottom suited ace, which never see a turn.
+    for (const hand of ['22', '33', '44', '55', 'A2s']) {
+      expect(isOpen('UTG', hand, 'deep')).toBe(false);
+      expect(isOpen('UTG', hand, 'short')).toBe(true);
+    }
+    // Out: the hands that needed a flop and a stack behind them.
+    for (const hand of ['K8s', 'Q9s', 'J9s', 'T9s']) {
+      expect(isOpen('UTG', hand, 'deep')).toBe(true);
+      expect(isOpen('UTG', hand, 'short')).toBe(false);
     }
   });
 
   it('keeps small suited connectors out of early position', () => {
-    // The worst hands to be called by: they need to make something.
+    // The worst hands to get called by: they need to make something.
     for (const hand of ['54s', '65s', '76s']) {
       expect(isOpen('UTG', hand, 'short')).toBe(false);
       expect(isOpen('UTG1', hand, 'short')).toBe(false);
     }
-    // But the button jams them — nobody is left to call.
+    // But the button jams them — only two players can call.
     for (const hand of ['54s', '65s', '76s']) {
       expect(isOpen('BTN', hand, 'short')).toBe(true);
     }

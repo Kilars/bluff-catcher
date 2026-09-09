@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { dealPreflopSpot, uniformPool, edgeSkewPool, ACTIVE_POOL } from './deal';
-import { isOpen, DEPTHS, DEFAULT_DEPTH } from './ranges';
+import { isOpen, DEPTHS, DEFAULT_DEPTH, type Depth } from './ranges';
 import { handClass as computeHandClass, ALL_169, HAND_STRENGTH_RANKING } from './hands';
 import { type Position, POSITIONS } from './ranges';
 
@@ -165,22 +165,23 @@ describe('edgeSkewPool distribution', () => {
     // ~1/7 of SAMPLE_N ≈ 4285 UTG deals
     expect(utg_deals).toBeGreaterThan(1000);
 
-    // UTG range boundary: weakest open is around 55, KJs, 65s area
-    // Edge band hands (near boundary) should have ~2x weight vs base weight
-    // Mid hands (like AA, clearly in range) should have base weight 1x
-    // Trash hands (like 72o) should have weight 0.25x
+    // Take the example hands from the pool itself rather than naming hands from
+    // one particular chart: the charts move when the reference charts do, the
+    // weighting mechanism does not.
+    const midHand = 'AA'; // always in range, nowhere near any boundary
+    const edgeHand = ALL_169.find(
+      (hc) =>
+        hc.length === 3 &&
+        hc.endsWith('s') &&
+        edgeSkewPool.weight('UTG', hc, DEFAULT_DEPTH) === 2,
+    )!;
+    const trashHand = '72o'; // not near any boundary
 
-    // Find a "mid" hand that's clearly in UTG range and far from boundary
-    const midHand = 'AA'; // always in range, clearly strong
-    // Find an "edge" hand near the UTG boundary
-    // UTG opens: 55+, ATs+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, 65s; AJo+, KQo, KJo
-    // Edge: 65s is the weakest suited hand in UTG; KJo is marginal offsuit
-    const edgeHand = '65s'; // near UTG boundary (in range, but borderline)
-    // Trash: 72o - not near any boundary
-    const trashHand = '72o';
+    expect(edgeHand).toBeDefined();
+    expect(edgeSkewPool.weight('UTG', midHand, DEFAULT_DEPTH)).toBe(1);
 
     // Per-combo rates (normalize by combo count since pairs have 6, suited 4, offsuit 12)
-    // AA: pair, 6 combos; 65s: suited, 4 combos; 72o: offsuit, 12 combos
+    // AA: pair, 6 combos; the edge hand is suited, 4 combos; 72o: offsuit, 12 combos
     // To compare per-class rates, divide count by combo weight
     const midCount = counts[midHand];
     const edgeCount = counts[edgeHand];
@@ -189,7 +190,7 @@ describe('edgeSkewPool distribution', () => {
     if (midCount > 0 && trashCount > 0 && edgeCount > 0) {
       // Per-class rate (normalize by combo count)
       const midRate = midCount / 6;    // AA has 6 combos
-      const edgeRate = edgeCount / 4;  // 65s has 4 combos
+      const edgeRate = edgeCount / 4;  // a suited class has 4 combos
       const trashRate = trashCount / 12; // 72o has 12 combos
 
       // Edge should be ~2x mid (loose check: >1.2x to avoid test flakiness)
@@ -349,13 +350,20 @@ describe('dealPreflopSpot() — stack depth', () => {
   });
 
   it('edgeSkewPool skews to each tier\u2019s own boundary, not the deep one', () => {
-    // A2s is on the deep UTG edge band but well inside the 10bb chart (every
-    // suited ace jams), so its sampling weight has to differ between tiers.
-    expect(edgeSkewPool.weight('UTG', 'A2s', 'deep')).toBe(2);
-    expect(edgeSkewPool.weight('UTG', 'A2s', 'mid')).toBe(1);
+    // Each tier's chart has its own weakest-included hand, so each has its own
+    // edge band. Drilling 10bb must not skew toward the 40bb+ boundary.
+    const edgeBand = (depth: Depth) =>
+      new Set(ALL_169.filter((hc) => edgeSkewPool.weight('UTG', hc, depth) === 2));
 
-    // And the 20bb chart has its own edge, in a different place again.
-    expect(edgeSkewPool.weight('UTG', 'A8s', 'deep')).toBe(1);
-    expect(edgeSkewPool.weight('UTG', 'A8s', 'mid')).toBe(2);
+    const bands = { deep: edgeBand('deep'), mid: edgeBand('mid'), short: edgeBand('short') };
+
+    for (const depth of DEPTHS) {
+      expect(bands[depth].size).toBeGreaterThan(0);
+    }
+
+    // The bands overlap but are not the same set: at least one hand sits on one
+    // tier's boundary while being nowhere near another's.
+    expect([...bands.short].some((hc) => !bands.deep.has(hc))).toBe(true);
+    expect([...bands.deep].some((hc) => !bands.short.has(hc))).toBe(true);
   });
 });
