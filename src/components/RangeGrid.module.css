@@ -143,7 +143,7 @@
   color: var(--color-accent-100);
 }
 
-/* ── Phone portrait (max-width: 820px) ───────────────────────────────────── */
+/* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 /*
  * Shrink cells so the full 14-wide row (corner + 13 data cells) plus 13 gaps
  * fits within the sheet's inner width (~345 px on a 390 px viewport).
@@ -154,19 +154,17 @@
  * Gap tightens from 2px to 1px so we save 13 px of total width.
  */
 
-@media (max-width: 820px) {
-  .gridWrapper {
-    --range-cell: 23px;
-    --range-gap: 1px;
-  }
+:root[data-layout="phone"] .gridWrapper {
+  --range-cell: 23px;
+  --range-gap: 1px;
+}
 
-  .headerCell,
-  .cornerSpacer {
-    font-size: 8px;
-  }
+:root[data-layout="phone"] .headerCell,
+:root[data-layout="phone"] .cornerSpacer {
+  font-size: 8px;
+}
 
-  .cellLabel {
-    font-size: 6px;
-    letter-spacing: -0.03em;
-  }
+:root[data-layout="phone"] .cellLabel {
+  font-size: 6px;
+  letter-spacing: -0.03em;
 }

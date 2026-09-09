@@ -156,25 +156,25 @@
   color: var(--color-neutral-600);
 }
 
-@media (max-width: 820px) {
-  .tab {
-    padding: 5px 9px;
-    font-size: 11px;
-  }
+/* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 
-  .depthTab {
-    padding: 5px 10px;
-  }
+:root[data-layout="phone"] .tab {
+  padding: 5px 9px;
+  font-size: 11px;
+}
 
-  .depthLabel {
-    font-size: 12px;
-  }
+:root[data-layout="phone"] .depthTab {
+  padding: 5px 10px;
+}
 
-  .depthName {
-    font-size: 9px;
-  }
+:root[data-layout="phone"] .depthLabel {
+  font-size: 12px;
+}
 
-  .navHint {
-    display: none;
-  }
+:root[data-layout="phone"] .depthName {
+  font-size: 9px;
+}
+
+:root[data-layout="phone"] .navHint {
+  display: none;
 }

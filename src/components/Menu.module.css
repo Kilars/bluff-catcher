@@ -138,19 +138,17 @@
   flex-shrink: 0;
 }
 
-/* ── Phone ────────────────────────────────────────────────────────────────── */
+/* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 
-@media (max-width: 820px) {
-  .dropdown {
-    min-width: 140px;
-  }
+:root[data-layout="phone"] .dropdown {
+  min-width: 140px;
+}
 
-  .item {
-    font-size: 12px;
-    padding: var(--space-3) var(--space-4);
-  }
+:root[data-layout="phone"] .item {
+  font-size: 12px;
+  padding: var(--space-3) var(--space-4);
+}
 
-  .groupLabel {
-    padding: var(--space-2) var(--space-4);
-  }
+:root[data-layout="phone"] .groupLabel {
+  padding: var(--space-2) var(--space-4);
 }

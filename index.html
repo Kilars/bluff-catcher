@@ -13,6 +13,41 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      First-paint layout stamp.
+
+      useLayoutMode() sets the same attribute, but not until React has mounted
+      and run an effect — one full paint too late. Without this the first frame
+      on a 390px phone is the desktop tree: the 820px felt, the 226px dock and a
+      header sized for a monitor, replaced a moment later. This runs before the
+      module script parses, so `data-layout` is already correct when the first
+      stylesheet is applied.
+
+      The thresholds are a hand-kept copy of PHONE_MAX / DESKTOP_MIN in
+      src/lib/breakpoints.ts — an inline script cannot import, and this file is
+      not part of the bundle. They must be changed together; there are exactly
+      two copies, and src/hooks/useLayoutMode.test.ts pins the query strings on
+      the other side.
+    -->
+    <script>
+      (function () {
+        var el = document.documentElement;
+        try {
+          // Short edge < 600 is a phone posture: 390 x 844 and 844 x 390 both.
+          if (matchMedia('(max-width: 599px), (max-height: 599px)').matches) {
+            el.dataset.layout = 'phone';
+          } else if (matchMedia('(min-width: 1024px)').matches) {
+            el.dataset.layout = 'desktop';
+          } else {
+            el.dataset.layout = 'compact';
+          }
+        } catch (e) {
+          // No matchMedia at all: the desktop tree is the safe default, since
+          // every desktop rule is written :root:not([data-layout="phone"]).
+          el.dataset.layout = 'desktop';
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
