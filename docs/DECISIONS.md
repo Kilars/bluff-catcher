@@ -224,10 +224,27 @@ Keep each string as terse as the hand-written originals. The sheet's structure (
   bands, the rail mechanic and the sheets keep their proportions while a large monitor
   gets a large UI instead of a small island in the corner. The felt takes the leftover
   height on top of that via `--felt-scale`. Everything else is per the handoff README.
-- **Portrait phone:** single vertical column — compact header → scaled felt + cards →
-  hand read → you/actual result → **rail pinned in the thumb zone** near the bottom. The
-  explanation is a bottom sheet (already the right mobile gesture). No landscape lock.
-- Structure components so layout is CSS-driven and swappable per breakpoint, not forked.
+- **Portrait phone (< 600px): a phone-native tree, not a scaled desktop.** The felt is
+  not drawn at all. The odds drill is a fixed read zone (board cards at their native
+  66×94, hero cards larger than desktop) above a swap zone that changes between asking
+  and answering; the preflop drill replaces the nine-seat felt with a 44px seat ladder.
+  The explanation is a full-screen sheet (already the right mobile gesture). No landscape
+  lock: the phone tree is chosen on the viewport's *short* edge, so 844×390 gets it too.
+- **Two trees, one behaviour.** Below 600px the app renders the phone tree; at 600px and
+  above it renders the desktop tree with the `--ui-scale` / `--felt-scale` system
+  (600–1023px is the desktop tree with `--felt-scale` doing the fitting). The split is
+  decided once in `useLayoutMode()` and exposed as `data-layout` on `:root`; **no
+  component reads a viewport width**, and no new `@media (max-width:` may be added under
+  `src/` — CI enforces this. **All drill logic, state and persistence live in shared
+  hooks** (`useOddsDrill`, `usePreflopDrill`, `useStats`, `usePreflopStats`) and in
+  `lib/` — a layout tree contains presentation only. Forking presentation is expected;
+  forking behaviour is a bug.
+
+  *Supersedes the original "layout is CSS-driven and swappable per breakpoint, not
+  forked". That line predated the `--felt-scale` hack, and the hack disproved it: the
+  felt's geometry is coordinate-driven (`SEAT_SLOTS` is nine points sampled off an
+  ellipse in 820×380 felt-space), and no media query reflows nine ellipse coordinates
+  into a 44px row. Rationale and the full phone spec: `docs/PLAN-phone.md`.*
 
 ## Persistence — localStorage
 
