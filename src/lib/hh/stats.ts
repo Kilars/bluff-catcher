@@ -34,10 +34,13 @@ export interface Stat {
 /**
  * Reference bands for low/mid-stakes 8-max MTT play, as percentages.
  *
- * These are the tunable part of the report — they are conventional coaching
- * ranges, not solver output, and they are what a grounding document should
- * replace once one exists. `minN` is the sample below which a reading is
- * reported as thin and never flagged.
+ * Conventional coaching ranges, not solver output. They are sourced and argued
+ * in docs/leak-coaching.md, which is also where the leak taxonomy behind the
+ * bleed/missed directions lives — change them together.
+ *
+ * `minN` is the sample below which a reading is reported as thin and never
+ * flagged. Postflop stats need thousands of hands before they mean anything,
+ * so on a small sample the money breakdown is the honest signal, not these.
  */
 interface Band {
   label: string;
@@ -154,7 +157,7 @@ const BANDS: Record<string, Band> = {
   wtsd: {
     label: 'Went to showdown',
     group: 'Showdown',
-    band: [24, 31],
+    band: [26, 32],
     high: 'bleed',
     low: 'missed',
     minN: 20,
