@@ -17,6 +17,13 @@
   min-height: 0;
   width: 100%;
 
+  /* Portrait has slack and never scrolls. Landscape (844 × 390) does not fit
+     the read zone and the commit bar at once, and without this the bar sits
+     below the fold with no way to reach it — the hand cannot be committed at
+     all. See PLAN-phone §3.2. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
   /* 11.2px, the --space-4 step. The plan's arithmetic assumed 12px gutters and
      366px of usable width; 11.2 gives 367.6, which the 363.6px board row still
      fits, and keeps every gap on the 2.8px grid. */

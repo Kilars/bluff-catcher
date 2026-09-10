@@ -39,7 +39,15 @@
   flex-direction: column;
   padding: 0 var(--space-4);
   padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
-  /* No overflow rule on purpose: nothing in this tree scrolls. */
+  /* Portrait never scrolls — the budget above leaves 209px of slack on a 390 ×
+     844 and still 6.8px on a 375 × 667 SE. Landscape is the exception the plan
+     called out (§3.2): 844 × 390 gives ~310px of usable height against 554px of
+     fixed content, so the thumb row went off-screen and the hand could not be
+     acted on at all. Allowing the overflow to scroll costs portrait nothing —
+     there is nothing to scroll — and makes landscape playable. The thumb row
+     stays reachable by sticking to the bottom of the scrollport. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .gap {

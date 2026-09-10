@@ -20,6 +20,7 @@
 
 import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './ExplainSheet.module.css';
+import { useLayoutMode } from '../hooks/useLayoutMode';
 
 // ─── Per-tier briefing copy ───────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export default function PreflopInfoSheet({
 }: PreflopInfoSheetProps) {
   const meta = DEPTH_META[depth];
   const brief = DEPTH_BRIEF[depth];
+  const layout = useLayoutMode();
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
@@ -155,7 +157,10 @@ export default function PreflopInfoSheet({
               </div>
             </div>
 
-            {/* Right: key hints */}
+            {/* Right: key hints — desktop only. A phone has no keyboard, so
+                listing F/J/Space/R/I there is instructions for hardware the
+                reader does not have. */}
+            {layout !== 'phone' && (
             <div className={styles.rightCol}>
               <div className={styles.memoriseCard}>
                 <span className={styles.memoriseKicker}>Keys</span>
@@ -183,6 +188,7 @@ export default function PreflopInfoSheet({
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* Footer */}

@@ -38,6 +38,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealPreflopSpot, type PreflopSpot } from '../lib/preflop/deal';
+import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
 import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,6 +52,18 @@ export interface UsePreflopDrillOptions {
   onRecord: (wasCorrect: boolean) => void;
   /** True while an overlay owned by App is open — all game keys go inert. */
   keysSuspended?: boolean;
+  /**
+   * Open the situation briefing only the first time the player meets a tier,
+   * remembering across sessions. On phone the sheet is full-screen, so opening
+   * it on every launch and every tier switch puts a wall of text between the
+   * player and the drill.
+   *
+   * Off by default: the desktop tree still briefs on every mount, where the
+   * sheet is a panel rather than the whole screen. Bringing desktop into line
+   * is a deliberate follow-up — it would rewrite ~19 existing behaviour tests,
+   * which is not something to fold into the phone break.
+   */
+  briefOncePerTier?: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -59,6 +72,7 @@ export function usePreflopDrill({
   depth = DEFAULT_DEPTH,
   onRecord,
   keysSuspended = false,
+  briefOncePerTier = false,
 }: UsePreflopDrillOptions) {
   const meta = DEPTH_META[depth];
 
@@ -71,8 +85,20 @@ export function usePreflopDrill({
   // Range sheet open/close state — only available after commit
   const [rangeOpen, setRangeOpen] = useState(false);
 
-  // Situation info sheet — open on mount, every mount (no persistence).
-  const [infoOpen, setInfoOpen] = useState(true);
+  // Situation info sheet — opens the first time you meet a tier, then never
+  // again on its own. App remounts this hook on every depth change (key={depth}),
+  // so "on mount" used to mean "every launch and every tier switch"; full-screen
+  // on phone, that is a wall between the player and the drill. See
+  // lib/preflop/briefed.ts.
+  const [infoOpen, setInfoOpen] = useState(
+    () => !briefOncePerTier || needsBriefing(depth)
+  );
+
+  useEffect(() => {
+    if (infoOpen && briefOncePerTier) markBriefed(depth);
+    // Marking on open rather than on close: dismissing by any route (×, Escape,
+    // the footer button) should count, and they all land here eventually.
+  }, [infoOpen, depth, briefOncePerTier]);
 
   // Ref so keyboard handler always sees up-to-date committed value
   const committedRef = useRef<CommittedAction | null>(null);

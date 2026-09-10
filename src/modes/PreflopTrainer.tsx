@@ -46,7 +46,12 @@ export default function PreflopTrainer({
   keysSuspended = false,
 }: PreflopTrainerProps) {
   const layout = useLayoutMode();
-  const drill = usePreflopDrill({ depth, onRecord, keysSuspended });
+  const drill = usePreflopDrill({
+    depth,
+    onRecord,
+    keysSuspended,
+    briefOncePerTier: layout === 'phone',
+  });
 
   const {
     meta,

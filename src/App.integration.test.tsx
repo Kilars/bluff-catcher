@@ -89,3 +89,35 @@ describe('the explanation is reachable on phone', () => {
     expect(screen.getByText(/How it.s counted/i)).toBeInTheDocument();
   });
 });
+
+describe('phone drops what a phone cannot use', () => {
+  it('shows no keyboard hints in the preflop briefing', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
+    renderAt('phone', <App />);
+
+    // The briefing itself should be up on a first run…
+    expect(screen.getByText(/the situation/i)).toBeInTheDocument();
+    // …but the key card is instructions for hardware that isn't there.
+    expect(screen.queryByText('Keys')).not.toBeInTheDocument();
+    expect(screen.queryByText('Next hand')).not.toBeInTheDocument();
+  });
+
+  it('keeps the key hints on desktop', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Keys')).toBeInTheDocument();
+  });
+
+  it('briefs a tier once on phone, not on every launch', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
+
+    const first = renderAt('phone', <App />);
+    expect(screen.getByText(/the situation/i)).toBeInTheDocument();
+    first.unmount();
+
+    // Same tier, second launch: straight into the drill.
+    renderAt('phone', <App />);
+    expect(screen.queryByText(/the situation/i)).not.toBeInTheDocument();
+  });
+});

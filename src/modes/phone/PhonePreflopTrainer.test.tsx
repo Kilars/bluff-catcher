@@ -355,12 +355,22 @@ describe('PhonePreflopTrainer', () => {
       }
     });
 
-    it('never scrolls: no overflow container in the trainer', () => {
-      for (const [name, source] of ALL_CSS) {
-        expect(declarations(source), `${name}: scroll container`).not.toMatch(
-          /overflow[^:]*:\s*(auto|scroll)/
-        );
-      }
+    it('keeps the thumb row reachable when the viewport is too short', () => {
+      // This used to assert that nothing in the trainer scrolls, which held for
+      // portrait — the §5.2 budget leaves 209px of slack on a 390 × 844 and
+      // still 6.8px on a 375 × 667 SE — but was false in landscape. On an
+      // 844 × 390 the 554px of fixed content does not fit in ~310px of usable
+      // height, and with no scrollport the Fold/Open row sat below the fold:
+      // the hand could not be acted on at all. See PLAN-phone §3.2.
+      //
+      // The rule that actually matters is not "never scrolls", it is "the
+      // actions are always reachable". The frame may scroll; the thumb row
+      // sticks to the bottom of the scrollport so it stays under the thumb.
+      expect(declarations(FRAME_CSS)).toMatch(/overflow-y:\s*auto/);
+      expect(declarations(PANEL_CSS)).toMatch(
+        /\.thumbRow\s*\{[^}]*position:\s*sticky/
+      );
+      expect(declarations(PANEL_CSS)).toMatch(/\.thumbRow\s*\{[^}]*bottom:\s*0/);
     });
 
     it('spends exactly the §5.2 height budget', () => {

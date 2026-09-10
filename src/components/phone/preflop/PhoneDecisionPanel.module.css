@@ -135,6 +135,12 @@
   height: 64px;
   display: flex;
   gap: var(--space-4);
+  /* Sticky, not fixed: in portrait there is no scrolling and this is inert, but
+     in landscape the read zone scrolls under it and the two actions stay under
+     the thumb where they belong. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 
 .thumbBtn {
