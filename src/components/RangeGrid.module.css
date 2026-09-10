@@ -144,27 +144,3 @@
 }
 
 /* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
-/*
- * Shrink cells so the full 14-wide row (corner + 13 data cells) plus 13 gaps
- * fits within the sheet's inner width (~345 px on a 390 px viewport).
- *
- * Math: 14 × 23px cells + 13 × 1px gaps = 322 + 13 = 335 px ✓
- *
- * Cell labels get tiny (6px) but remain visible; they must not overflow.
- * Gap tightens from 2px to 1px so we save 13 px of total width.
- */
-
-:root[data-layout="phone"] .gridWrapper {
-  --range-cell: 23px;
-  --range-gap: 1px;
-}
-
-:root[data-layout="phone"] .headerCell,
-:root[data-layout="phone"] .cornerSpacer {
-  font-size: 8px;
-}
-
-:root[data-layout="phone"] .cellLabel {
-  font-size: 6px;
-  letter-spacing: -0.03em;
-}

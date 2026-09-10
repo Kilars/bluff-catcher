@@ -146,18 +146,3 @@
 }
 
 /* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
-/*
- * Make the rail taller for comfortable touch (52px vs 44px desktop).
- * Safe-area inset is handled by the dock wrapper padding in Dock.module.css,
- * so no extra bottom padding needed here.
- * touch-action: none is already set on .rail — tap = commit works.
- */
-
-:root[data-layout="phone"] .rail {
-  height: 52px;
-}
-
-:root[data-layout="phone"] .scale {
-  font-size: 12px;
-  padding-top: var(--space-2);
-}

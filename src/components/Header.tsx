@@ -9,7 +9,7 @@
  */
 
 import Menu from './Menu';
-import type { AppMode } from '../App';
+import type { AppMode } from '../hooks/useAppPrefs';
 import { DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './Header.module.css';
 

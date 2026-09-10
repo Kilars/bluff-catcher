@@ -30,13 +30,14 @@
  *   work and must not run on a phone. See src/lib/breakpoints.ts.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLayoutMode } from './hooks/useLayoutMode';
 import { useStats } from './hooks/useStats';
 import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
-import { DEFAULT_DEPTH, DEPTHS, DEPTH_META, type Depth } from './lib/preflop/ranges';
+import { DEPTH_META } from './lib/preflop/ranges';
+import { useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill from './components/phone/PhoneStatsPill';
@@ -46,59 +47,6 @@ import PhoneRangeView from './components/phone/range/PhoneRangeView';
 import OddsTrainer from './modes/OddsTrainer';
 import PreflopTrainer from './modes/PreflopTrainer';
 import styles from './App.module.css';
-
-// ─── Mode type ────────────────────────────────────────────────────────────────
-
-export type AppMode = 'odds' | 'preflop';
-
-// ─── Mode persistence ─────────────────────────────────────────────────────────
-
-const MODE_KEY = 'bluff-catcher:mode:v1';
-
-function loadMode(): AppMode {
-  try {
-    if (typeof window === 'undefined') return 'odds';
-    const raw = localStorage.getItem(MODE_KEY);
-    if (raw === 'odds' || raw === 'preflop') return raw;
-    return 'odds';
-  } catch {
-    return 'odds';
-  }
-}
-
-function saveMode(mode: AppMode): void {
-  try {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(MODE_KEY, mode);
-  } catch {
-    // localStorage might be disabled — silently fail
-  }
-}
-
-// ─── Stack-depth persistence ──────────────────────────────────────────────────
-
-const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
-
-function loadDepth(): Depth {
-  try {
-    if (typeof window === 'undefined') return DEFAULT_DEPTH;
-    const raw = localStorage.getItem(DEPTH_KEY);
-    return (DEPTHS as readonly string[]).includes(raw ?? '')
-      ? (raw as Depth)
-      : DEFAULT_DEPTH;
-  } catch {
-    return DEFAULT_DEPTH;
-  }
-}
-
-function saveDepth(depth: Depth): void {
-  try {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(DEPTH_KEY, depth);
-  } catch {
-    // localStorage might be disabled — silently fail
-  }
-}
 
 // ─── Viewport scaling constants ───────────────────────────────────────────────
 //
@@ -126,8 +74,7 @@ function clamp(value: number, min: number, max: number): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [mode, setMode] = useState<AppMode>(() => loadMode());
-  const [depth, setDepth] = useState<Depth>(() => loadDepth());
+  const { mode, setMode, depth, setDepth } = useAppPrefs();
 
   // Which component tree we are. Also stamps data-layout on <html>, which is
   // what every stylesheet keys off — see useLayoutMode for why this is a
@@ -145,16 +92,6 @@ export default function App() {
   const [phoneSheet, setPhoneSheet] = useState<'menu' | 'context' | 'stats' | null>(null);
   const stats = useStats();
   const preflopStats = usePreflopStats();
-
-  const handleModeChange = useCallback((next: AppMode) => {
-    setMode(next);
-    saveMode(next);
-  }, []);
-
-  const handleDepthChange = useCallback((next: Depth) => {
-    setDepth(next);
-    saveDepth(next);
-  }, []);
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -246,9 +183,9 @@ export default function App() {
       ) : (
       <Header
         mode={mode}
-        onModeChange={handleModeChange}
+        onModeChange={setMode}
         depth={depth}
-        onDepthChange={handleDepthChange}
+        onDepthChange={setDepth}
         onOpenRanges={() => setRangesOpen(true)}
         oddsStats={
           mode === 'odds'
@@ -307,9 +244,9 @@ export default function App() {
         <PhoneMenuSheet
           title={phoneSheet === 'context' ? 'Mode & depth' : 'Menu'}
           mode={mode}
-          onModeChange={handleModeChange}
+          onModeChange={setMode}
           depth={depth}
-          onDepthChange={handleDepthChange}
+          onDepthChange={setDepth}
           onOpenRanges={() => {
             setPhoneSheet(null);
             setRangesOpen(true);

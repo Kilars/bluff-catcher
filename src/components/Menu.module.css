@@ -137,18 +137,3 @@
   background: var(--color-accent);
   flex-shrink: 0;
 }
-
-/* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
-
-:root[data-layout="phone"] .dropdown {
-  min-width: 140px;
-}
-
-:root[data-layout="phone"] .item {
-  font-size: 12px;
-  padding: var(--space-3) var(--space-4);
-}
-
-:root[data-layout="phone"] .groupLabel {
-  padding: var(--space-2) var(--space-4);
-}
