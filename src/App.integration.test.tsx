@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { screen, cleanup, act } from '@testing-library/react';
+import { screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { renderAt, clearLayoutMode } from './test/renderAt';
 import App from './App';
 
@@ -66,5 +66,26 @@ describe('App layout routing', () => {
   it('stamps data-layout on <html> for the stylesheets to key off', () => {
     renderAt('phone', <App />);
     expect(document.documentElement.dataset.layout).toBe('phone');
+  });
+});
+
+describe('the explanation is reachable on phone', () => {
+  // DECISIONS.md calls this sheet core product — it is what teaches the rule of
+  // 2 and 4. The phone tree raises [?] but does not mount the sheet itself, so
+  // the mode component has to, and nothing else in the suite would notice if it
+  // stopped: the button would still be there, and still do nothing.
+  it('opens the explain sheet from the commit bar', () => {
+    renderAt('phone', <App />);
+
+    // Commit via the bar's keyboard path — the drag path needs stubbed
+    // geometry, and the point here is the sheet, not the gesture.
+    const field = screen.getByTestId('phone-drag-field');
+    fireEvent.keyDown(field, { key: 'ArrowRight' });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    fireEvent.click(screen.getByRole('button', { name: /how is this counted/i }));
+
+    // The sheet's title is generated per hand; its kicker is the fixed part.
+    expect(screen.getByText(/How it.s counted/i)).toBeInTheDocument();
   });
 });

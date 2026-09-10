@@ -56,7 +56,26 @@ export default function OddsTrainer({ stats }: OddsTrainerProps) {
   // come back to full size. See docs/PLAN-phone.md §5.1.
 
   if (layout === 'phone') {
-    return <PhoneOddsTrainer drill={drill} />;
+    return (
+      <>
+        <PhoneOddsTrainer drill={drill} />
+
+        {/* The explanation is chrome, not part of the stage, so the phone tree
+            raises [?] and the sheet is mounted here — same as the desktop tree
+            below. It goes full-screen on phone rather than sitting at 8vh: a
+            vh-anchored sheet jumps ~90px when the iOS URL bar collapses. */}
+        {showExplain && (
+          <ExplainSheet
+            explanation={explanation}
+            drawName={spot.read.name}
+            street={spot.street}
+            onClose={handleCloseExplain}
+            onNext={handleNext}
+            layout="Full screen"
+          />
+        )}
+      </>
+    );
   }
 
   return (

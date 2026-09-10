@@ -433,13 +433,15 @@
 
 /* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 /*
- * Sheet goes near-full-height (top: 8vh) so the player can read all steps
- * without scrolling the backdrop.  The two body columns stack into one.
+ * Full-screen on phone. The two body columns stack into one.
  *
- * The sheet.top inline value (240px desktop / 0px full-screen) is overridden
- * here via !important — the component sets top via inline style from a prop,
- * so we must override it on phone.  The inline style carries higher specificity
- * than a class rule, hence !important is necessary and intentional.
+ * This used to be `top: 8vh`, which was wrong for a reason that only shows on a
+ * real device: `vh` does not exclude the iOS URL bar, so the sheet jumped ~90px
+ * the moment the bar collapsed — while the player was reading it. `inset: 0`
+ * plus `100dvh` has nothing to jump against.
+ *
+ * The !important stays: the component sets `top` via inline style from its
+ * layout prop, and an inline style outranks a class rule.
  *
  * Footer buttons remain visible — no margin-top:auto (per README constraint).
  * Safe-area inset at the bottom ensures buttons clear the home indicator.
@@ -447,11 +449,13 @@
 
 :root[data-layout="phone"] .sheet {
   /* Override the inline top:240px / top:0 set by the layout prop */
-  top: 8vh !important;
+  top: 0 !important;
+  bottom: 0;
+  height: 100dvh;
 }
 
 :root[data-layout="phone"] .sheetInner {
-  /* Near-full-height — sheet runs from 8vh to bottom of frame */
+  /* Full-screen: the sheet runs the whole viewport height. */
   padding: var(--space-5) var(--space-5)
     calc(var(--space-5) + env(safe-area-inset-bottom, 0px))
     var(--space-5);
