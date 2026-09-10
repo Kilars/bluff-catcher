@@ -20,6 +20,10 @@ import PreflopTable from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
 import { usePreflopDrill } from '../hooks/usePreflopDrill';
+import { useLayoutMode } from '../hooks/useLayoutMode';
+import PhonePreflopTrainer from './phone/PhonePreflopTrainer';
+import PhoneSheet from '../components/phone/PhoneSheet';
+import PhoneRangeView from '../components/phone/range/PhoneRangeView';
 import { DEFAULT_DEPTH, type Depth } from '../lib/preflop/ranges';
 import styles from './PreflopTrainer.module.css';
 
@@ -41,6 +45,9 @@ export default function PreflopTrainer({
   onRecord,
   keysSuspended = false,
 }: PreflopTrainerProps) {
+  const layout = useLayoutMode();
+  const drill = usePreflopDrill({ depth, onRecord, keysSuspended });
+
   const {
     meta,
     spot,
@@ -55,9 +62,43 @@ export default function PreflopTrainer({
     openRange,
     closeInfo,
     closeRange,
-  } = usePreflopDrill({ depth, onRecord, keysSuspended });
+  } = drill;
 
   // ── Render ───────────────────────────────────────────────────────────────
+  // The hook above is the whole behaviour. Below it the trees part company:
+  // desktop draws the nine-seat felt, phone draws a 44px seat ladder instead,
+  // because the felt spent 188px delivering five facts at 6.9 effective px and
+  // position is ordinal, not spatial. See docs/PLAN-phone.md §5.2.
+  //
+  // The range view is the seam between the two phone agents' work: the trainer
+  // says *when* a chart is open (rangeOpen, off the hook), and this is where
+  // *what* gets mounted — wrapped in the shared full-screen sheet, with the
+  // tier fixed to what the drill is testing rather than switchable, so the
+  // chart on screen can never disagree with the hand being drilled.
+
+  if (layout === 'phone') {
+    return (
+      <PhonePreflopTrainer
+        {...drill}
+        renderRange={() => (
+          <PhoneSheet
+            title={`${spot.position} · ${meta.label}`}
+            onClose={closeRange}
+          >
+            <PhoneRangeView
+              position={spot.position}
+              depth={depth}
+              highlight={spot.handClass}
+              heroPosition={spot.position}
+            />
+          </PhoneSheet>
+        )}
+        renderInfo={() => (
+          <PreflopInfoSheet depth={depth} onClose={closeInfo} />
+        )}
+      />
+    );
+  }
 
   return (
     <>

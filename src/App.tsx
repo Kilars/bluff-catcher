@@ -36,7 +36,13 @@ import { useStats } from './hooks/useStats';
 import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
-import { DEFAULT_DEPTH, DEPTHS, type Depth } from './lib/preflop/ranges';
+import { DEFAULT_DEPTH, DEPTHS, DEPTH_META, type Depth } from './lib/preflop/ranges';
+import PhoneTopBar from './components/phone/PhoneTopBar';
+import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
+import PhoneStatsPill from './components/phone/PhoneStatsPill';
+import PhoneStatsSheet from './components/phone/PhoneStatsSheet';
+import PhoneSheet from './components/phone/PhoneSheet';
+import PhoneRangeView from './components/phone/range/PhoneRangeView';
 import OddsTrainer from './modes/OddsTrainer';
 import PreflopTrainer from './modes/PreflopTrainer';
 import styles from './App.module.css';
@@ -132,6 +138,11 @@ export default function App() {
   // Independent of the trainer's own range sheet: it always opens on UTG and
   // is browsable from any mode, without a hand in play.
   const [rangesOpen, setRangesOpen] = useState(false);
+
+  // Which phone chrome overlay is up, if any. One at a time: the top bar has
+  // three entry points (context chip, stats pill, ⋯) and they all land in a
+  // full-screen sheet, so a single slot is the whole state machine.
+  const [phoneSheet, setPhoneSheet] = useState<'menu' | 'context' | 'stats' | null>(null);
   const stats = useStats();
   const preflopStats = usePreflopStats();
 
@@ -204,8 +215,35 @@ export default function App() {
     return () => window.removeEventListener('resize', setScale);
   }, [layout]);
 
+  const isPhone = layout === 'phone';
+
+  // The drill keys (F/J/R/I/Space) must go inert behind any full-screen
+  // overlay, not just the range browser — on phone the chrome sheets cover the
+  // felt completely.
+  const keysSuspended = rangesOpen || phoneSheet !== null;
+
+  const phoneStats =
+    mode === 'odds'
+      ? ({ mode: 'odds', streak: stats.streak, bands: stats.bands, hands: stats.hands } as const)
+      : ({
+          mode: 'preflop',
+          streak: preflopStats.streak,
+          accuracy: preflopStats.accuracy,
+          hands: preflopStats.hands,
+        } as const);
+
   return (
     <div className={styles.frame}>
+      {isPhone ? (
+        <PhoneTopBar
+          contextLabel={mode === 'odds' ? 'Odds' : DEPTH_META[depth].label}
+          onOpenContext={() => setPhoneSheet('context')}
+          onOpenMenu={() => setPhoneSheet('menu')}
+          stats={
+            <PhoneStatsPill {...phoneStats} onPress={() => setPhoneSheet('stats')} />
+          }
+        />
+      ) : (
       <Header
         mode={mode}
         onModeChange={handleModeChange}
@@ -234,6 +272,7 @@ export default function App() {
             : undefined
         }
       />
+      )}
 
       {mode === 'odds' && <OddsTrainer stats={stats} />}
 
@@ -244,15 +283,64 @@ export default function App() {
           key={depth}
           depth={depth}
           onRecord={preflopStats.record}
-          keysSuspended={rangesOpen}
+          keysSuspended={keysSuspended}
         />
       )}
 
-      {rangesOpen && (
-        <RangeSheet
-          position="UTG"
+      {/* The standalone chart browser. Unlike the trainer's own range sheet
+          this one IS tier-switchable — there is no hand in play for it to
+          disagree with, so browsing 40bb+ → 10bb on one seat is the point. */}
+      {rangesOpen &&
+        (isPhone ? (
+          <PhoneSheet title="RFI range charts" onClose={() => setRangesOpen(false)}>
+            <PhoneRangeView position="UTG" depth={depth} depthSwitchable />
+          </PhoneSheet>
+        ) : (
+          <RangeSheet
+            position="UTG"
+            depth={depth}
+            onClose={() => setRangesOpen(false)}
+          />
+        ))}
+
+      {isPhone && phoneSheet !== null && phoneSheet !== 'stats' && (
+        <PhoneMenuSheet
+          title={phoneSheet === 'context' ? 'Mode & depth' : 'Menu'}
+          mode={mode}
+          onModeChange={handleModeChange}
           depth={depth}
-          onClose={() => setRangesOpen(false)}
+          onDepthChange={handleDepthChange}
+          onOpenRanges={() => {
+            setPhoneSheet(null);
+            setRangesOpen(true);
+          }}
+          onResetStats={mode === 'odds' ? stats.reset : preflopStats.reset}
+          onClose={() => setPhoneSheet(null)}
+        />
+      )}
+
+      {isPhone && phoneSheet === 'stats' && (
+        <PhoneStatsSheet
+          {...(mode === 'odds'
+            ? ({
+                mode: 'odds',
+                hands: stats.hands,
+                streak: stats.streak,
+                bestStreak: stats.bestStreak,
+                errors: stats.errors,
+                bands: stats.bands,
+                perCategory: stats.perCategory,
+              } as const)
+            : ({
+                mode: 'preflop',
+                hands: preflopStats.hands,
+                correct: preflopStats.correct,
+                streak: preflopStats.streak,
+                bestStreak: preflopStats.bestStreak,
+                accuracy: preflopStats.accuracy,
+              } as const))}
+          onReset={mode === 'odds' ? stats.reset : preflopStats.reset}
+          onClose={() => setPhoneSheet(null)}
         />
       )}
     </div>

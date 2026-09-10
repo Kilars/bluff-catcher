@@ -14,6 +14,8 @@ import Table from '../components/Table';
 import Dock from '../components/Dock';
 import ExplainSheet from '../components/ExplainSheet';
 import { useOddsDrill } from '../hooks/useOddsDrill';
+import { useLayoutMode } from '../hooks/useLayoutMode';
+import PhoneOddsTrainer from './phone/PhoneOddsTrainer';
 import { useStats } from '../hooks/useStats';
 
 type UseStatsReturn = ReturnType<typeof useStats>;
@@ -27,6 +29,9 @@ interface OddsTrainerProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OddsTrainer({ stats }: OddsTrainerProps) {
+  const drill = useOddsDrill(stats);
+  const layout = useLayoutMode();
+
   const {
     spot,
     guess,
@@ -41,12 +46,18 @@ export default function OddsTrainer({ stats }: OddsTrainerProps) {
     handleHoverChange,
     handleOpenExplain,
     handleCloseExplain,
-  } = useOddsDrill(stats);
+  } = drill;
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  // OddsTrainer renders Table + Dock only. The outer frame and Header are
-  // managed by the root App. The ExplainSheet is position:fixed/absolute
-  // and overlays the full viewport.
+  // The drill above is the whole behaviour; what follows is presentation, and
+  // it is the one place the two trees part company. Desktop renders the felt
+  // (Table) and the 226px band (Dock); phone renders neither, because the felt
+  // is what forced the 0.4566 shrink and dropping it is what lets the cards
+  // come back to full size. See docs/PLAN-phone.md §5.1.
+
+  if (layout === 'phone') {
+    return <PhoneOddsTrainer drill={drill} />;
+  }
 
   return (
     <>
