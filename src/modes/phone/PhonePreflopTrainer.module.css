@@ -21,10 +21,40 @@
  * 667 − 47 − 34 = 586, and the fixed 554 plus the three flexible gaps at their
  * 8.4px minimum is 579.2 — 6.8px to spare, still nothing to scroll.
  *
- * The gaps are `flex: 1` with a floor and a ceiling, so the 209px is spread
- * between the blocks on a tall phone and squeezed back to the floor on a short
- * one; whatever is left over lands in the decision panel's own spacer, which
- * pushes the thumb row down to the bottom where the thumb is.
+ * **How the slack is spent — the thing this file is actually for.**
+ *
+ * 209px on a 390 × 844, 297px on a 430 × 932, and none of it optional: the
+ * thumb row is anchored to the bottom (that is where the thumb is) and the
+ * ladder to the chrome, so every pixel of it has to live in one of the four
+ * gaps between the four bands. Park it in one gap and the screen reads as a
+ * rendering failure — which is exactly what happened when the two structural
+ * gaps were capped at 22.4px and everything left over fell into the panel's
+ * spacer: a 248px hole above the thumb row, and a 375px one pre-commit with
+ * the prompt floating in the middle of it. The tell was that a 360 × 640
+ * composed *better* than a 390 × 844, because it had less slack to misplace.
+ *
+ * So the absorbers grow **in proportion**, with no maximum on any of them:
+ * whatever the screen is, the gaps keep the same ratio and the page reads as
+ * one composition instead of a stack plus a void.
+ *
+ *   .topPad     2   under the chrome — a margin, so half a gap
+ *   .gapAbove   4   context line → cards: the widest separation, because the
+ *                   situation band and the hand band are the two blocks with
+ *                   the least to do with each other
+ *   .gapBelow   3   hand class → feedback slot
+ *   the panel   3   feedback slot → thumb row (spent on its own `.spacer`)
+ *
+ * 3 rather than 4 for the last two because the feedback slot brings its own
+ * air: its ink is centred in a fixed 140px box, which adds ~19px top and
+ * bottom once answered and ~58px while asking. Counting that in, the gaps
+ * measured on a 390 × 844 with the insets above are 34 / 68 / 51 / 59, which
+ * the slot's own padding turns into separations of 34 / 68 / 70 / 79 once
+ * answered — even, top to bottom — and 34 / 68 / 109 / 117 while asking, the
+ * extra sitting exactly where the answer is about to appear.
+ *
+ * `.topPad` alone has **no minimum**: a margin is the first thing that should
+ * yield when the screen runs out of height, and dropping it to 0 is what keeps
+ * the SE arithmetic above (three gaps at 8.4) true to the pixel.
  *
  * dvh, never vh — and here not even that: the frame fills its parent, so the
  * phone shell owns the one dynamic-viewport measurement. Safe-area inset is
@@ -50,8 +80,23 @@
   overscroll-behavior: contain;
 }
 
-.gap {
-  flex: 1 1 0;
+/* ── The slack absorbers ──
+ * `flex-basis: 0` on all three, so the grow factors above are the whole story:
+ * each takes its share of the free height and nothing else. In landscape there
+ * is no free height, every one of them shrinks to its minimum, and the frame
+ * scrolls instead. */
+
+.topPad {
+  flex: 2 1 0;
+  min-height: 0;
+}
+
+.gapAbove {
+  flex: 4 1 0;
   min-height: var(--space-3);
-  max-height: var(--space-8);
+}
+
+.gapBelow {
+  flex: 3 1 0;
+  min-height: var(--space-3);
 }

@@ -6,6 +6,13 @@
  * 120×170, and the decision panel (a height-fixed feedback slot over a 64px
  * thumb row).
  *
+ * The empty divs between them are the layout: §5.2's budget leaves 209px of
+ * slack on a 390 × 844 and 297px on a 430 × 932, and since both ends of the
+ * column are anchored — the ladder to the chrome, the thumb row to the thumb —
+ * that slack has nowhere to go but the gaps. Each one takes a fixed share of
+ * it (2 / 4 / 3, and 3 more inside the panel); the module CSS explains why
+ * those numbers and what happens when they are not spread.
+ *
  * **No drill logic of its own.** It takes the return value of
  * `usePreflopDrill` as props and renders it — DECISIONS.md: a layout tree is
  * presentation only, and forking behaviour is a bug. There is no deal here, no
@@ -99,13 +106,15 @@ export default function PhonePreflopTrainer({
 
   return (
     <section className={styles.trainer} data-testid="phone-preflop-trainer">
+      <div className={styles.topPad} />
+
       <PhoneSeatLadder position={spot.position} />
 
-      <div className={styles.gap} />
+      <div className={styles.gapAbove} />
 
       <PhonePreflopStage cards={spot.cards} handClass={spot.handClass} />
 
-      <div className={styles.gap} />
+      <div className={styles.gapBelow} />
 
       <PhoneDecisionPanel
         isCommitted={isCommitted}

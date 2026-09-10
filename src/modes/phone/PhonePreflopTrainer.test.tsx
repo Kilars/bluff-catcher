@@ -373,6 +373,39 @@ describe('PhonePreflopTrainer', () => {
       expect(declarations(PANEL_CSS)).toMatch(/\.thumbRow\s*\{[^}]*bottom:\s*0/);
     });
 
+    it('spreads the slack across all four gaps instead of parking it in one', () => {
+      // The budget leaves 209px over on a 390 × 844 and 297px on a 430 × 932.
+      // Both ends of the column are anchored, so all of it lands in the gaps —
+      // and when the two frame gaps were capped at 22.4px, all of it landed in
+      // the panel's spacer: a 248px hole above the thumb row, 375px pre-commit.
+      // These four grow factors are the fix; a max-height on any of them puts
+      // the hole straight back.
+      const frame = declarations(FRAME_CSS);
+      const panel = declarations(PANEL_CSS);
+
+      expect(frame).toMatch(/\.topPad\s*\{[^}]*flex:\s*2 1 0/);
+      expect(frame).toMatch(/\.gapAbove\s*\{[^}]*flex:\s*4 1 0/);
+      expect(frame).toMatch(/\.gapBelow\s*\{[^}]*flex:\s*3 1 0/);
+      expect(panel).toMatch(/\.panel\s*\{[^}]*flex:\s*3 1 auto/);
+
+      // The panel's whole share is spent on the one gap it owns.
+      expect(panel).toMatch(/\.spacer\s*\{[^}]*flex:\s*1 1 auto/);
+
+      // No ceiling anywhere: a capped absorber stops taking its share and the
+      // slack piles up in whichever one is left uncapped.
+      expect(frame, 'frame: a capped gap re-parks the slack').not.toMatch(/max-height/);
+      expect(panel, 'panel: a capped gap re-parks the slack').not.toMatch(
+        /\.spacer\s*\{[^}]*max-height/
+      );
+
+      // Only the top margin may collapse to nothing — that is what keeps the
+      // SE arithmetic below (three gaps at 8.4px) exact.
+      expect(frame).toMatch(/\.topPad\s*\{[^}]*min-height:\s*0/);
+      expect(frame).toMatch(/\.gapAbove\s*\{[^}]*min-height:\s*var\(--space-3\)/);
+      expect(frame).toMatch(/\.gapBelow\s*\{[^}]*min-height:\s*var\(--space-3\)/);
+      expect(panel).toMatch(/\.spacer\s*\{[^}]*min-height:\s*var\(--space-3\)/);
+    });
+
     it('spends exactly the §5.2 height budget', () => {
       // 44 ladder + 20 context + 170 cards + 52 class + 140 feedback + 64 thumb
       // + 16.8 padding = 506.8, under a 48px top bar = 554.8 of 763 usable.

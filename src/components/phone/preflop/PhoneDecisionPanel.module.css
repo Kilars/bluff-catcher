@@ -16,7 +16,11 @@
  */
 
 .panel {
-  flex: 1 1 auto;
+  /* Grow factor 3, matching `.gapBelow` in the frame: the panel is the fourth
+     of the four slack absorbers and its share lands on `.spacer` below, which
+     is the only thing in here that grows. See PhonePreflopTrainer.module.css
+     for why 2 / 4 / 3 / 3 and not "all of it in this one gap". */
+  flex: 3 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -121,7 +125,9 @@
 }
 
 /* ── Slack ──
- * The budget's 209px. min-height keeps the 8px separation rule true even on a
+ * The panel's share of the budget's 209px — a quarter of it, not the four
+ * fifths it used to swallow while the frame's gaps sat pinned at their old
+ * 22.4px ceiling. min-height keeps the 8px separation rule true even on a
  * short phone where the slack has been eaten. */
 .spacer {
   flex: 1 1 auto;
