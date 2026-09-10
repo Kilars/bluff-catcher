@@ -1,14 +1,23 @@
 /* PhoneStage.module.css — the read zone (PLAN-phone §5.1).
  *
- * Height budget at 390 × 844, identical in both drill states:
+ * Height budget, identical in both drill states, at three viewport heights.
+ * Every gap is a function of `dvh` only, which is what keeps the two states
+ * pixel-identical: nothing in this file knows about the commit.
  *
- *     street chip     24
- *     board row       94   (66 × 94 native, gap 8.4)
- *     gap             32
- *     hero row       136   (96 × 136, rank 40px)
- *     gap             32
- *     ──────────────────
- *                    318
+ *                       360 × 640   390 × 844   430 × 932
+ *     street chip           24          24          24
+ *     chip → board           0        22.6        32.4     0.6 × rhythm
+ *     board row           86.1          94          94     (native 66 × 94)
+ *     board → hero        24.3        69.7          86     base + rhythm
+ *     hero row             136         136         136     (96 × 136, rank 40)
+ *     hero → swap zone    24.3        69.7          86     base + rhythm
+ *     ─────────────────────────────────────────────────
+ *                        294.7       416.0       458.4
+ *
+ * `--phone-odds-rhythm` is declared on PhoneOddsFrame and is 0px at 640 and in
+ * landscape, which is why the short screens keep exactly the geometry they had
+ * before the rhythm existed. Read that file's header for why the slack is split
+ * four ways instead of pooling in one gap.
  *
  * Nothing here is transformed. Nothing here knows about the commit.
  */
@@ -29,10 +38,20 @@
   /* Cards keep their 66 : 94 aspect as the width clamps down. */
   --phone-board-card-h: calc(var(--phone-board-card-w) * 94 / 66);
 
-  /* The two 32px gaps compress on a short screen (a 360 × 640 Android) rather
-   * than pushing the commit button off the bottom. 32 / 844 = 3.79dvh.
+  /* The base gap compresses on a short screen (a 360 × 640 Android) rather than
+   * pushing the commit button off the bottom. 32 / 844 = 3.79dvh. On top of it
+   * sits one rhythm unit, which is the read zone's share of the viewport slack:
+   * 0px at 640, +37.7px at 844, +54.0px at 932. The board and the hero hand are
+   * the two things the drill asks you to compare, so the space between them is
+   * the first place the slack should go, not the last.
    */
-  --phone-stage-gap: clamp(11.2px, 3.79dvh, 32px);
+  --phone-stage-gap: calc(clamp(11.2px, 3.79dvh, 32px) + var(--phone-odds-rhythm, 0px));
+
+  /* The street chip is a caption for the board row, so it takes a *fraction* of
+   * a rhythm unit — enough that it stops being welded to the board on a tall
+   * screen, never so much that it drifts up and reads as part of the top bar.
+   */
+  --phone-stage-chip-gap: calc(var(--phone-odds-rhythm, 0px) * 0.6);
 
   display: flex;
   flex-direction: column;
@@ -43,6 +62,7 @@
 /* ── Street chip ─────────────────────────────────────────────────────────── */
 
 .streetChip {
+  margin-bottom: var(--phone-stage-chip-gap);
   display: flex;
   align-items: center;
   justify-content: center;

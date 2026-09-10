@@ -141,6 +141,116 @@ describe('phone odds stylesheets', () => {
     });
   });
 
+  /**
+   * The vertical rhythm (PLAN-phone §5.1 height budget).
+   *
+   * The frame used to say `justify-content: space-between`, which handed the
+   * whole slack budget to a single gap: 198px of nothing between the hero cards
+   * and the readout at 390 × 844, 286px at 430 × 932. The proof it was
+   * over-budgeted is that a 360 × 640 screen — less height, so less slack —
+   * composed better than a 390 × 844 one.
+   *
+   * The replacement spends the slack in four places as one `dvh`-derived unit
+   * and gives the leftover to the readout. These assertions hold the three
+   * properties that makes the fix safe, and none of them is visible to a jsdom
+   * render (vitest runs with `css: false`).
+   */
+  describe('the vertical rhythm — where the slack goes', () => {
+    const frame = sources.find((s) => s.name === 'PhoneOddsFrame.module.css')!.css;
+    const stage = sources.find((s) => s.name === 'PhoneStage.module.css')!.css;
+    const bar = sources.find((s) => s.name === 'PhoneCommitBar.module.css')!.css;
+
+    /** The declared `clamp(min, calc(<k>dvh - <c>px), max)`, evaluated at a height. */
+    const rhythm = (() => {
+      const m = frame.match(
+        /--phone-odds-rhythm:\s*clamp\(\s*(-?[\d.]+)px\s*,\s*calc\(\s*([\d.]+)dvh\s*-\s*([\d.]+)px\s*\)\s*,\s*([\d.]+)px\s*\)/
+      );
+      if (!m) throw new Error('--phone-odds-rhythm is not a clamp(px, calc(dvh - px), px)');
+      const [lo, k, c, hi] = m.slice(1).map(Number);
+      return (viewportPx: number) => Math.min(hi, Math.max(lo, (k * viewportPx) / 100 - c));
+    })();
+
+    it('does not park the slack in one gap', () => {
+      expect(frame).not.toMatch(/justify-content:\s*space-between/);
+    });
+
+    it('spends the slack in four places, off one dvh-derived unit', () => {
+      // Declared once on the frame, consumed by the frame's own top padding…
+      expect(frame).toMatch(/--phone-odds-rhythm:\s*clamp\(/);
+      expect(frame).toMatch(/padding-top:\s*calc\([^;]*var\(--phone-odds-rhythm\)/);
+      // …and by both of the read zone's gaps plus the new one under the chip.
+      expect(stage).toMatch(/--phone-stage-gap:\s*calc\([^;]*var\(--phone-odds-rhythm/);
+      expect(stage).toMatch(/--phone-stage-chip-gap:\s*calc\([^;]*var\(--phone-odds-rhythm/);
+      expect(stage).toMatch(/\.streetChip\s*\{[^}]*margin-bottom:\s*var\(--phone-stage-chip-gap\)/);
+    });
+
+    it('keeps the read zone a function of viewport height alone, so it cannot move on commit', () => {
+      // Every gap above the label row must resolve from `dvh` and nothing else.
+      // A gap that flexed would differ between the 20px asking label and the
+      // 108px answering one, and the cards would jump on commit — comparing the
+      // answer *to the cards* is the learning act.
+      const gapBlock = stage.slice(stage.indexOf('.gapBoardToHero'));
+      expect(gapBlock.slice(0, gapBlock.indexOf('}'))).toMatch(/flex:\s*none/);
+      expect(stage).not.toMatch(/--phone-stage-(gap|chip-gap):[^;]*flex/);
+    });
+
+    it('is exactly 0px on a 640px-tall screen, leaving a 360 × 640 Android as it was', () => {
+      // That screen has ~5px of slack after the reveal — no room for a rhythm.
+      expect(rhythm(640)).toBe(0);
+      expect(rhythm(600)).toBe(0);
+    });
+
+    it('is exactly 0px in landscape, so 844 × 390 keeps its scroll behaviour', () => {
+      expect(rhythm(390)).toBe(0);
+    });
+
+    it('grows with the slack it is there to spend, and is capped before it can pool', () => {
+      // 390 × 844 had a 198px hole, 430 × 932 a 286px one. Four gaps share it.
+      expect(rhythm(844)).toBeGreaterThan(30);
+      expect(rhythm(932)).toBeGreaterThan(rhythm(844));
+      // Capped, so a tall viewport cannot reopen the hole in the read zone.
+      expect(rhythm(2000)).toBeLessThanOrEqual(61.6);
+    });
+
+    it('lets the commit bar grow into the slack but never shrink out of it', () => {
+      // Growing puts the button in the thumb zone without `space-between`.
+      // Not shrinking is what keeps 844 × 390 honest: there is no slack there,
+      // the bar stays at content height, and the frame scrolls beneath it.
+      const block = bar.slice(bar.indexOf('.commitBar {'));
+      expect(block.slice(0, block.indexOf('}'))).toMatch(/flex:\s*1\s+0\s+auto/);
+    });
+
+    it('keeps the commit bar sticky over a scrolling frame — the landscape contract', () => {
+      // At 844 × 390 roughly 530px (asking) / 580px (answering) of content does
+      // not fit ~346px of frame. Without both halves of this the commit button
+      // sits below the fold and the hand cannot be committed at all.
+      expect(bar).toMatch(/\.commitBar\s*\{[^}]*position:\s*sticky/);
+      expect(bar).toMatch(/\.commitBar\s*\{[^}]*bottom:\s*0/);
+      expect(frame).toMatch(/\.frame\s*\{[^}]*overflow-y:\s*auto/);
+    });
+
+    it('makes the readout the one elastic slot, in both drill states', () => {
+      for (const cls of ['readout', 'readoutRevealed']) {
+        const block = bar.slice(bar.indexOf(`.${cls} {`));
+        expect(block.slice(0, block.indexOf('}'))).toMatch(/flex:\s*1\s+0\s+auto/);
+      }
+      // Everything below it is fixed, so the bar, ruler and button hold still.
+      for (const cls of ['dial', 'ruler', 'primaryBtn']) {
+        const block = bar.slice(bar.indexOf(`.${cls} {`));
+        expect(block.slice(0, block.indexOf('}'))).toMatch(/flex:\s*none/);
+      }
+    });
+
+    it('centres the pending value in its slot rather than pinning it to the top', () => {
+      // Top-pinned, the slot's extra height pooled between the number and the
+      // bar — a hole with a number above it. Centred, it splits evenly and the
+      // baseline sits *further* from the thumb's occlusion cone than before.
+      const block = bar.slice(bar.indexOf('.readout {'));
+      expect(block.slice(0, block.indexOf('}'))).toMatch(/align-items:\s*center/);
+      expect(block.slice(0, block.indexOf('}'))).not.toMatch(/padding-top/);
+    });
+  });
+
   describe('PhoneStage.module.css — the board arithmetic', () => {
     const css = sources.find((s) => s.name === 'PhoneStage.module.css')!.css;
 

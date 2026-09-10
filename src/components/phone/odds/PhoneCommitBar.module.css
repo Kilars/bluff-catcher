@@ -1,19 +1,27 @@
 /* PhoneCommitBar.module.css — the swap zone (PLAN-phone §5.1).
  *
- * Height budget at 390 × 844:
+ * Height budget at 390 × 844 (measured, no safe-area insets):
  *
  *                        asking   answering
  *     label / draw name      20         108
- *     readout / result      112          74
+ *     readout / result      174          86   <- the elastic slot
  *     estimate bar           72          72
  *     ruler                  24          24
  *     commit / next          56          56
  *     safe-area-bottom       34          34
  *     ───────────────────────────────────────
- *                           318         368
+ *                           346         346
  *
- * The slots that carry the difference (label row, readout) are the only two
- * that resize, and both sit **above** the bar — so the bar, the ruler and the
+ * The bar **fills** the column (`flex: 1 0 auto`) rather than being parked at
+ * the bottom of it. PhoneOddsFrame used to say `justify-content: space-between`,
+ * which meant the entire slack budget — 198px at 390 × 844, 286px at 430 × 932 —
+ * landed in the single gap above this element and read as a rendering failure.
+ * Now the read zone takes a fixed, `dvh`-derived share of that slack (see
+ * PhoneOddsFrame's header) and the readout takes whatever is left, which is why
+ * the two columns above sum to the same number: there is no residual gap.
+ *
+ * The slots that carry the pre/post difference (label row, readout) are the only
+ * two that resize, and both sit **above** the bar — so the bar, the ruler and the
  * button hold still through the commit, and so does everything in PhoneStage.
  *
  * Every :hover here is behind `(hover: hover) and (pointer: fine)` and has a
@@ -27,6 +35,14 @@
   position: sticky;
   bottom: 0;
   z-index: 1;
+
+  /* Grow into the column's slack, never shrink out of it. Growing is what keeps
+     the button in the thumb zone now that the frame no longer pushes it there
+     with `space-between`; refusing to shrink is what keeps landscape honest —
+     at 844 × 390 there is no slack at all, the bar stays at its content height,
+     and the frame scrolls under a sticky bar exactly as it did before. */
+  flex: 1 0 auto;
+
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -113,15 +129,23 @@
 
 /* ── Readout ─────────────────────────────────────────────────────────────── */
 
-/* Asking. The value is pinned to the top of the slot, which puts its baseline
-   ~130px clear of the bar — well outside the thumb's occlusion cone, which is
-   the entire reason the value is not drawn on the bar itself. */
+/* Asking. This is the swap zone's one elastic slot: it takes whatever slack the
+   read zone's rhythm did not claim, which at 390 × 844 makes it ~174px tall
+   against a 112px floor.
+
+   The value is **centred** in it rather than pinned to the top. Centring is what
+   makes the extra height read as a field the answer appears in rather than as a
+   hole: the leftover splits evenly above and below the number instead of pooling
+   between the number and the bar. It also holds the property the top-pinned
+   version was written for — the value's baseline stays ~65px clear of the bar at
+   390 × 844 and ~79px at 430 × 932, against 57px before, so it is further outside
+   the thumb's occlusion cone than it used to be, not closer. */
 .readout {
+  flex: 1 0 auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   min-height: clamp(72px, 13.3dvh, 112px);
-  padding-top: var(--space-4);
 }
 
 .pendingValue {
@@ -134,8 +158,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Answering. The hierarchy inverts: ACTUAL 44px, YOU 27px. */
+/* Answering. The hierarchy inverts: ACTUAL 44px, YOU 27px. The same elastic
+   slot as above, but the result row stays welded to the top of the bar
+   (`flex-end`) so ACTUAL / YOU sit at a fixed distance from the number line they
+   refer to; what slack there is opens up under the draw note instead. */
 .readoutRevealed {
+  flex: 1 0 auto;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -221,6 +249,7 @@
    resolution over a gutter-inset bar (3.90 px/pt against 3.58). */
 .dial {
   position: relative;
+  flex: none;
   height: 72px;
   margin-inline: calc(50% - 50vw);
 }
@@ -330,6 +359,7 @@
 /* ── Ruler ───────────────────────────────────────────────────────────────── */
 
 .ruler {
+  flex: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
