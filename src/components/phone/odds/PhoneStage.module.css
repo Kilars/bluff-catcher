@@ -1,0 +1,155 @@
+/* PhoneStage.module.css — the read zone (PLAN-phone §5.1).
+ *
+ * Height budget, identical in both drill states, at three viewport heights.
+ * Every gap is a function of `dvh` only, which is what keeps the two states
+ * pixel-identical: nothing in this file knows about the commit.
+ *
+ *                       360 × 640   390 × 844   430 × 932
+ *     street chip           24          24          24
+ *     chip → board           0        22.6        32.4     0.6 × rhythm
+ *     board row           86.1          94          94     (native 66 × 94)
+ *     board → hero        24.3        69.7          86     base + rhythm
+ *     hero row             136         136         136     (96 × 136, rank 40)
+ *     hero → swap zone    24.3        69.7          86     base + rhythm
+ *     ─────────────────────────────────────────────────
+ *                        294.7       416.0       458.4
+ *
+ * `--phone-odds-rhythm` is declared on PhoneOddsFrame and is 0px at 640 and in
+ * landscape, which is why the short screens keep exactly the geometry they had
+ * before the rhythm existed. Read that file's header for why the slack is split
+ * four ways instead of pooling in one gap.
+ *
+ * Nothing here is transformed. Nothing here knows about the commit.
+ */
+
+.stage {
+  /* Board slot width. 66px is the desktop native size and the ceiling.
+   *
+   *   row = 5 × w + 4 × 8.4  must fit  100vw − 2 × 12 gutters
+   *   w   = (100vw − 24 − 33.6) / 5 = 20vw − 11.52px
+   *
+   * At 390 that is 66.48 → clamped to 66 (exact desktop size, unscaled).
+   * At 360 it is 60.48, which is how the row degrades instead of overflowing
+   * on the small Android that breaks this layout first. The 52px floor keeps
+   * the 29px rank glyph inside the card if the viewport goes narrower still.
+   */
+  --phone-board-card-w: clamp(52px, calc(20vw - 11.52px), 66px);
+
+  /* Cards keep their 66 : 94 aspect as the width clamps down. */
+  --phone-board-card-h: calc(var(--phone-board-card-w) * 94 / 66);
+
+  /* The base gap compresses on a short screen (a 360 × 640 Android) rather than
+   * pushing the commit button off the bottom. 32 / 844 = 3.79dvh. On top of it
+   * sits one rhythm unit, which is the read zone's share of the viewport slack:
+   * 0px at 640, +37.7px at 844, +54.0px at 932. The board and the hero hand are
+   * the two things the drill asks you to compare, so the space between them is
+   * the first place the slack should go, not the last.
+   */
+  --phone-stage-gap: calc(clamp(11.2px, 3.79dvh, 32px) + var(--phone-odds-rhythm, 0px));
+
+  /* The street chip is a caption for the board row, so it takes a *fraction* of
+   * a rhythm unit — enough that it stops being welded to the board on a tall
+   * screen, never so much that it drifts up and reads as part of the top bar.
+   */
+  --phone-stage-chip-gap: calc(var(--phone-odds-rhythm, 0px) * 0.6);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Street chip ─────────────────────────────────────────────────────────── */
+
+.streetChip {
+  margin-bottom: var(--phone-stage-chip-gap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: 24px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+/* ── Gaps ────────────────────────────────────────────────────────────────── */
+
+.gapBoardToHero,
+.gapHeroToSwap {
+  height: var(--phone-stage-gap);
+  flex: none;
+}
+
+/* ── Board row ───────────────────────────────────────────────────────────── */
+
+.boardRow {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--space-3); /* 8.4px — the gap the 363.6px arithmetic assumes */
+  width: 100%;
+}
+
+.boardSlot {
+  width: var(--phone-board-card-w);
+  height: var(--phone-board-card-h);
+  flex: none;
+}
+
+/* Card owns its own face; the slot owns the geometry. Targeting the child
+   element rather than Card's class keeps the override inside this subtree —
+   Card.module.css belongs to the desktop tree as well and is not ours. */
+.boardSlot > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Turn / River blanks — kept 1:1 from the felt ────────────────────────── */
+
+.blank {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-3);
+  border: 1px dashed var(--color-neutral-800);
+  border-radius: var(--radius-md);
+}
+
+.blankLabel {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+}
+
+/* ── Hero row — bigger than desktop ──────────────────────────────────────── */
+
+.heroRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.heroSlot {
+  width: 96px;
+  height: 136px;
+  flex: none;
+}
+
+.heroSlot > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Rank steps 37 → 40px with the card; the suit keeps its 29px. Both are on the
+   DECISIONS.md type scale. */
+.heroSlot > div > span:first-child {
+  font-size: 40px;
+}

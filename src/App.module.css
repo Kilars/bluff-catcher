@@ -16,10 +16,18 @@
  * --ui-scale is computed in App.tsx (CSS cannot divide a length by a length to
  * get a unitless factor); it is 1 on phone, so the phone path is unchanged.
  *
- * Phone portrait: @media (max-width: 820px)
- * 820 px = the exact felt width.  Anything narrower cannot show the felt at
- * 1:1 scale and reflows into the vertical-column phone layout.
- * Landscape is left on the desktop code path (felt fits at landscape widths).
+ * Phone tree: :root[data-layout="phone"]
+ * The break is decided once, in JS, by useLayoutMode() — see
+ * src/lib/breakpoints.ts for the numbers and src/hooks/useLayoutMode.ts for
+ * the matchMedia listener that stamps data-layout on <html>.  Nothing in src/
+ * may carry a width media query; CI greps for it.
+ *
+ * The threshold is the viewport's *short* edge (< 600px), so a landscape phone
+ * at 844 × 390 gets the phone tree too — it has a phone's height, and the
+ * desktop tree wants 860.  600 replaces the old 820 (which was the felt's asset
+ * width, i.e. a design asset governing a layout decision).  600–1023px is now
+ * the desktop tree with --felt-scale doing the fitting, which is the job it was
+ * built for.
  *
  * Phone layout — single column, top → bottom:
  *   1. Compact header (wraps / condenses) — see Header.module.css
@@ -46,13 +54,30 @@
   user-select: none;
 }
 
-/* ── Phone portrait override ─────────────────────────────────────────────── */
+/* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
 
-@media (max-width: 820px) {
-  .frame {
-    /* --ui-scale is pinned to 1 on phone, so the sizes above already resolve
-       to 100vw × 100dvh; only the overflow behaviour differs. */
-    overflow: hidden;     /* outer clips; inner sections scroll if needed */
-    overflow-y: auto;     /* allow vertical scroll on very small screens */
-  }
+/*
+ * --felt-scale on the phone tree is a constant, not a computed value.
+ *
+ * On the desktop tree App.tsx derives it from the viewport on every resize. On
+ * the phone tree App.tsx computes nothing at all — the destination
+ * (PLAN-phone §5.1 / §5.2) is a tree with no felt and no scale transform
+ * anywhere, so teaching JS to keep fitting one would be building the thing we
+ * are removing.
+ *
+ * Until the phone stage lands in phases 4–5 the desktop components still draw
+ * here, so the felt needs *some* scale. 0.45 is the value the fallbacks in
+ * Table.module.css and PreflopTable.module.css already assume, and it holds the
+ * 820px felt at 369px — inside every phone width down to a 375px SE. It goes
+ * away with the rest of the override CSS in phase 7.
+ */
+:root[data-layout="phone"] {
+  --felt-scale: 0.45;
+}
+
+:root[data-layout="phone"] .frame {
+  /* --ui-scale is pinned to 1 on phone, so the sizes above already resolve
+     to 100vw × 100dvh; only the overflow behaviour differs. */
+  overflow: hidden;     /* outer clips; inner sections scroll if needed */
+  overflow-y: auto;     /* allow vertical scroll on very small screens */
 }

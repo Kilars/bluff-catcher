@@ -1,0 +1,82 @@
+/* PhoneOddsFrame.module.css — gutters, insets, and how the slack is spent.
+ *
+ * No height is declared here on purpose. The phone chrome (PhoneTopBar) is a
+ * sibling above this frame, so claiming `100dvh` would overflow the viewport by
+ * exactly the height of the chrome. Instead the frame grows to fill whatever a
+ * flex-column parent gives it (`flex: 1`); in a non-flex parent it simply falls
+ * back to content height.
+ *
+ * ── The rhythm unit ──────────────────────────────────────────────────────────
+ *
+ * This frame used to say `justify-content: space-between`, which put *all* the
+ * slack in one gap: 198px of nothing between the hero cards and the readout at
+ * 390 × 844, 286px at 430 × 932. The tell that it was over-budgeted is that a
+ * 360 × 640 screen composed better than a 390 × 844 one — less height, less
+ * slack, so less of it pooled in the one place it could go. A layout that
+ * improves as the screen shrinks is a layout parking its slack, not spending it.
+ *
+ * So the slack is spent, in four places, as one unit:
+ *
+ *     --phone-odds-rhythm    0px at 640, 37.7px at 844, 54.0px at 932
+ *
+ *     1.0 × rhythm   above the street chip (this file's padding-top)
+ *     0.6 × rhythm   under the street chip (PhoneStage, --phone-stage-chip-gap)
+ *     1.0 × rhythm   added to board → hero      (PhoneStage, --phone-stage-gap)
+ *     1.0 × rhythm   added to hero  → swap zone (PhoneStage, --phone-stage-gap)
+ *
+ * and whatever is left over goes to the readout, which is the swap zone's one
+ * elastic slot (PhoneCommitBar `.readout` / `.readoutRevealed`, `flex: 1 0 auto`).
+ * The commit bar therefore *fills* the column rather than being pushed to the
+ * bottom of it, and there is no residual gap anywhere to read as a hole.
+ *
+ * Three properties fall out of writing it this way, and all three are asserted
+ * in phoneOddsCss.test.ts / PhoneOddsTrainer.test.tsx:
+ *
+ *   - The rhythm is a function of `dvh` alone, so every gap above the label row
+ *     is **identical pre- and post-commit**. The read zone still does not move
+ *     when you commit — comparing the answer to the cards is the learning act.
+ *   - The slope is anchored so the unit is exactly 0px at 640px of viewport,
+ *     which is why a 360 × 640 Android is left as it was: it had ~5px of slack
+ *     post-commit and no room for a rhythm.
+ *   - It is 0px in landscape (390px tall) too, so 844 × 390 keeps today's
+ *     ~530/580px of content scrolling under a sticky commit bar.
+ *
+ * The chip gap is 0.6 × rather than 1.0 × on purpose: `TURN · 1 TO COME` is a
+ * caption for the board row, so it has to sit closer to the board than it does
+ * to the top bar, or it re-parents itself to the chrome.
+ */
+
+.frame {
+  /* 18.5dvh − 118.4px: zero at 640, 37.7px at 844, 54.0px at 932. Capped at
+     61.6px (22 × --space-1) so a tablet-tall viewport cannot reopen the hole. */
+  --phone-odds-rhythm: clamp(0px, calc(18.5dvh - 118.4px), 61.6px);
+
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  /* Not `space-between`: that is the defect. The commit bar grows into the
+     slack instead (`flex: 1 0 auto`), and its readout hands the leftover to a
+     slot that has something to put there. */
+  justify-content: flex-start;
+  min-height: 0;
+  width: 100%;
+
+  /* Portrait has slack and never scrolls. Landscape (844 × 390) does not fit
+     the read zone and the commit bar at once, and without this the bar sits
+     below the fold with no way to reach it — the hand cannot be committed at
+     all. See PLAN-phone §3.2. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  /* 11.2px, the --space-4 step. The plan's arithmetic assumed 12px gutters and
+     366px of usable width; 11.2 gives 367.6, which the 363.6px board row still
+     fits, and keeps every gap on the 2.8px grid. */
+  padding-inline: var(--space-4);
+
+  /* Top inset. When phone chrome is mounted above this frame it has already
+     consumed the notch, and it should zero this out by setting
+     `--phone-odds-top-inset: 0px` on a shared ancestor. Standalone (no chrome),
+     the frame honours the inset itself. The bottom inset belongs to the commit
+     bar, which is the element actually sitting on the home indicator. */
+  padding-top: calc(var(--phone-odds-top-inset, env(safe-area-inset-top, 0px)) + var(--phone-odds-rhythm));
+}

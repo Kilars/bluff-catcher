@@ -1,0 +1,89 @@
+/* PhoneStatsPill.module.css
+ *
+ * Two glanceable numbers in the top bar, in a 44px target (PLAN-phone §5.3).
+ * The desktop header spends its whole right side on four stat pairs plus a
+ * bare-text Reset; at 390px that is what forced the header to wrap. Everything
+ * except the two numbers that change on every commit moves into the sheet this
+ * pill opens.
+ *
+ * The pill is visually small and physically 44px tall: padding does the hit
+ * area, so the numbers can stay at a size the bar can hold.
+ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: var(--font-body);
+  color: var(--color-neutral-400);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease-out;
+}
+
+/* Streak: the number that moves on every green, and the reason the pill is
+   accent-coloured at all. */
+.streak {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent-300);
+}
+
+.streakLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+/* The three-dot band tally — green / amber / red counts, odds mode only. */
+.bands {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.band {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-400);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Accuracy, preflop mode's second number. */
+.accuracy {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-300);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pill:hover {
+    background: var(--color-neutral-800);
+  }
+}
+
+.pill:active {
+  background: var(--color-neutral-700);
+}

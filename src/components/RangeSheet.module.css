@@ -155,26 +155,3 @@
   font-size: 12px;
   color: var(--color-neutral-600);
 }
-
-@media (max-width: 820px) {
-  .tab {
-    padding: 5px 9px;
-    font-size: 11px;
-  }
-
-  .depthTab {
-    padding: 5px 10px;
-  }
-
-  .depthLabel {
-    font-size: 12px;
-  }
-
-  .depthName {
-    font-size: 9px;
-  }
-
-  .navHint {
-    display: none;
-  }
-}

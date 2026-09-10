@@ -137,20 +137,3 @@
   background: var(--color-accent);
   flex-shrink: 0;
 }
-
-/* ── Phone ────────────────────────────────────────────────────────────────── */
-
-@media (max-width: 820px) {
-  .dropdown {
-    min-width: 140px;
-  }
-
-  .item {
-    font-size: 12px;
-    padding: var(--space-3) var(--space-4);
-  }
-
-  .groupLabel {
-    padding: var(--space-2) var(--space-4);
-  }
-}

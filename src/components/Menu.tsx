@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppMode } from '../App';
+import type { AppMode } from '../hooks/useAppPrefs';
 import { DEPTHS, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 

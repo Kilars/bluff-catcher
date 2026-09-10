@@ -1,0 +1,405 @@
+/* PhoneRangeView.module.css — the unlabelled 24px chart (PLAN-phone §3.1).
+ *
+ * Width budget on a 390px screen (sheet inner measure 366px):
+ *
+ *   grid      18px header track + 2px + 13 x 24px + 12 x 2px = 356px
+ *   seats     7 x 44px + 6 x 4px                             = 332px
+ *   readout   full measure, fixed 44px tall
+ *
+ * The three grid numbers are set as custom properties by the component, so the
+ * hit-test arithmetic and this file cannot drift apart.
+ *
+ * Phone rules this file is bound by (§1.4):
+ *   - every interactive element >= 44x44 — with one deliberate exemption, the
+ *     grid cells, which are NOT tap targets (see .cells);
+ *   - every :hover guarded by (hover: hover) and (pointer: fine), and paired
+ *     with a real :active, because on touch a hover rule is an invisible
+ *     affordance — which is precisely the defect the scrub readout replaces;
+ *   - touch-action: none on the scrub surface, manipulation on buttons;
+ *   - dvh, never vh; no width media queries — the phone break is data-layout;
+ *   - colour, space and radius from tokens.css; type only from the DECISIONS.md
+ *     scale, and nothing below 11px. Dropping the 169 cell labels is what makes
+ *     that floor affordable: the rank headers sit exactly on it, at 11px.
+ */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  /*
+   * `pan-y` — this element owns the horizontal axis, the browser keeps the
+   * vertical one.
+   *
+   * The seat-paging swipe is a horizontal touch drag, and nothing here is
+   * horizontally scrollable, so without this the browser sees an unconsumed
+   * horizontal pan, overscrolls the viewport and fires **history back**. On a
+   * real device a right-swipe to page from HJ to LJ walked straight out of the
+   * app; in Chromium driven by a real finger it navigated the tab to the
+   * previous entry. The sheet body's `overscroll-behavior: contain` cannot stop
+   * it, because a container with no horizontal scrollport has no overscroll of
+   * its own to contain — the gesture never becomes its business.
+   *
+   * `pan-y` still leaves vertical scrolling to the browser, so a sheet taller
+   * than the screen scrolls normally. The grid keeps its stricter
+   * `touch-action: none` below; the effective value is the intersection down
+   * the chain, so the scrub surface is unaffected.
+   */
+  touch-action: pan-y;
+}
+
+/* ── Tier: static chip (trainer) ────────────────────────────────────────── */
+
+/*
+ * Not a control. In the trainer's sheet the drill is being run at one tier, and
+ * a sheet-local switch that silently does not change what is being tested is a
+ * trap — so here the tier is stated, not offered. The 3-way strip below exists
+ * only for the standalone browser (depthSwitchable).
+ */
+.depthChip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  align-self: flex-start;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Tier: 3-way strip (standalone browser) ─────────────────────────────── */
+
+.depths {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.depthTab {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 90ms ease, color 90ms ease;
+}
+
+.depthTab[data-active='true'] {
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+.depthTab:active {
+  background: var(--color-neutral-800);
+}
+
+.depthLabel {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.depthName {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  line-height: 1.2;
+}
+
+.depthTab[data-active='true'] .depthName {
+  color: var(--color-accent-300);
+}
+
+/* ── Seats ──────────────────────────────────────────────────────────────── */
+
+.seats {
+  display: flex;
+  gap: 4px;
+}
+
+.seatTab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 90ms ease, color 90ms ease;
+}
+
+.seatTab[data-active='true'] {
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+.seatTab:active {
+  background: var(--color-neutral-800);
+}
+
+/* The hero's seat, marked so the drilled chart is findable in the strip. */
+.heroDot {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--color-accent-400);
+}
+
+/* ── Scrub readout ──────────────────────────────────────────────────────── */
+
+/*
+ * The load-bearing mitigation for the dropped labels. Fixed 44px in both
+ * states — with content and without — so the grid never moves under the finger
+ * that is reading it.
+ */
+.readout {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  /* The hand and its meta are separate flex items so they can carry different
+     type sizes. That makes each one its own inline formatting context, and CSS
+     collapses leading whitespace at the start of one — so a literal " · " in
+     the markup rendered as "Q5s· fold". The space has to come from the box,
+     not from the text. */
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.readoutHand {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: var(--font-heading-weight);
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.readoutMeta {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.readoutHint {
+  font-size: 13px;
+  color: var(--color-neutral-600);
+}
+
+/* ── Boundary sentence ──────────────────────────────────────────────────── */
+
+/*
+ * The other half of the mitigation: where the range stops, in words.
+ * Derived, never hand-written — see lib/preflop/boundary.ts.
+ */
+.boundary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--color-neutral-300);
+}
+
+/* ── The grid ───────────────────────────────────────────────────────────── */
+
+/*
+ * 24px is the design *cap*, not a fixed size.
+ *
+ * The header above budgets the grid against a 390px screen and it fits there
+ * exactly. It does not fit a 360px one — a width breakpoints.ts lists first
+ * among the phones this tree serves. At 360 the sheet's inner measure is 332px
+ * against the grid's 356, so the last column (every X2s hand) hung 10px past
+ * the right edge, clipped and unscrubbable. `touch-action: pan-y` on .view now
+ * denies the horizontal pan that was the only way to reach it, which turns a
+ * cosmetic overflow into 13 hands you cannot read.
+ *
+ * So the grid takes the width it is given and caps itself at the design size:
+ * 24px cells wherever they fit, proportionally smaller where they do not
+ * (22.2px at 360). Every track below is a fraction rather than a length, so the
+ * headers stay locked to the cells at any width, and the hit-test measures the
+ * pitch it actually got instead of assuming 26.
+ *
+ * No media query is involved, and none would help: the constraint is the
+ * container's width, not the viewport's.
+ */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--phone-range-gap);
+  width: 100%;
+  max-width: calc(
+    var(--phone-range-header) + var(--phone-range-gap) + 13 * var(--phone-range-cell) + 12 *
+      var(--phone-range-gap)
+  );
+  margin-inline: auto;
+}
+
+.colHeaders {
+  display: flex;
+  gap: var(--phone-range-gap);
+}
+
+.gridBody {
+  display: flex;
+  gap: var(--phone-range-gap);
+  align-items: stretch;
+}
+
+/* Fixed track, stretched to whatever height the cells came out to. */
+.rowHeaders {
+  flex: none;
+  width: var(--phone-range-header);
+  display: flex;
+  flex-direction: column;
+  gap: var(--phone-range-gap);
+}
+
+.corner {
+  width: var(--phone-range-header);
+  height: var(--phone-range-header);
+  flex: none;
+}
+
+/* 11px is the floor in DECISIONS.md, and with 169 labels gone it is reachable. */
+.headerCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-neutral-500);
+  letter-spacing: 0.02em;
+}
+
+/*
+ * `1 1 0` on both axes, not a fixed length: 13 equal fractions either side of 12
+ * equal gaps is the same division the cell grid does, so a header can never
+ * drift off its column or row however wide the grid ended up.
+ */
+.colHeaders .headerCell {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--phone-range-header);
+}
+
+.rowHeaders .headerCell {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+}
+
+/*
+ * The scrub surface.
+ *
+ * `touch-action: none` because the gesture is a drag that must not become a
+ * page scroll, and `user-select: none` because a long press on a grid of divs
+ * otherwise raises the text-selection callout on iOS.
+ *
+ * The cells inside are 24px — 55% of the 44px touch minimum — and that is
+ * allowed for exactly one reason: **they are not tap targets**. There is no
+ * per-cell handler, no cell is focusable, and nothing happens when you release.
+ * The interaction is the continuous scrub handled here on the container, which
+ * carries no Fitts cost at all: land anywhere, slide, read the bar. Give a cell
+ * its own click handler and the exemption evaporates along with it.
+ */
+.cells {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+  gap: var(--phone-range-gap);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Square by ratio rather than by length, so the rows follow the fluid columns
+   and the chart stays a chart instead of stretching into a rectangle. */
+.cell {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * Open cells carry the whole message now, so they are pushed harder than the
+ * desktop grid's tint: with no labels, the read is fill against ground.
+ */
+.cell[data-open='true'] {
+  background: color-mix(in srgb, var(--band-green) 55%, var(--color-bg));
+}
+
+.cell[data-open='true'][data-region='pair'] {
+  background: color-mix(in srgb, var(--band-green) 78%, var(--color-bg));
+}
+
+.cell[data-open='false'] {
+  background: var(--color-neutral-900);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+}
+
+/* Post-commit, the hero's cell keeps its accent outline. The grid fits on one
+   screen, so it never has to be scrolled into view. */
+.cell[data-hero] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  z-index: 1;
+}
+
+/* Where the finger is (or last was) — the readout bar's counterpart on the grid. */
+.cell[data-scrubbed] {
+  box-shadow: 0 0 0 2px var(--color-neutral-100);
+  z-index: 2;
+}
+
+/* ── Summary ────────────────────────────────────────────────────────────── */
+
+.summary {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+/* ── Hover, guarded ─────────────────────────────────────────────────────── */
+
+/*
+ * A pointer that can hover is a mouse on a small window, not a finger. Every
+ * rule in here has a touch equivalent above (:active on the buttons, the scrub
+ * readout for the cells), so nothing is affordance-only-on-hover.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .seatTab:hover:not([data-active='true']),
+  .depthTab:hover:not([data-active='true']) {
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-200);
+  }
+}

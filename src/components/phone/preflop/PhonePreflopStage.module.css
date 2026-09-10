@@ -1,0 +1,84 @@
+/* PhonePreflopStage — 170px of card + 52px of hand class. PLAN-phone §5.2.
+ *
+ * Sizes are the desktop hero card (82×116) × 1.45. Type: 44 / 40 / 28 / 11,
+ * all on the DECISIONS.md scale, nothing below 11px. Colour, radius and space
+ * come from tokens.css; the two pip colours are the functional pair that sits
+ * outside the mono ramp on purpose.
+ *
+ * Two 120px cards plus an 8.4px gap is 248.4px, inside the 367.6px a 390px
+ * screen leaves after the trainer's gutters — and inside the 336px a 360px
+ * screen leaves, which is the width that breaks this layout first.
+ */
+
+.stage {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Cards ── */
+
+.cards {
+  height: 170px;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  align-items: center;
+}
+
+.card {
+  width: 120px;
+  height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(170deg, var(--color-neutral-100), var(--color-neutral-300));
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.55),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.rank {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.suit {
+  font-size: 40px;
+  line-height: 1;
+}
+
+/* ── Hand class ── */
+
+.classBlock {
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.kicker {
+  font-size: 11px;
+  line-height: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.handClass {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 28px;
+  line-height: 32px;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}

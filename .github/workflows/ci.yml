@@ -1,0 +1,79 @@
+# CI — the checks that must pass before anything merges.
+#
+# deploy.yml only fires on push to main and only runs `npm run build`, which is
+# `tsc -b && vite build` — it never runs the test suite and never sees a pull
+# request. So until now nothing gated a PR at all. This is that gate.
+#
+# The last step is the anti-drift guard from docs/PLAN-phone.md §4.3. The phone
+# break is decided once, in useLayoutMode(), and published as data-layout on
+# <html>; a new width media query anywhere under src/ is a second decision
+# point, and two of those is how the two trees start disagreeing about what a
+# phone is. Cheaper to fail the build than to find it later in a screenshot.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: typecheck · lint · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # ── Layout guard (PLAN-phone §4.3) ─────────────────────────────────────
+      # grep -r exits 1 when it finds nothing, which is the passing case here,
+      # so the exit code is inverted deliberately. The pattern is a regex rather
+      # than a literal so the spellings that mean the same thing are all caught:
+      # `@media(max-width:`, `@media screen and (max-width : 600px)`, and the
+      # plain `@media (min-width: 600px)`.
+      - name: No width media queries under src/
+        run: |
+          if grep -rnE '@media[^{;]*\(\s*(max|min)-width\s*:' src/; then
+            echo ''
+            echo '::error::A width media query was added under src/.'
+            cat <<'MSG'
+          The phone break is decided in one place — useLayoutMode() — and published
+          as data-layout on <html>. Key the rule off that attribute instead:
+
+              @media (max-width: 599px) { .foo { … } }
+                -> :root[data-layout="phone"] .foo { … }
+
+              @media (min-width: 600px) { .foo { … } }
+                -> :root:not([data-layout="phone"]) .foo { … }
+
+          :not([data-layout="phone"]) also matches when the attribute is absent,
+          so the desktop rules still apply during SSR and in jsdom.
+
+          The widths themselves live in src/lib/breakpoints.ts. If you need a new
+          one, add it there and give it a mode — do not inline it.
+          MSG
+            exit 1
+          fi
+          echo 'No width media queries under src/ — layout stays on data-layout.'

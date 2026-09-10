@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import type { Band } from '../lib/band';
 
 const STORAGE_KEY = 'bluff-catcher:stats:v1';
 
@@ -98,7 +99,7 @@ export function useStats() {
 
   // ── record(delta, band, category) ──────────────────────────────────────
 
-  const record = (delta: number, band: 'green' | 'amber' | 'red', category: string) => {
+  const record = (delta: number, band: Band, category: string) => {
     setState((prev) => {
       const next = JSON.parse(JSON.stringify(prev)) as StatsState;
 

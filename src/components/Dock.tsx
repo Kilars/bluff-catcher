@@ -5,21 +5,8 @@
  */
 
 import GuessRail from './GuessRail';
+import { BAND_COLOR, BAND_LABEL, type Band } from '../lib/band';
 import styles from './Dock.module.css';
-
-type Band = 'green' | 'amber' | 'red';
-
-const BAND_COLOR: Record<Band, string> = {
-  green: 'var(--band-green)',
-  amber: 'var(--band-amber)',
-  red: 'var(--band-red)',
-};
-
-const BAND_LABEL: Record<Band, string> = {
-  green: 'On the money',
-  amber: 'Close',
-  red: 'Off',
-};
 
 interface DockProps {
   guess: number | null;
