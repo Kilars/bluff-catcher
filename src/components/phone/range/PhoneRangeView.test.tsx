@@ -61,13 +61,29 @@ function pointer(type: string, el: Element, x: number, y: number): void {
 }
 
 /** Press at the centre of (row, col) and read the bar. */
+/**
+ * The readout's text, with the separator spacing normalised.
+ *
+ * The hand and its meta are separate flex items so they can carry different
+ * type sizes, which makes each one its own inline formatting context — and CSS
+ * collapses leading whitespace at the start of one. A literal " · " in the
+ * markup therefore rendered as "Q5s· fold", so the space now comes from the
+ * container's `gap` and never appears in textContent. These assertions are
+ * about which cell is named, not about where the space comes from.
+ */
+function readoutText(): string {
+  return (screen.getByTestId('scrub-readout').textContent ?? '')
+    .replace(/\s*·\s*/g, ' · ')
+    .trim();
+}
+
 function scrubTo(row: number, col: number): string {
   const cells = screen.getByTestId('grid-cells');
   stubRect(cells);
   const { x, y } = centreOf(row, col);
   pointer('pointerdown', cells, x, y);
   pointer('pointermove', cells, x, y);
-  return screen.getByTestId('scrub-readout').textContent ?? '';
+  return readoutText();
 }
 
 function cellEls(): HTMLElement[] {
@@ -172,7 +188,7 @@ describe('PhoneRangeView', () => {
 
       const start = centreOf(0, 0);
       pointer('pointerdown', cells, start.x, start.y);
-      expect(screen.getByTestId('scrub-readout')).toHaveTextContent('AA · open · CO');
+      expect(readoutText()).toBe('AA · open · CO');
 
       for (const [row, col, expected] of [
         [0, 1, 'AKs · open · CO'],
@@ -181,7 +197,7 @@ describe('PhoneRangeView', () => {
       ] as [number, number, string][]) {
         const p = centreOf(row, col);
         pointer('pointermove', cells, p.x, p.y);
-        expect(screen.getByTestId('scrub-readout').textContent).toBe(expected);
+        expect(readoutText()).toBe(expected);
       }
     });
 
@@ -200,7 +216,7 @@ describe('PhoneRangeView', () => {
       stubRect(cells, 17, 213);
       const p = centreOf(2, 2);
       pointer('pointerdown', cells, p.x + 17, p.y + 213);
-      expect(screen.getByTestId('scrub-readout').textContent).toBe('QQ · open · HJ');
+      expect(readoutText()).toBe('QQ · open · HJ');
     });
 
     it('clamps to the nearest cell when the finger runs off the edge', () => {
@@ -209,10 +225,10 @@ describe('PhoneRangeView', () => {
       stubRect(cells);
       pointer('pointerdown', cells, 4, 4);
       pointer('pointermove', cells, -400, -400);
-      expect(screen.getByTestId('scrub-readout').textContent).toBe('AA · open · HJ');
+      expect(readoutText()).toBe('AA · open · HJ');
       pointer('pointermove', cells, 4000, 4000);
       // 22 is outside HJ's 33+ pairs — the clamp lands on the corner all the same.
-      expect(screen.getByTestId('scrub-readout').textContent).toBe('22 · fold · HJ');
+      expect(readoutText()).toBe('22 · fold · HJ');
     });
 
     it('keeps the last read after the finger lifts — you cannot read under it', () => {
@@ -222,7 +238,7 @@ describe('PhoneRangeView', () => {
       const p = centreOf(3, 5);
       pointer('pointerdown', cells, p.x, p.y);
       pointer('pointerup', cells, p.x, p.y);
-      expect(screen.getByTestId('scrub-readout').textContent).toBe('J9s · open · HJ');
+      expect(readoutText()).toBe('J9s · open · HJ');
     });
 
     it('marks the scrubbed cell on the grid too', () => {
@@ -237,7 +253,7 @@ describe('PhoneRangeView', () => {
       renderAt('phone', <PhoneRangeView position="BTN" />);
       expect(scrubTo(4, 9)).toBe('T5s · open · BTN');
       fireEvent.click(screen.getByRole('tab', { name: /^UTG$/ }));
-      expect(screen.getByTestId('scrub-readout').textContent).toBe('T5s · fold · UTG');
+      expect(readoutText()).toBe('T5s · fold · UTG');
     });
   });
 

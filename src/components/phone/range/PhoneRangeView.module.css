@@ -27,6 +27,25 @@
   flex-direction: column;
   gap: var(--space-3);
   width: 100%;
+  /*
+   * `pan-y` — this element owns the horizontal axis, the browser keeps the
+   * vertical one.
+   *
+   * The seat-paging swipe is a horizontal touch drag, and nothing here is
+   * horizontally scrollable, so without this the browser sees an unconsumed
+   * horizontal pan, overscrolls the viewport and fires **history back**. On a
+   * real device a right-swipe to page from HJ to LJ walked straight out of the
+   * app; in Chromium driven by a real finger it navigated the tab to the
+   * previous entry. The sheet body's `overscroll-behavior: contain` cannot stop
+   * it, because a container with no horizontal scrollport has no overscroll of
+   * its own to contain — the gesture never becomes its business.
+   *
+   * `pan-y` still leaves vertical scrolling to the browser, so a sheet taller
+   * than the screen scrolls normally. The grid keeps its stricter
+   * `touch-action: none` below; the effective value is the intersection down
+   * the chain, so the scrub surface is unaffected.
+   */
+  touch-action: pan-y;
 }
 
 /* ── Tier: static chip (trainer) ────────────────────────────────────────── */
@@ -163,6 +182,12 @@
   flex: none;
   display: flex;
   align-items: center;
+  /* The hand and its meta are separate flex items so they can carry different
+     type sizes. That makes each one its own inline formatting context, and CSS
+     collapses leading whitespace at the start of one — so a literal " · " in
+     the markup rendered as "Q5s· fold". The space has to come from the box,
+     not from the text. */
+  gap: var(--space-2);
   padding-inline: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -204,12 +229,35 @@
 
 /* ── The grid ───────────────────────────────────────────────────────────── */
 
+/*
+ * 24px is the design *cap*, not a fixed size.
+ *
+ * The header above budgets the grid against a 390px screen and it fits there
+ * exactly. It does not fit a 360px one — a width breakpoints.ts lists first
+ * among the phones this tree serves. At 360 the sheet's inner measure is 332px
+ * against the grid's 356, so the last column (every X2s hand) hung 10px past
+ * the right edge, clipped and unscrubbable. `touch-action: pan-y` on .view now
+ * denies the horizontal pan that was the only way to reach it, which turns a
+ * cosmetic overflow into 13 hands you cannot read.
+ *
+ * So the grid takes the width it is given and caps itself at the design size:
+ * 24px cells wherever they fit, proportionally smaller where they do not
+ * (22.2px at 360). Every track below is a fraction rather than a length, so the
+ * headers stay locked to the cells at any width, and the hit-test measures the
+ * pitch it actually got instead of assuming 26.
+ *
+ * No media query is involved, and none would help: the constraint is the
+ * container's width, not the viewport's.
+ */
 .grid {
   display: flex;
   flex-direction: column;
   gap: var(--phone-range-gap);
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
+  max-width: calc(
+    var(--phone-range-header) + var(--phone-range-gap) + 13 * var(--phone-range-cell) + 12 *
+      var(--phone-range-gap)
+  );
   margin-inline: auto;
 }
 
@@ -221,9 +269,13 @@
 .gridBody {
   display: flex;
   gap: var(--phone-range-gap);
+  align-items: stretch;
 }
 
+/* Fixed track, stretched to whatever height the cells came out to. */
 .rowHeaders {
+  flex: none;
+  width: var(--phone-range-header);
   display: flex;
   flex-direction: column;
   gap: var(--phone-range-gap);
@@ -237,7 +289,6 @@
 
 /* 11px is the floor in DECISIONS.md, and with 169 labels gone it is reachable. */
 .headerCell {
-  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,14 +299,21 @@
   letter-spacing: 0.02em;
 }
 
+/*
+ * `1 1 0` on both axes, not a fixed length: 13 equal fractions either side of 12
+ * equal gaps is the same division the cell grid does, so a header can never
+ * drift off its column or row however wide the grid ended up.
+ */
 .colHeaders .headerCell {
-  width: var(--phone-range-cell);
+  flex: 1 1 0;
+  min-width: 0;
   height: var(--phone-range-header);
 }
 
 .rowHeaders .headerCell {
-  width: var(--phone-range-header);
-  height: var(--phone-range-cell);
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
 }
 
 /*
@@ -273,9 +331,10 @@
  * its own click handler and the exemption evaporates along with it.
  */
 .cells {
+  flex: 1 1 auto;
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(13, var(--phone-range-cell));
-  grid-auto-rows: var(--phone-range-cell);
+  grid-template-columns: repeat(13, minmax(0, 1fr));
   gap: var(--phone-range-gap);
   touch-action: none;
   user-select: none;
@@ -283,7 +342,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Square by ratio rather than by length, so the rows follow the fluid columns
+   and the chart stays a chart instead of stretching into a rectangle. */
 .cell {
+  aspect-ratio: 1;
   border-radius: var(--radius-sm);
 }
 

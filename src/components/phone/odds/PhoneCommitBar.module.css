@@ -35,6 +35,12 @@
   position: sticky;
   bottom: 0;
   z-index: 1;
+  /* Opaque, because it is sticky. Transparent, the read zone scrolled *through*
+     it in landscape: hero cards sat on top of the dial and the ruler sliced
+     them in half. A sticky bar has to occlude what passes under it. The inline
+     padding is cancelled by the full-bleed dial's negative margin, so the
+     background can span the frame's gutters without the dial moving. */
+  background: var(--color-bg);
 
   /* Grow into the column's slack, never shrink out of it. Growing is what keeps
      the button in the thumb zone now that the frame no longer pushes it there

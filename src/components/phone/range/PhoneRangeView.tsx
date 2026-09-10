@@ -3,10 +3,15 @@
  *
  * The decision this implements, and its arithmetic on a 390px screen:
  *
- *     sheet inner width                        366px
+ *     sheet inner width                        362px
  *     row-header track 18 + 13 gaps x 2px    =  44px overhead
- *     (366 - 44) / 13                        =  24.8  ->  24px cells
+ *     (362 - 44) / 13                        =  24.5  ->  24px cells
  *     grid                                       356 x 356, one screen, no scroll
+ *
+ * 24px is a cap rather than a fixed size: 356 does not fit the 332px measure of
+ * a 360px phone, so below that the cells scale down together (22.2px at 360)
+ * and the hit-test measures the pitch it actually got. The chart is still one
+ * screen with no scroll at every width the phone tree serves.
  *
  * A 24px cell can hold a 10px label, but 169 of them at 10px is noise and the
  * 6px the old phone CSS used is below the legibility floor. **So the labels go.**
@@ -45,19 +50,23 @@ import styles from './PhoneRangeView.module.css';
 
 // ─── Geometry ─────────────────────────────────────────────────────────────────
 //
-// One source of truth for the three numbers above: the CSS consumes them as
-// custom properties, the pointer hit-test does the arithmetic with them. They
-// cannot drift apart, which matters because a hit-test that disagrees with the
-// layout by one gap names the wrong hand.
+// The CSS consumes these as custom properties. The hit-test deliberately does
+// NOT: it measures the grid it was handed and derives the pitch from that, so
+// there is nothing to keep in step. A hit-test that disagrees with the layout
+// by one gap names the wrong hand, and the surest way to disagree is to hold a
+// second copy of a number the layout is free to change.
 
-/** Cell edge in px. Deliberately below the 44px tap minimum — see hit-testing. */
+/**
+ * Cell edge in px — the design *cap*, not a fixed size. It fits a 390px screen
+ * exactly and a 360px one not at all, so the stylesheet treats it as a
+ * `max-width` on the whole grid and lets the cells shrink below it when the
+ * sheet is narrower. See `.grid` in the stylesheet.
+ */
 const CELL_PX = 24;
 /** Gap between cells (and between the header track and the first cell). */
 const GAP_PX = 2;
 /** The rank-header track, on both axes. */
 const HEADER_PX = 18;
-/** Distance from one cell's leading edge to the next one's. */
-const PITCH_PX = CELL_PX + GAP_PX;
 
 /** Total preflop combos (52 choose 2) — denominator for the range percentage. */
 const TOTAL_COMBOS = 1326;
@@ -142,10 +151,18 @@ export default function PhoneRangeView({
     const el = cellsRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    // Pitch is *measured*, never assumed. 13 columns and 12 gaps fill whatever
+    // width the grid got, so `(width + gap) / 13` is the true leading-edge-to-
+    // leading-edge distance — 26px on a 390px screen, 24.15px on a 360px one.
+    // A hardcoded 26 was right only at the one width the chart was designed
+    // against, and a hit-test that disagrees with the layout by one gap names
+    // the wrong hand.
+    const pitchX = (rect.width + GAP_PX) / 13;
+    const pitchY = (rect.height + GAP_PX) / 13;
     // Clamped, not discarded: a finger that drifts off the edge mid-drag keeps
     // reading the nearest cell instead of blanking the bar.
-    const col = clampIndex(Math.floor((clientX - rect.left) / PITCH_PX));
-    const row = clampIndex(Math.floor((clientY - rect.top) / PITCH_PX));
+    const col = clampIndex(pitchX > 0 ? Math.floor((clientX - rect.left) / pitchX) : 0);
+    const row = clampIndex(pitchY > 0 ? Math.floor((clientY - rect.top) / pitchY) : 0);
     setScrub((prev) => (prev && prev.row === row && prev.col === col ? prev : { row, col }));
   }, []);
 
@@ -285,7 +302,8 @@ export default function PhoneRangeView({
           <>
             <span className={styles.readoutHand}>{scrubHand}</span>
             <span className={styles.readoutMeta}>
-              {' · '}
+              {/* No leading space: it would be collapsed (see .readout's gap). */}
+              {'· '}
               {scrubOpen ? meta.action : 'fold'}
               {' · '}
               {positionLabel(viewPos)}

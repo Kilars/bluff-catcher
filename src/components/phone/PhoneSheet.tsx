@@ -23,7 +23,9 @@
  * point of having two thresholds instead of one.
  *
  * Presentation only: no drill state, no persistence, no viewport reads. The
- * one piece of state is how far the finger has moved.
+ * only state is the shape of the gesture itself — how far the finger has moved,
+ * whether the spring-back is playing, and whether the sheet has been grabbed at
+ * all (which retires the entry animation; see `.grabbed` in the stylesheet).
  */
 
 import {
@@ -93,6 +95,10 @@ export default function PhoneSheet({
   // the spring-back. Both are pure presentation.
   const [offset, setOffset] = useState(0);
   const [settling, setSettling] = useState(false);
+  // Latches on the first grab and never clears — see `.grabbed` in the CSS for
+  // why this is one-way. It exists to get the entry animation out of the
+  // cascade's way, not to track the gesture.
+  const [grabbed, setGrabbed] = useState(false);
 
   // Gesture bookkeeping. A ref, not state: a drag samples on every frame and
   // none of it should cause a render beyond the offset itself.
@@ -155,6 +161,7 @@ export default function PhoneSheet({
       velocity: 0,
     };
     setSettling(false);
+    setGrabbed(true);
     // jsdom has no pointer capture; production needs it so the drag survives
     // the finger leaving the handle.
     if (typeof e.currentTarget.setPointerCapture === 'function') {
@@ -209,7 +216,9 @@ export default function PhoneSheet({
     <>
       <div className={styles.scrim} aria-hidden="true" />
       <div
-        className={`${styles.sheet} ${settling ? styles.settling : ''}`}
+        className={`${styles.sheet} ${settling ? styles.settling : ''} ${
+          grabbed ? styles.grabbed : ''
+        }`}
         style={offset > 0 ? { transform: `translateY(${offset}px)` } : undefined}
         role="dialog"
         aria-modal="true"

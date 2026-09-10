@@ -147,6 +147,10 @@
   position: sticky;
   bottom: 0;
   z-index: 1;
+  /* Opaque for the same reason as the odds commit bar: sticky over a scrolling
+     read zone means the cards pass behind it, and the gap between Fold and Open
+     would show them through. */
+  background: var(--color-bg);
 }
 
 .thumbBtn {
