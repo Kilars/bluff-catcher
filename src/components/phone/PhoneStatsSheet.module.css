@@ -1,0 +1,209 @@
+/* PhoneStatsSheet.module.css
+ *
+ * The expanded half of the stats pill (PLAN-phone §5.3). Everything the top bar
+ * cannot afford to show continuously: hands, best streak, avg error, the full
+ * band tally, the per-category breakdown that useStats has been persisting all
+ * along and nothing has ever displayed — and Reset, which belongs here rather
+ * than 5.6px from the band dots in a 44px bar.
+ *
+ * Nothing in the body is interactive except Reset, so the 44px rule applies to
+ * exactly one control; the read-only rows are sized for reading instead.
+ */
+
+.section {
+  margin: 0 0 var(--space-6);
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionLabel {
+  display: block;
+  margin: 0 0 var(--space-3);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+/* ── Headline figures ─────────────────────────────────────────────────────── */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.tileLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.tileValue {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.tileValueAccent {
+  color: var(--color-accent-300);
+}
+
+/* ── Band tally ───────────────────────────────────────────────────────────── */
+
+.bandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 0 var(--space-1);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.bandLabel {
+  flex: 1 1 auto;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.bandCount {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.bandShare {
+  min-width: 44px;
+  text-align: right;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-600);
+}
+
+/* ── Per-category breakdown ───────────────────────────────────────────────── */
+
+.catRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
+  box-shadow: inset 0 -1px 0 0 var(--color-divider);
+}
+
+.catName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catFigure {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-500);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--color-neutral-600);
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+
+.reset {
+  display: flex;
+  flex-direction: column;
+  gap: 2.8px;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--band-red) 45%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--band-red);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.12s ease-out,
+    border-color 0.12s ease-out;
+}
+
+.resetArmed {
+  border-color: var(--band-red);
+  background: color-mix(in srgb, var(--band-red) 18%, var(--color-surface));
+}
+
+.resetNote {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+
+.footerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-600);
+  color: var(--color-neutral-100);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reset:hover {
+    background: color-mix(in srgb, var(--band-red) 12%, var(--color-surface));
+  }
+
+  .footerButton:hover {
+    background: var(--color-accent-500);
+  }
+}
+
+.reset:active {
+  background: color-mix(in srgb, var(--band-red) 28%, var(--color-surface));
+}
+
+.footerButton:active {
+  background: var(--color-accent-700);
+}

@@ -1,0 +1,31 @@
+/* PhoneOddsFrame.module.css — gutters, insets, and where the slack goes.
+ *
+ * No height is declared here on purpose. The phone chrome (PhoneTopBar) is a
+ * sibling above this frame, so claiming `100dvh` would overflow the viewport by
+ * exactly the height of the chrome. Instead the frame grows to fill whatever a
+ * flex-column parent gives it (`flex: 1`), and `justify-content: space-between`
+ * puts the read zone at the top and the commit bar in the thumb zone, with the
+ * slack — 125px on a 390 × 844, 75px once the reveal expands — between them.
+ * In a non-flex parent it simply falls back to content height.
+ */
+
+.frame {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  width: 100%;
+
+  /* 11.2px, the --space-4 step. The plan's arithmetic assumed 12px gutters and
+     366px of usable width; 11.2 gives 367.6, which the 363.6px board row still
+     fits, and keeps every gap on the 2.8px grid. */
+  padding-inline: var(--space-4);
+
+  /* Top inset. When phone chrome is mounted above this frame it has already
+     consumed the notch, and it should zero this out by setting
+     `--phone-odds-top-inset: 0px` on a shared ancestor. Standalone (no chrome),
+     the frame honours the inset itself. The bottom inset belongs to the commit
+     bar, which is the element actually sitting on the home indicator. */
+  padding-top: var(--phone-odds-top-inset, env(safe-area-inset-top, 0px));
+}

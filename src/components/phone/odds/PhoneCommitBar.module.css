@@ -1,0 +1,372 @@
+/* PhoneCommitBar.module.css — the swap zone (PLAN-phone §5.1).
+ *
+ * Height budget at 390 × 844:
+ *
+ *                        asking   answering
+ *     label / draw name      20         108
+ *     readout / result      112          74
+ *     estimate bar           72          72
+ *     ruler                  24          24
+ *     commit / next          56          56
+ *     safe-area-bottom       34          34
+ *     ───────────────────────────────────────
+ *                           318         368
+ *
+ * The slots that carry the difference (label row, readout) are the only two
+ * that resize, and both sit **above** the bar — so the bar, the ruler and the
+ * button hold still through the commit, and so does everything in PhoneStage.
+ *
+ * Every :hover here is behind `(hover: hover) and (pointer: fine)` and has a
+ * real :active twin; every tap target is at least 44 × 44; the only
+ * `touch-action: none` is on the drag field, which needs to own the gesture.
+ */
+
+.commitBar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Label row ───────────────────────────────────────────────────────────── */
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
+.labelRowRevealed {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: clamp(84px, 12.8dvh, 108px);
+}
+
+.kicker {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.drawHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* The [?] is 44px tall, so the heading row is too. */
+  min-height: 44px;
+}
+
+.drawName {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+.drawNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--color-neutral-400);
+}
+
+.explainBtn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  color: var(--color-neutral-300);
+  font-size: 15px;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.explainBtn:active {
+  background: var(--color-neutral-800);
+  color: var(--color-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .explainBtn:hover {
+    background: var(--color-neutral-800);
+    color: var(--color-text);
+  }
+}
+
+/* ── Readout ─────────────────────────────────────────────────────────────── */
+
+/* Asking. The value is pinned to the top of the slot, which puts its baseline
+   ~130px clear of the bar — well outside the thumb's occlusion cone, which is
+   the entire reason the value is not drawn on the bar itself. */
+.readout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: clamp(72px, 13.3dvh, 112px);
+  padding-top: var(--space-4);
+}
+
+.pendingValue {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Answering. The hierarchy inverts: ACTUAL 44px, YOU 27px. */
+.readoutRevealed {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: clamp(60px, 8.8dvh, 74px);
+}
+
+.resultBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.resultKickerNeutral,
+.resultKickerAccent {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.resultKickerNeutral {
+  color: var(--color-neutral-500);
+}
+
+.resultKickerAccent {
+  color: var(--color-accent-300);
+}
+
+.actualValue {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.youValue {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 27px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--color-accent-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bandBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  text-align: right;
+}
+
+.bandPill {
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bandDelta {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--color-neutral-600);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── The bar ─────────────────────────────────────────────────────────────── */
+
+/* Full-bleed with no transform: the negative inline margin cancels whatever
+   gutter the frame applies, so the bar is 0 → 100vw. That is worth 8 points of
+   resolution over a gutter-inset bar (3.90 px/pt against 3.58). */
+.dial {
+  position: relative;
+  height: 72px;
+  margin-inline: calc(50% - 50vw);
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1e2030, #1b1d2b);
+  box-shadow: inset 0 1px 0 0 var(--color-neutral-800),
+    inset 0 -1px 0 0 var(--color-neutral-800);
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-neutral-800);
+}
+
+.tickMid {
+  background: var(--color-neutral-700);
+}
+
+/* Pre-commit: a quiet fill and a hairline at the pending value. The number
+   itself is up in the readout — this is only the sense of "about here". */
+.pendingFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.pendingMark {
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: 2px;
+  margin-left: -1px;
+  background: var(--color-accent-2);
+}
+
+/* Post-commit: the same bar, now the error visualisation. */
+.accentFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-accent) 8%, transparent),
+    color-mix(in srgb, var(--color-accent) 30%, transparent)
+  );
+}
+
+.youMark,
+.actualMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1px;
+}
+
+.youMark {
+  background: var(--color-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.actualMark {
+  background: var(--color-neutral-100);
+  box-shadow: 0 0 14px rgba(243, 245, 254, 0.5);
+}
+
+.gapBar {
+  position: absolute;
+  top: 32px;
+  height: 8px;
+  opacity: 0.55;
+}
+
+/* The invisible 120px drag field: the 72px bar plus 24px of slop top and
+   bottom, taken out of the layout with negative offsets so the budget above
+   still reads 72. `touch-action: none` is correct *here* and nowhere else —
+   this element owns the horizontal gesture. */
+.field {
+  position: absolute;
+  top: -24px;
+  bottom: -24px;
+  left: 0;
+  right: 0;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.field[aria-disabled='true'] {
+  pointer-events: none;
+}
+
+.field:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* ── Ruler ───────────────────────────────────────────────────────────────── */
+
+.ruler {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  margin-inline: calc(50% - 50vw);
+  padding-inline: var(--space-2);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--color-neutral-600);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Primary button ──────────────────────────────────────────────────────── */
+
+.primaryBtn {
+  width: 100%;
+  height: 56px;
+  flex: none;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: #14121f;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primaryBtn:disabled {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  color: var(--color-neutral-600);
+}
+
+.primaryBtn:not(:disabled):active {
+  background: var(--color-accent-600);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primaryBtn:not(:disabled):hover {
+    background: var(--color-accent-2);
+  }
+}

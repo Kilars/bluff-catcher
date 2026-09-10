@@ -1,0 +1,222 @@
+/* PhoneDecisionPanel — 140px feedback slot, slack, 64px thumb row.
+ * PLAN-phone §5.2, with §1.4's phone-only rules applied throughout:
+ *
+ *  - every interactive box is ≥ 44 × 44, with ≥ 8px between neighbours;
+ *  - every :hover is inside `(hover: hover) and (pointer: fine)` and every one
+ *    of them has a real :active twin, because on touch :active is the only
+ *    affordance there is (the desktop CSS has 21 unguarded :hover rules — the
+ *    point of this file is not to make it 22);
+ *  - `touch-action: manipulation` kills the iOS double-tap zoom delay;
+ *  - `-webkit-tap-highlight-color: transparent` kills the grey flash;
+ *  - no vh, no width media query, no font below 11px.
+ *
+ * The gutter between Fold and Open is var(--space-4) = 11.2px. §5.2 says 12px;
+ * 11.2 is the token on the 2.8px grid the same section insists on, 0.8px under
+ * the number and comfortably over the 8px separation minimum.
+ */
+
+.panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Feedback slot — 140px in BOTH states ──────────────────────────────────
+ * One height, one rule, no state override anywhere below. If this box changed
+ * size on commit, the thumb row would move between the tap and the read.
+ */
+
+.feedback {
+  flex: 0 0 140px;
+  height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  overflow: hidden;
+}
+
+.prompt {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  line-height: 24px;
+  color: var(--color-text);
+}
+
+.verdict {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 22px;
+  line-height: 26px;
+  letter-spacing: -0.015em;
+}
+
+.verdict[data-correct='true'] {
+  color: var(--band-green);
+}
+
+.verdict[data-correct='false'] {
+  color: var(--band-red);
+}
+
+.boundary {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--color-neutral-400);
+}
+
+/* "See range" — a study action, so it lives up here and not under the thumb.
+ * The face is the 40px chip §5.2 asks for; the button around it is 44px tall,
+ * because a 40px tap target is a 40px tap target however it is drawn. */
+.rangeChip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 120px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.rangeChipFace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-accent-700);
+  background: var(--color-accent-900);
+  color: var(--color-accent-200);
+  font-size: 15px;
+  line-height: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rangeChip:hover .rangeChipFace {
+    border-color: var(--color-accent-500);
+    background: var(--color-accent-800);
+  }
+}
+
+.rangeChip:active .rangeChipFace {
+  border-color: var(--color-accent-400);
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+/* ── Slack ──
+ * The budget's 209px. min-height keeps the 8px separation rule true even on a
+ * short phone where the slack has been eaten. */
+.spacer {
+  flex: 1 1 auto;
+  min-height: var(--space-3);
+}
+
+/* ── Thumb row ── */
+
+.thumbRow {
+  flex: 0 0 64px;
+  height: 64px;
+  display: flex;
+  gap: var(--space-4);
+}
+
+.thumbBtn {
+  flex: 1 1 0;
+  min-width: 44px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.btnFold {
+  border: 1px solid var(--color-neutral-700);
+  background: var(--color-surface);
+  color: var(--color-neutral-300);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnFold:hover {
+    border-color: var(--color-neutral-500);
+    background: var(--color-neutral-800);
+  }
+}
+
+.btnFold:active {
+  border-color: var(--color-neutral-400);
+  background: var(--color-neutral-800);
+  color: var(--color-text);
+}
+
+.btnOpen {
+  border: 1px solid var(--color-accent-500);
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnOpen:hover {
+    border-color: var(--color-accent-400);
+    background: var(--color-accent-700);
+  }
+}
+
+.btnOpen:active {
+  border-color: var(--color-accent-300);
+  background: var(--color-accent-700);
+}
+
+/* Post-commit: full width, so the finger that just pressed Open meets a
+ * different shape — and inert for 300ms, so a double tap cannot burn a spot. */
+.btnNext {
+  flex: 1 1 100%;
+  width: 100%;
+  border: 1px solid var(--color-accent-500);
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnNext:hover:not(:disabled) {
+    border-color: var(--color-accent-400);
+    background: var(--color-accent-700);
+  }
+}
+
+.btnNext:active:not(:disabled) {
+  border-color: var(--color-accent-300);
+  background: var(--color-accent-700);
+}
+
+.btnNext:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

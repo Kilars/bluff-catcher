@@ -1,0 +1,135 @@
+/* PhoneStage.module.css — the read zone (PLAN-phone §5.1).
+ *
+ * Height budget at 390 × 844, identical in both drill states:
+ *
+ *     street chip     24
+ *     board row       94   (66 × 94 native, gap 8.4)
+ *     gap             32
+ *     hero row       136   (96 × 136, rank 40px)
+ *     gap             32
+ *     ──────────────────
+ *                    318
+ *
+ * Nothing here is transformed. Nothing here knows about the commit.
+ */
+
+.stage {
+  /* Board slot width. 66px is the desktop native size and the ceiling.
+   *
+   *   row = 5 × w + 4 × 8.4  must fit  100vw − 2 × 12 gutters
+   *   w   = (100vw − 24 − 33.6) / 5 = 20vw − 11.52px
+   *
+   * At 390 that is 66.48 → clamped to 66 (exact desktop size, unscaled).
+   * At 360 it is 60.48, which is how the row degrades instead of overflowing
+   * on the small Android that breaks this layout first. The 52px floor keeps
+   * the 29px rank glyph inside the card if the viewport goes narrower still.
+   */
+  --phone-board-card-w: clamp(52px, calc(20vw - 11.52px), 66px);
+
+  /* Cards keep their 66 : 94 aspect as the width clamps down. */
+  --phone-board-card-h: calc(var(--phone-board-card-w) * 94 / 66);
+
+  /* The two 32px gaps compress on a short screen (a 360 × 640 Android) rather
+   * than pushing the commit button off the bottom. 32 / 844 = 3.79dvh.
+   */
+  --phone-stage-gap: clamp(11.2px, 3.79dvh, 32px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Street chip ─────────────────────────────────────────────────────────── */
+
+.streetChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: 24px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+/* ── Gaps ────────────────────────────────────────────────────────────────── */
+
+.gapBoardToHero,
+.gapHeroToSwap {
+  height: var(--phone-stage-gap);
+  flex: none;
+}
+
+/* ── Board row ───────────────────────────────────────────────────────────── */
+
+.boardRow {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--space-3); /* 8.4px — the gap the 363.6px arithmetic assumes */
+  width: 100%;
+}
+
+.boardSlot {
+  width: var(--phone-board-card-w);
+  height: var(--phone-board-card-h);
+  flex: none;
+}
+
+/* Card owns its own face; the slot owns the geometry. Targeting the child
+   element rather than Card's class keeps the override inside this subtree —
+   Card.module.css belongs to the desktop tree as well and is not ours. */
+.boardSlot > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Turn / River blanks — kept 1:1 from the felt ────────────────────────── */
+
+.blank {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-3);
+  border: 1px dashed var(--color-neutral-800);
+  border-radius: var(--radius-md);
+}
+
+.blankLabel {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+}
+
+/* ── Hero row — bigger than desktop ──────────────────────────────────────── */
+
+.heroRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.heroSlot {
+  width: 96px;
+  height: 136px;
+  flex: none;
+}
+
+.heroSlot > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Rank steps 37 → 40px with the card; the suit keeps its 29px. Both are on the
+   DECISIONS.md type scale. */
+.heroSlot > div > span:first-child {
+  font-size: 40px;
+}
