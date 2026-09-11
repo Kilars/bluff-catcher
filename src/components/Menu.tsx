@@ -6,7 +6,7 @@
  * it and closes the menu.
  *
  * Below the modes sits a "Stack depth" group — the three tournament tiers the
- * preflop trainer drills (40bb+, 20bb, 10bb jam) — and then a "Tools" group
+ * preflop trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group
  * with the RFI range charts, so the charts are reachable without playing a
  * hand first. The depth group is shown only in preflop mode, since it means
  * nothing to the odds trainer.

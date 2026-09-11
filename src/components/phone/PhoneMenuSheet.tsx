@@ -83,7 +83,7 @@ export default function PhoneMenuSheet({
   }, [onOpenRanges, onClose]);
 
   // Two taps, because there is no undo and the row sits a thumb-width from
-  // "40bb+". The armed state is local and dies with the sheet.
+  // "60bb+". The armed state is local and dies with the sheet.
   const handleReset = useCallback(() => {
     if (!armed) {
       setArmed(true);

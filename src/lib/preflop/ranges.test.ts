@@ -12,7 +12,7 @@
  *     having three tiers at all. These are the tests that would catch a chart
  *     that is the right size and the wrong hands.
  *
- * Suites that call the lookups without a depth argument pin the deep (40bb+)
+ * Suites that call the lookups without a depth argument pin the deep (60bb+)
  * chart, which is the default every pre-tier caller gets.
  */
 
@@ -37,7 +37,7 @@ const TOTAL_COMBOS = 1326;
  * printed on the reference chart it was transcribed from; the short figures
  * are built to Nash/push-fold widths for 10bb with antes.
  *
- *            deep 40bb+      mid 20bb        short 10bb
+ *            deep 60bb+      mid 20bb        short 10bb
  *   UTG      214 (16.1%)     222 (16.7%)     214 (16.1%)
  *   UTG+1    232 (17.5%)     248 (18.7%)     234 (17.6%)
  *   UTG+2    272 (20.5%)     272 (20.5%)     262 (19.8%)
@@ -293,8 +293,8 @@ describe('DEPTHS / DEPTH_META', () => {
     }
   });
 
-  it('describes 40bb+ / 20bb / 10bb, and only 10bb is a jam', () => {
-    expect(DEPTH_META.deep.label).toBe('40bb+');
+  it('describes 60bb+ / 20bb / 10bb, and only 10bb is a jam', () => {
+    expect(DEPTH_META.deep.label).toBe('60bb+');
     expect(DEPTH_META.mid.label).toBe('20bb');
     expect(DEPTH_META.short.label).toBe('10bb');
 

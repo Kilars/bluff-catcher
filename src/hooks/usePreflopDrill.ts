@@ -25,7 +25,7 @@
  * inert.
  *
  * Options:
- *  - depth: which stack tier to drill (40bb+ / 20bb / 10bb). At 10bb the
+ *  - depth: which stack tier to drill (60bb+ / 20bb / 10bb). At 10bb the
  *    aggressive action is a jam, not an open; the decision is still binary, so
  *    only the wording changes. App remounts the trainer on a depth change
  *    (via `key`), which re-deals and re-opens the briefing for the new tier.
@@ -46,7 +46,7 @@ import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 export type CommittedAction = 'open' | 'fold';
 
 export interface UsePreflopDrillOptions {
-  /** Stack tier to drill. Default: the 40bb+ chart. */
+  /** Stack tier to drill. Default: the 60bb+ chart. */
   depth?: Depth;
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;

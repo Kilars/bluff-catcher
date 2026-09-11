@@ -331,13 +331,13 @@ describe('PhoneRangeView', () => {
       const strip = screen.getByRole('tablist', { name: 'Stack depth' });
       const tabs = within(strip).getAllByRole('tab');
       expect(tabs).toHaveLength(3);
-      expect(tabs.map((t) => t.textContent)).toEqual(['40bb+Deep', '20bbMid', '10bbShort']);
+      expect(tabs.map((t) => t.textContent)).toEqual(['60bb+Deep', '20bbMid', '10bbShort']);
       expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     });
 
     it('switches the chart, the sentence and the verb when the strip is used', () => {
       renderAt('phone', <PhoneRangeView position="UTG" depthSwitchable />);
-      expect(cellFor('A2s').getAttribute('aria-label')).toBe('A2s: fold'); // UTG @ 40bb+
+      expect(cellFor('A2s').getAttribute('aria-label')).toBe('A2s: fold'); // UTG @ 60bb+
       fireEvent.click(screen.getByRole('tab', { name: /10bb/ }));
       expect(cellFor('A2s').getAttribute('aria-label')).toBe('A2s: jam'); // UTG @ 10bb
       expect(screen.getByTestId('boundary-sentence').textContent).toBe(

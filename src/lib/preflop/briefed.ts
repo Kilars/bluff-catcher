@@ -8,7 +8,7 @@
  * time — see docs/PLAN-phone.md §5.3.
  *
  * A tier is genuinely worth explaining once: 10bb jam-or-fold really is a
- * different game from 40bb open-or-fold. Explaining it a second time is not
+ * different game from 60bb open-or-fold. Explaining it a second time is not
  * teaching, it is a toll. So: first visit to a tier opens it, after that the
  * Info button (and the `I` key, where there is a keyboard) is how you get back.
  */
