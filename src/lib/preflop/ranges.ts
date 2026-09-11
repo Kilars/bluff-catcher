@@ -14,14 +14,16 @@
  *   - 9-handed, **with antes** (standard modern MTT). No-ante charts are a
  *     couple of points tighter, mostly in late position.
  *   - chipEV, not ICM. Near a pay jump every chart here is too wide.
- *   - Open size ~2.2–2.5bb at 40bb+, ~2bb at 20bb, all-in at 10bb.
+ *   - Open size ~2.2–2.5bb at 60bb+, ~2bb at 20bb, all-in at 10bb.
  *
  * ── The three tiers ───────────────────────────────────────────────────────
  * RFI hand selection barely moves between 40bb and 100bb, so the deep chart
- * is labelled 40bb+ and covers everything from 40bb up. What changes is the
+ * is labelled 60bb+ and covers everything from 40bb up — 60bb is the figure
+ * written on the felt because it sits in the middle of that span. What changes
+ * is the
  * way *down*:
  *
- *   deep  (40bb+) — the baseline. Full playability: set-mining and suited
+ *   deep  (60bb+) — the baseline. Full playability: set-mining and suited
  *                   connectors are worth their seat in the range.
  *   mid   (20bb)  — **late position tightens, early position does not.**
  *                   This is the counter-intuitive bit. The button's edge is
@@ -32,11 +34,11 @@
  *                   every pair and every suited ace goes in from every seat,
  *                   and the small connectors wait for late position.
  *                   Note the widths are *similar* to the deep chart, not
- *                   wider — a 10bb jam range is about as wide as a 40bb open
+ *                   wider — a 10bb jam range is about as wide as a 60bb open
  *                   range, it is simply built out of different hands.
  *
  * ── Implemented widths (% of 1326 combos) ─────────────────────────────────
- * Position  | deep 40bb+ | mid 20bb | short 10bb
+ * Position  | deep 60bb+ | mid 20bb | short 10bb
  * ----------|------------|----------|-----------
  * UTG       |     16.1%  |   16.7%  |    16.1%
  * UTG+1     |     17.5%  |   18.7%  |    17.6%
@@ -66,7 +68,7 @@ export type Position = (typeof POSITIONS)[number];
 
 // UTG+2 and LJ are adjacent but distinct seats at a 9-handed table, and the
 // reference charts treat them that way — roughly 3 percentage points apart at
-// 40bb. They get their own ranges.
+// 60bb. They get their own ranges.
 
 // ─── Stack depth ──────────────────────────────────────────────────────────────
 
@@ -79,11 +81,11 @@ export const DEFAULT_DEPTH: Depth = 'deep';
 
 export interface DepthMeta {
   id: Depth;
-  /** Stack size as shown in tabs and menus, e.g. "40bb+". */
+  /** Stack size as shown in tabs and menus, e.g. "60bb+". */
   label: string;
   /** One-word tier name, e.g. "Deep". */
   name: string;
-  /** Stack figure written on the felt plaques, e.g. "40+ bb". */
+  /** Stack figure written on the felt plaques, e.g. "60+ bb". */
   stackLabel: string;
   /** The aggressive action at this depth. Fold is always the other option. */
   action: 'open' | 'jam';
@@ -102,9 +104,9 @@ export interface DepthMeta {
 export const DEPTH_META: Record<Depth, DepthMeta> = {
   deep: {
     id: 'deep',
-    label: '40bb+',
+    label: '60bb+',
     name: 'Deep',
-    stackLabel: '40+ bb',
+    stackLabel: '60+ bb',
     action: 'open',
     actionLabel: 'Open',
     actionNoun: 'an open',
@@ -202,7 +204,7 @@ function expandOffsuit(hiRank: string, loRankMin: string): HandClass[] {
   return result;
 }
 
-// ─── Range definitions — deep (40bb+) ─────────────────────────────────────────
+// ─── Range definitions — deep (60bb+) ─────────────────────────────────────────
 /*
  * The shape to internalise, seat by seat: suited aces and suited kings come
  * in *first*, small suited connectors come in *last*. A9s opens from UTG and
@@ -212,7 +214,7 @@ function expandOffsuit(hiRank: string, loRankMin: string): HandClass[] {
  */
 
 /**
- * UTG @ 40bb+ — 66+, A3s+, K8s+, Q9s+, J9s+, T9s, ATo+, KJo+
+ * UTG @ 60bb+ — 66+, A3s+, K8s+, Q9s+, J9s+, T9s, ATo+, KJo+
  *
  * 9 pairs (54) + 22 suited (88) + 6 offsuit (72) = 214 = 16.1%
  */
@@ -230,7 +232,7 @@ function buildUTG(): Set<HandClass> {
 }
 
 /**
- * UTG+1 @ 40bb+ — 55+, A2s+, K8s+, Q9s+, J9s+, T8s+, 98s, ATo+, KJo+
+ * UTG+1 @ 60bb+ — 55+, A2s+, K8s+, Q9s+, J9s+, T8s+, 98s, ATo+, KJo+
  *
  * 10 pairs (60) + 25 suited (100) + 6 offsuit (72) = 232 = 17.5%
  */
@@ -249,7 +251,7 @@ function buildUTG1(): Set<HandClass> {
 }
 
 /**
- * UTG+2 @ 40bb+ — 55+, A2s+, K6s+, Q9s+, J8s+, T8s+, 98s, 87s, ATo+, KTo+, QJo
+ * UTG+2 @ 60bb+ — 55+, A2s+, K6s+, Q9s+, J8s+, T8s+, 98s, 87s, ATo+, KTo+, QJo
  *
  * 10 pairs (60) + 29 suited (116) + 8 offsuit (96) = 272 = 20.5%
  */
@@ -270,7 +272,7 @@ function buildUTG2(): Set<HandClass> {
 }
 
 /**
- * LJ @ 40bb+ — 55+, A2s+, K5s+, Q8s+, J8s+, T8s+, 97s+, 87s, 76s,
+ * LJ @ 60bb+ — 55+, A2s+, K5s+, Q8s+, J8s+, T8s+, 97s+, 87s, 76s,
  *              A9o+, KTo+, QJo, JTo
  *
  * The first seat that opens an offsuit ace below ATo.
@@ -296,7 +298,7 @@ function buildLJ(): Set<HandClass> {
 }
 
 /**
- * HJ @ 40bb+ — 33+, A2s+, K3s+, Q7s+, J7s+, T7s+, 97s+, 86s+, 76s, 65s, 54s,
+ * HJ @ 60bb+ — 33+, A2s+, K3s+, Q7s+, J7s+, T7s+, 97s+, 86s+, 76s, 65s, 54s,
  *              A8o+, KTo+, QTo+, JTo
  *
  * 12 pairs (72) + 41 suited (164) + 12 offsuit (144) = 380 = 28.7%
@@ -322,7 +324,7 @@ function buildHJ(): Set<HandClass> {
 }
 
 /**
- * CO @ 40bb+ — 33+, A2s+, K2s+, Q4s+, J6s+, T6s+, 96s+, 86s+, 75s+, 65s, 54s,
+ * CO @ 60bb+ — 33+, A2s+, K2s+, Q4s+, J6s+, T6s+, 96s+, 86s+, 75s+, 65s, 54s,
  *              A5o+, K8o+, Q9o+, JTo
  *
  * 12 pairs (72) + 49 suited (196) + 18 offsuit (216) = 484 = 36.5%
@@ -348,7 +350,7 @@ function buildCO(): Set<HandClass> {
 }
 
 /**
- * BTN @ 40bb+ — 22+, A2s+, K2s+, Q2s+, J3s+, T4s+, 95s+, 85s+, 75s+, 64s+, 54s,
+ * BTN @ 60bb+ — 22+, A2s+, K2s+, Q2s+, J3s+, T4s+, 95s+, 85s+, 75s+, 64s+, 54s,
  *               A2o+, K5o+, Q8o+, J8o+, T8o+, 98o
  *
  * Just over half of all hands. Two players left to get through and position
@@ -383,7 +385,7 @@ function buildBTN(): Set<HandClass> {
  * Anchored on the 25bb reference charts, trimmed toward 15bb in the seats
  * where the two packs actually disagree — which is late position, not early.
  *
- * The width story, 40bb+ → 20bb:
+ * The width story, 60bb+ → 20bb:
  *   UTG   16.1% → 16.7%   (flat, marginally wider)
  *   LJ    23.5% → 22.6%
  *   HJ    28.7% → 25.9%
@@ -782,7 +784,7 @@ const RANGES: Record<Depth, Record<Position, Set<HandClass>>> = {
 // without change.
 
 /**
- * Check if a hand class is played (opened at 40bb+/20bb, jammed at 10bb) from
+ * Check if a hand class is played (opened at 60bb+/20bb, jammed at 10bb) from
  * the given position.
  */
 export function isOpen(pos: Position, hc: HandClass, depth: Depth = DEFAULT_DEPTH): boolean {

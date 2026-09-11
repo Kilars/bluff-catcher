@@ -224,7 +224,7 @@ describe('PreflopTrainer', () => {
     render(<PreflopTrainer onRecord={onRecord} />);
     expect(screen.getByText('Open or fold, first in')).toBeInTheDocument();
     expect(
-      screen.getByText(/9-handed tournament table · 40bb\+ effective/i),
+      screen.getByText(/9-handed tournament table · 60bb\+ effective/i),
     ).toBeInTheDocument();
   });
 

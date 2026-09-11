@@ -16,11 +16,11 @@ A **preflop raise-first-in (RFI) trainer**, 9-max, across three tournament stack
   CO, BTN. Action folds to hero. Blinds (SB/BB) are never the hero seat. Decision is a pure
   binary **Open / Fold** (no limps, no mixed frequencies).
 - **Stack depth** (settled with owner, 2026-09-08): three tiers, no more. See
-  "Stack depth tiers" below. The original 60bb chart is now labelled **40bb+**, unchanged.
+  "Stack depth tiers" below. The original 60bb chart keeps its **60bb+** label, unchanged.
 - **Ranges:** hardcoded standard charts (owner reviews/tweaks the explicit combos in code).
 - **Spot display:** two real cards on the felt + a position label + folded seats in front;
   blinds shown posted behind. Reuses the app's felt identity.
-- **Sampling:** uniform base with two soft adjustments — a **gentle ~2× skew** toward
+- **Sampling:** uniform base with two soft adjustments — a **~4× skew** toward
   range-edge hands, **and a downweight on obvious trash** (the hopeless junk folds like 72o
   that teach nothing). Every combo can still appear; the trash just shows up rarely and the
   edges a bit more. The point is internalising the *shape*, not memorising the exact flip
@@ -42,20 +42,22 @@ A **preflop raise-first-in (RFI) trainer**, 9-max, across three tournament stack
 
 RFI hand selection barely moves between 40bb and 100bb — a 60bb chart and a 100bb chart
 differ by a couple of combos, which is noise to a learner. Shipping both would teach that a
-distinction matters when it doesn't. So the original chart is **relabelled 40bb+** and covers
+distinction matters when it doesn't. So the chart is labelled **60bb+** and covers
 everything from 40bb up; 80bb and 100bb are deliberately *not* separate tiers.
+(Labelled 40bb+ from 2026-09-08, renamed to 60bb+ on 2026-09-11 — same chart, the plaque
+now names the middle of the span rather than its floor.)
 
 What actually changes in a tournament is the way **down**:
 
 | Tier    | Label | Action     | What it teaches |
 |---------|-------|------------|-----------------|
-| `deep`  | 40bb+ | Open/Fold  | Baseline RFI shape by position. Full playability — set-mining and suited connectors are worth it. |
+| `deep`  | 60bb+ | Open/Fold  | Baseline RFI shape by position. Full playability — set-mining and suited connectors are worth it. |
 | `mid`   | 20bb  | Open/Fold  | Implied odds are gone: weak connectors/gappers out, suited aces + suited kings + offsuit broadways in. **Late position tightens, early position does not** — playability was the button's edge and 20bb takes it away. |
-| `short` | 10bb  | **Jam**/Fold | Raise-folding no longer exists. Raw showdown equity + fold equity: every pair and every suited ace jams from every seat; BTN jams >50%. Widths land close to the 40bb+ chart, not above it. |
+| `short` | 10bb  | **Jam**/Fold | Raise-folding no longer exists. Raw showdown equity + fold equity: every pair and every suited ace jams from every seat; BTN jams >50%. Widths land close to the 60bb+ chart, not above it. |
 
 Implemented widths (% of 1326 combos):
 
-| Pos        | deep 40bb+ | mid 20bb | short 10bb |
+| Pos        | deep 60bb+ | mid 20bb | short 10bb |
 |------------|------------|----------|------------|
 | UTG        |     16.1%  |   16.7%  |     16.1%  |
 | UTG+1      |     17.5%  |   18.7%  |     17.6%  |
@@ -104,7 +106,7 @@ membership test against that set.
 
 For skew weighting only, a canonical **169-hand strength ranking** defines "distance from
 the edge": the boundary is the band straddling the weakest included / strongest excluded
-class for that position; classes within a small rank window get the ~2× weight. Approximate,
+class for that position; classes within a small rank window get the ~4× weight. Approximate,
 but fine for a gentle nudge.
 
 ---
@@ -137,7 +139,7 @@ Wheel suited aces (`A5s–A2s`) get included progressively from LJ onward per st
 - `lib/preflop/deal.ts` — `dealPreflopSpot(opts)`:
   - Pick a position (uniform over the 7).
   - Sample a hand via a **`Pool` strategy** interface. Default `edgeSkewPool` weights each of
-    the 1326 combos = base 1×, with **~2×** for classes near the position's range boundary and
+    the 1326 combos = base 1×, with **~4×** for classes near the position's range boundary and
     a **downweight (~0.25×)** for obvious-trash classes (weakest tier of the strength ranking,
     well below any position's opening range and not near its edge). Never zero — every class
     stays reachable. Injectable RNG (seeded for tests). Ship a plain `uniformPool` too,
@@ -148,7 +150,7 @@ Wheel suited aces (`A5s–A2s`) get included progressively from LJ onward per st
 total and stable. `ranges.test.ts` asserts each position's combo count ≈ target % (±1.5%)
 and spot-checks named boundary hands (e.g. CO opens `K7s`, folds `K6s`). `deal.test.ts`
 (seeded) only returns valid spots, `correct` always matches `isOpen`, and over N deals
-edge classes appear ~2× a mid hand, trash classes are suppressed (~0.25×), and every class
+edge classes appear ~4× a mid hand, trash classes are suppressed (~0.25×), and every class
 still appears at least once. All green.
 
 ### Phase P1 — Mode-switch shell  *(Opus)*

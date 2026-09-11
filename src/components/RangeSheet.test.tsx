@@ -119,7 +119,7 @@ describe('RangeSheet navigation', () => {
     expect(
       screen.getByText(new RegExp(`${rangeComboCount('CO', 'deep')} combos`)),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Opening range · 40bb\+/)).toBeInTheDocument();
+    expect(screen.getByText(/Opening range · 60bb\+/)).toBeInTheDocument();
 
     // Flip to 10bb — same seat, a jamming chart of a different size.
     fireEvent.click(depths.getByRole('tab', { name: /10bb/ }));
