@@ -26,7 +26,7 @@ describe('PhoneTopBar', () => {
     renderAt(
       'phone',
       <PhoneTopBar
-        contextLabel="40bb+"
+        contextLabel="60bb+"
         onOpenContext={noop}
         onOpenMenu={noop}
         stats={
@@ -42,7 +42,7 @@ describe('PhoneTopBar', () => {
 
     expect(slots()).toEqual(['brand', 'context', 'stats', 'menu']);
     expect(screen.getByText('RUNOUT')).toBeInTheDocument();
-    expect(screen.getByText('40bb+')).toBeInTheDocument();
+    expect(screen.getByText('60bb+')).toBeInTheDocument();
     // The stats pill lands inside the stats slot, not loose in the bar.
     const statsSlot = screen.getByTestId('phone-top-bar').querySelector('[data-slot="stats"]');
     expect(statsSlot).toContainElement(screen.getByTestId('phone-stats-pill'));

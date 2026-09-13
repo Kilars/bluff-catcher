@@ -45,7 +45,7 @@ export interface DealPreflopOpts {
   rng?: () => number;
   /** Override pool strategy. Default: ACTIVE_POOL. */
   pool?: Pool;
-  /** Stack tier to deal for. Default: DEFAULT_DEPTH ('deep', the 40bb+ chart). */
+  /** Stack tier to deal for. Default: DEFAULT_DEPTH ('deep', the 60bb+ chart). */
   depth?: Depth;
 }
 
@@ -76,7 +76,7 @@ export const uniformPool: Pool = {
 /**
  * Edge-skew pool:
  *   - Base weight: 1× (all classes)
- *   - ~2× for classes near the position's range boundary (in the strength-ranking band
+ *   - ~4× for classes near the position's range boundary (in the strength-ranking band
  *     straddling the weakest included class and the strongest excluded class)
  *   - ~0.25× for obvious-trash classes (weakest tier — well below every position's range
  *     and not near any edge)
@@ -98,7 +98,7 @@ const EDGE_BAND_HALF_WIDTH = 12;
 const TRASH_THRESHOLD = 135;
 
 /** Weight multipliers for edge and trash classes. */
-const EDGE_WEIGHT = 2.0;
+const EDGE_WEIGHT = 4.0;
 const TRASH_WEIGHT = 0.25;
 
 /**

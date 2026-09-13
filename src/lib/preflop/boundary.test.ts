@@ -21,7 +21,7 @@ import { RANKS } from '../odds';
 describe('boundary', () => {
   describe('the sentence', () => {
     it.each([
-      // deep (40bb+) — the baseline chart
+      // deep (60bb+) — the baseline chart
       ['UTG', 'deep', 'UTG opens A3s+ suited, 66+ pairs, ATo+ offsuit'],
       ['HJ', 'deep', 'HJ opens A2s+ suited, 33+ pairs, A8o+ offsuit'],
       ['CO', 'deep', 'CO opens A2s+ suited, 33+ pairs, A5o+ offsuit'],
@@ -59,7 +59,7 @@ describe('boundary', () => {
   });
 
   describe('row scanning', () => {
-    it('finds the suited rows of UTG @ 40bb+ — A3s+, K8s+, Q9s+, J9s+, T9s+', () => {
+    it('finds the suited rows of UTG @ 60bb+ — A3s+, K8s+, Q9s+, J9s+, T9s+', () => {
       const b = rangeBoundary('UTG', 'deep');
       expect(b.suited.map((r) => r.label)).toEqual(['A3s+', 'K8s+', 'Q9s+', 'J9s+', 'T9s+']);
       expect(b.offsuit.map((r) => r.label)).toEqual(['ATo+', 'KJo+']);
@@ -74,7 +74,7 @@ describe('boundary', () => {
     });
 
     it('omits rows the range does not reach at all', () => {
-      // UTG @ 40bb+ holds no offsuit queen and no suited nine.
+      // UTG @ 60bb+ holds no offsuit queen and no suited nine.
       const b = rangeBoundary('UTG', 'deep');
       expect(b.suited.some((r) => r.hi === '9')).toBe(false);
       expect(b.offsuit.some((r) => r.hi === 'Q')).toBe(false);
@@ -166,14 +166,14 @@ describe('boundary', () => {
 
   describe('the headline row', () => {
     it('picks the row that reaches furthest down the matrix', () => {
-      // HJ @ 40bb+: A2s (lo=2) beats K3s (lo=3) and Q7s (lo=7).
+      // HJ @ 60bb+: A2s (lo=2) beats K3s (lo=3) and Q7s (lo=7).
       expect(rangeBoundary('HJ', 'deep').suitedHeadline?.label).toBe('A2s+');
       // UTG @ 20bb: no suited ace below A4s, so A4s is the headline.
       expect(rangeBoundary('UTG', 'mid').suitedHeadline?.label).toBe('A4s+');
     });
 
     it('breaks a tie towards the higher hi-rank', () => {
-      // BTN @ 40bb+ holds A2s, K2s and Q2s — three rows all bottoming at 2.
+      // BTN @ 60bb+ holds A2s, K2s and Q2s — three rows all bottoming at 2.
       const b = rangeBoundary('BTN', 'deep');
       const bottomedAtTwo = b.suited.filter((r) => r.lo === '2').map((r) => r.hi);
       expect(bottomedAtTwo).toEqual(['A', 'K', 'Q']);
@@ -194,7 +194,7 @@ describe('boundary', () => {
   });
 
   describe('the tiers move the sentence', () => {
-    it('BTN tightens from 40bb+ to 20bb inside the rows, not at the headline', () => {
+    it('BTN tightens from 60bb+ to 20bb inside the rows, not at the headline', () => {
       // 50.8% → 43.3%, yet both charts still bottom out at A2s and A2o. The
       // headline clause is deliberately blunt; the rows behind it are where the
       // 7.5-point trim shows, which is also why the grid keeps its job.

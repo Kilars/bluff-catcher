@@ -139,7 +139,7 @@ describe('edgeSkewPool distribution', () => {
     }
   });
 
-  it('edge classes appear more than mid-range classes (~2x)', { timeout: 30000 }, () => {
+  it('edge classes appear more than mid-range classes (~4x)', { timeout: 30000 }, () => {
     // Use UTG as the test position for determinism
     // UTG boundary is around rank 60-80 in the strength ranking
     // Mid hand: something clearly in the middle of the ranking, not near boundary
@@ -173,7 +173,7 @@ describe('edgeSkewPool distribution', () => {
       (hc) =>
         hc.length === 3 &&
         hc.endsWith('s') &&
-        edgeSkewPool.weight('UTG', hc, DEFAULT_DEPTH) === 2,
+        edgeSkewPool.weight('UTG', hc, DEFAULT_DEPTH) === 4,
     )!;
     const trashHand = '72o'; // not near any boundary
 
@@ -193,9 +193,9 @@ describe('edgeSkewPool distribution', () => {
       const edgeRate = edgeCount / 4;  // a suited class has 4 combos
       const trashRate = trashCount / 12; // 72o has 12 combos
 
-      // Edge should be ~2x mid (loose check: >1.2x to avoid test flakiness)
+      // Edge should be ~4x mid (loose check: >1.5x to absorb sampling noise)
       // Note: exact ratio depends on boundary band width
-      expect(edgeRate).toBeGreaterThan(midRate * 0.8); // edge ≥ mid (it's boosted or same)
+      expect(edgeRate).toBeGreaterThan(midRate * 1.5); // edge clearly boosted over mid
 
       // Trash should be clearly less than mid (~0.25x)
       expect(trashRate).toBeLessThan(midRate * 0.8); // trash clearly less than mid
@@ -351,9 +351,9 @@ describe('dealPreflopSpot() — stack depth', () => {
 
   it('edgeSkewPool skews to each tier\u2019s own boundary, not the deep one', () => {
     // Each tier's chart has its own weakest-included hand, so each has its own
-    // edge band. Drilling 10bb must not skew toward the 40bb+ boundary.
+    // edge band. Drilling 10bb must not skew toward the 60bb+ boundary.
     const edgeBand = (depth: Depth) =>
-      new Set(ALL_169.filter((hc) => edgeSkewPool.weight('UTG', hc, depth) === 2));
+      new Set(ALL_169.filter((hc) => edgeSkewPool.weight('UTG', hc, depth) === 4));
 
     const bands = { deep: edgeBand('deep'), mid: edgeBand('mid'), short: edgeBand('short') };
 

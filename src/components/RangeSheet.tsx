@@ -14,7 +14,7 @@
  * Movement is clamped at both ends (no wraparound) so the seat order stays
  * legible as "earliest → latest position".
  *
- * A second strip above the seats switches stack depth (40bb+ / 20bb / 10bb),
+ * A second strip above the seats switches stack depth (60bb+ / 20bb / 10bb),
  * so the same seat can be compared across tiers without closing the sheet.
  * Depth is sheet-local: browsing to 10bb here does not change the tier the
  * trainer is drilling.
@@ -103,7 +103,7 @@ export default function RangeSheet({
   const [viewPos, setViewPos] = useState<Position>(position);
 
   // Same story for the tier: seeded from the caller, then owned here so the
-  // player can flip 40bb+ → 20bb → 10bb on one seat and watch the chart move.
+  // player can flip 60bb+ → 20bb → 10bb on one seat and watch the chart move.
   const [viewDepth, setViewDepth] = useState<Depth>(depth);
   const meta = DEPTH_META[viewDepth];
 

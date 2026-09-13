@@ -83,7 +83,7 @@ export interface BoundaryRow {
 export interface RangeBoundary {
   position: Position;
   depth: Depth;
-  /** "opens" at 40bb+/20bb, "jams" at 10bb. */
+  /** "opens" at 60bb+/20bb, "jams" at 10bb. */
   verb: string;
   /** The pair row, or null when the range holds no pair. */
   pairs: BoundaryRow | null;
@@ -194,7 +194,7 @@ function headline(rows: BoundaryRow[]): BoundaryRow | null {
  * companion sentence.
  *
  * `depth` is trailing and optional, matching every other lookup in
- * `ranges.ts`: callers that predate the tiers read the 40bb+ chart.
+ * `ranges.ts`: callers that predate the tiers read the 60bb+ chart.
  */
 export function rangeBoundary(pos: Position, depth: Depth = DEFAULT_DEPTH): RangeBoundary {
   const set = getRangeSet(pos, depth);

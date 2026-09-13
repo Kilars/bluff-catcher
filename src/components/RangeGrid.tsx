@@ -7,7 +7,7 @@
  *
  * Props:
  *   position  — the hero's seat; used to colour play vs fold cells via isOpen().
- *   depth     — the stack tier whose chart to draw (default: the 40bb+ chart).
+ *   depth     — the stack tier whose chart to draw (default: the 60bb+ chart).
  *   highlight — optional HandClass to mark with a distinct outline (hero's current hand).
  */
 
@@ -29,7 +29,7 @@ export default function RangeGrid({
   highlight,
   depth = DEFAULT_DEPTH,
 }: RangeGridProps) {
-  // "open" at 40bb+/20bb, "jam" at 10bb — the cell colour means the same
+  // "open" at 60bb+/20bb, "jam" at 10bb — the cell colour means the same
   // thing either way, only the word for it changes.
   const actionWord = DEPTH_META[depth].action;
 

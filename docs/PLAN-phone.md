@@ -381,12 +381,12 @@ Redesigned: the dealer button becomes a `D` superscript on the ladder slot
 
 ```
 44px + safe-area-inset-top, four fixed slots, never wrapping
-[ RUNOUT ]  [ 40bb+ v ]                    [ streak + band dots ]  [ ... ]
+[ RUNOUT ]  [ 60bb+ v ]                    [ streak + band dots ]  [ ... ]
 ```
 
 - **44px + inset, never `height: auto` / `flex-wrap`.** Today's header wraps to
   two lines and squeezes stats to 11–12px.
-- `brandSub` dies; its content becomes a **context chip** (`Odds` / `40bb+ ▾`),
+- `brandSub` dies; its content becomes a **context chip** (`Odds` / `60bb+ ▾`),
   a 44px tap target opening the mode + depth sheet. One tap to switch depth
   versus today's hamburger → scroll → pick.
 - **The hamburger is removed on phone**, replaced by `⋯` (44×44) opening a

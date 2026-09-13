@@ -5,7 +5,7 @@
  *   Persisted to localStorage key bluff-catcher:mode:v1.
  *   Default 'odds' on first load or corrupt value.
  *
- * depth: 'deep' | 'mid' | 'short'   (40bb+ / 20bb / 10bb jam)
+ * depth: 'deep' | 'mid' | 'short'   (60bb+ / 20bb / 10bb jam)
  *   The stack tier the preflop trainer drills. Persisted to
  *   bluff-catcher:preflop-depth:v1, default 'deep'. Lives here rather than in
  *   PreflopTrainer because the header menu owns the switch and the standalone
@@ -214,7 +214,7 @@ export default function App() {
       {mode === 'odds' && <OddsTrainer stats={stats} />}
 
       {/* key={depth}: changing tier re-deals and re-shows the briefing, rather
-          than leaving a 40bb+ spot on screen labelled 10bb. */}
+          than leaving a 60bb+ spot on screen labelled 10bb. */}
       {mode === 'preflop' && (
         <PreflopTrainer
           key={depth}
@@ -226,7 +226,7 @@ export default function App() {
 
       {/* The standalone chart browser. Unlike the trainer's own range sheet
           this one IS tier-switchable — there is no hand in play for it to
-          disagree with, so browsing 40bb+ → 10bb on one seat is the point. */}
+          disagree with, so browsing 60bb+ → 10bb on one seat is the point. */}
       {rangesOpen &&
         (isPhone ? (
           <PhoneSheet title="RFI range charts" onClose={() => setRangesOpen(false)}>

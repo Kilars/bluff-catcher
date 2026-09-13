@@ -79,7 +79,7 @@ const SWIPE_MIN_PX = 50;
 export interface PhoneRangeViewProps {
   /** Seat to open on. Seeds the view; the strip owns it afterwards. */
   position: Position;
-  /** Tier to open on. Seeds the view; default is the 40bb+ chart. */
+  /** Tier to open on. Seeds the view; default is the 60bb+ chart. */
   depth?: Depth;
   /** Hero's hand class, outlined on the hero's own chart only. */
   highlight?: HandClass;

@@ -8,7 +8,7 @@
  * Opens with the same riseSheet animation (220ms) defined in ExplainSheet.module.css.
  * Closes via backdrop click, × button, or Escape (Esc handled by parent).
  *
- * The copy is depth-aware: the 40bb+ and 20bb tiers brief an open-or-fold
+ * The copy is depth-aware: the 60bb+ and 20bb tiers brief an open-or-fold
  * decision, the 10bb tier briefs a jam-or-fold one. The per-tier wording lives
  * in DEPTH_BRIEF below, next to the layout that renders it, rather than in the
  * range data — it is presentation, not poker.
@@ -40,7 +40,7 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
   deep: {
     title: 'Open or fold, first in',
     table:
-      '9-handed tournament, 40 big blinds or more. Anything from 40bb to 100bb opens the same hands, so this one chart covers all of it.',
+      '9-handed tournament, 60 big blinds. Hand selection barely moves between 40bb and 100bb, so this one chart covers all of it.',
     decision:
       'Open-raise to ~2.2–2.5bb, or fold. No limping — those are the only two options.',
     lessonTitle: 'Why position matters',
@@ -65,7 +65,7 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
       'Shove all-in, or fold. Nothing in between — if the hand is worth playing, it is worth all 10bb.',
     lessonTitle: 'What changes at 10bb',
     lesson:
-      'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat, while small suited connectors stay out until late position — they are the worst hands to be called by. Note the ranges are about as wide as the 40bb+ ones, not wider: fold equity buys the bottom of the range, and being unable to fold to a re-raise sells the top back. Different hands, similar count.',
+      'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat, while small suited connectors stay out until late position — they are the worst hands to be called by. Note the ranges are about as wide as the 60bb+ ones, not wider: fold equity buys the bottom of the range, and being unable to fold to a re-raise sells the top back. Different hands, similar count.',
   },
 };
 

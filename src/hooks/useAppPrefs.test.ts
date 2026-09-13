@@ -67,7 +67,7 @@ describe('mode persistence', () => {
 describe('depth persistence', () => {
   beforeEach(() => localStorage.clear());
 
-  it('defaults to the 40bb+ tier on a first run', () => {
+  it('defaults to the 60bb+ tier on a first run', () => {
     expect(loadDepth()).toBe(DEFAULT_DEPTH);
   });
 

@@ -6,7 +6,7 @@
  * `hooks/usePreflopDrill` — see `DECISIONS.md`, "two trees, one behaviour".
  *
  * Props:
- *  - depth: which stack tier to drill (40bb+ / 20bb / 10bb). At 10bb the
+ *  - depth: which stack tier to drill (60bb+ / 20bb / 10bb). At 10bb the
  *    aggressive action is a jam, not an open; the decision is still binary, so
  *    only the wording changes. App remounts this component on a depth change
  *    (via `key`), which re-deals and re-opens the briefing for the new tier.
@@ -30,7 +30,7 @@ import styles from './PreflopTrainer.module.css';
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface PreflopTrainerProps {
-  /** Stack tier to drill. Default: the 40bb+ chart. */
+  /** Stack tier to drill. Default: the 60bb+ chart. */
   depth?: Depth;
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;
