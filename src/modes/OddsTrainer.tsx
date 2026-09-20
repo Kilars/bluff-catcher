@@ -24,11 +24,16 @@ type UseStatsReturn = ReturnType<typeof useStats>;
 
 interface OddsTrainerProps {
   stats: UseStatsReturn;
+  /**
+   * Name the draw before the guess is committed. Persisted in useAppPrefs and
+   * owned by the root, because the menu that flips it lives in the header.
+   */
+  showDraw: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function OddsTrainer({ stats }: OddsTrainerProps) {
+export default function OddsTrainer({ stats, showDraw }: OddsTrainerProps) {
   const drill = useOddsDrill(stats);
   const layout = useLayoutMode();
 
@@ -58,7 +63,7 @@ export default function OddsTrainer({ stats }: OddsTrainerProps) {
   if (layout === 'phone') {
     return (
       <>
-        <PhoneOddsTrainer drill={drill} />
+        <PhoneOddsTrainer drill={drill} showDraw={showDraw} />
 
         {/* The explanation is chrome, not part of the stage, so the phone tree
             raises [?] and the sheet is mounted here — same as the desktop tree
@@ -88,6 +93,7 @@ export default function OddsTrainer({ stats }: OddsTrainerProps) {
 
       <Dock
         guess={guess}
+        showDraw={showDraw}
         hover={hover}
         trueTotal={analysis.total}
         drawName={spot.read.name}

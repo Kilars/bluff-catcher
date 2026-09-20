@@ -64,6 +64,31 @@
   min-height: 20px;
 }
 
+/* Asking, with "Show the draw" on. The kicker keeps its place and the name
+   sits under it, muted — 44px against the bare row's 20px. The readout below
+   is the column's elastic slot (`flex: 1 0 auto`), so those 24px come out of
+   the slack above the number and nothing below the label row moves.
+
+   15px, not the revealed heading's 19px: this is the subject of the question,
+   and it must not read as the answer that lands in the same corner a moment
+   later. */
+.labelRowHinted {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 44px;
+}
+
+.drawNamePreview {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--color-neutral-300);
+}
+
 .labelRowRevealed {
   display: flex;
   flex-direction: column;

@@ -45,6 +45,33 @@
   color: var(--color-neutral-700);
 }
 
+/* Before commit, with "Show the draw" on: the name, muted, and a nudge that
+   the number is still the question. Same 25px heading as the revealed state so
+   the column does not reflow when the answer lands — only its colour changes. */
+.drawPreview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.drawNamePreview {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 25px;
+  line-height: 1.15;
+  text-wrap: pretty;
+  color: var(--color-neutral-300);
+  margin: 0;
+}
+
+.drawPreviewHint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-neutral-600);
+  text-wrap: pretty;
+  margin: 0;
+}
+
 /* After commit: draw name + ? button */
 .drawRevealed {
   display: flex;

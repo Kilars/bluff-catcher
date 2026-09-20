@@ -34,6 +34,9 @@ interface HeaderProps {
   /** Stack tier the preflop trainer is drilling; switched from the menu. */
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Odds drill: name the draw before the commit. Toggled from the menu. */
+  showDraw: boolean;
+  onShowDrawChange: (next: boolean) => void;
   oddsStats?: OddsStatsProps;
   preflopStats?: PreflopStatsProps;
   /** Opens the standalone RFI range-chart browser from the menu. */
@@ -45,6 +48,8 @@ export default function Header({
   onModeChange,
   depth,
   onDepthChange,
+  showDraw,
+  onShowDrawChange,
   oddsStats,
   preflopStats,
   onOpenRanges,
@@ -62,6 +67,8 @@ export default function Header({
           onModeChange={onModeChange}
           currentDepth={depth}
           onDepthChange={onDepthChange}
+          showDraw={showDraw}
+          onShowDrawChange={onShowDrawChange}
           onOpenRanges={onOpenRanges}
         />
         <div className={styles.brand}>

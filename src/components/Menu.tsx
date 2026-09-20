@@ -9,7 +9,13 @@
  * preflop trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group
  * with the RFI range charts, so the charts are reachable without playing a
  * hand first. The depth group is shown only in preflop mode, since it means
- * nothing to the odds trainer.
+ * nothing to the odds trainer; the "Drill" group, holding the one odds
+ * preference (name the draw before you guess), is shown only in odds mode for
+ * the same reason.
+ *
+ * That one is a checkbox, not a choice of one-from-many, so it does NOT close
+ * the menu: you flip it to see it flip, and closing on the tap hides the state
+ * you just asked about.
  *
  * Accessibility:
  *   - button has aria-label and aria-expanded
@@ -38,6 +44,9 @@ interface MenuProps {
   /** Stack tier the preflop trainer is drilling. */
   currentDepth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Odds drill: name the draw before the commit. Default on. */
+  showDraw: boolean;
+  onShowDrawChange: (next: boolean) => void;
   /** Opens the standalone RFI range-chart browser. */
   onOpenRanges: () => void;
 }
@@ -47,6 +56,8 @@ export default function Menu({
   onModeChange,
   currentDepth,
   onDepthChange,
+  showDraw,
+  onShowDrawChange,
   onOpenRanges,
 }: MenuProps) {
   const [open, setOpen] = useState(false);
@@ -108,6 +119,11 @@ export default function Menu({
     },
     [onDepthChange, close]
   );
+
+  // Deliberately does not close: see the header note.
+  const handleToggleShowDraw = useCallback(() => {
+    onShowDrawChange(!showDraw);
+  }, [onShowDrawChange, showDraw]);
 
   const handleOpenRanges = useCallback(() => {
     onOpenRanges();
@@ -173,6 +189,31 @@ export default function Menu({
                   )}
                 </button>
               ))}
+            </>
+          )}
+
+          {currentMode === 'odds' && (
+            <>
+              <div className={styles.separator} />
+              <span className={styles.groupLabel}>Drill</span>
+              <button
+                className={`${styles.item} ${showDraw ? styles.itemActive : ''}`}
+                role="menuitemcheckbox"
+                aria-checked={showDraw}
+                onClick={handleToggleShowDraw}
+              >
+                <span className={styles.itemMain}>
+                  Show the draw
+                  <span className={styles.itemNote}>
+                    {showDraw
+                      ? 'Named before you guess · tap to hide'
+                      : 'Hidden until you commit · tap to show'}
+                  </span>
+                </span>
+                {showDraw && (
+                  <span className={styles.activeMarker} aria-label="(on)" />
+                )}
+              </button>
             </>
           )}
 

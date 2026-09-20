@@ -4,10 +4,11 @@
  * For each fixture: classify → analyse → explain, then assert key properties
  * and snapshot the full Explanation for tone review.
  *
- * Note on the 'backdoor' fixture (Ah Kd / 9h 5h 2c):
- *   Per DECISIONS, this hand classifies as 'overcards' (6 outs), not backdoor,
- *   because both A and K are overcards on a 9-high board. The standalone-backdoor
- *   case uses 8h 6d / Ah Kh 2c (otherwise-air 3-flush hand).
+ * Note on the 'overcardsWithThreeFlush' fixture (Ah Kd / 9h 5h 2c):
+ *   It is the hand that used to be the backdoor fixture. It classifies as
+ *   'overcards' (6 outs) and always did — both A and K are over a 9-high board.
+ *   Backdoors are out of the taxonomy entirely now (DECISIONS.md), so the three
+ *   hearts change nothing about the read or the copy.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,9 +23,7 @@ function runFixture(hero: Card[], board: Card[]) {
   const read = classify(hero, board);
   if (!read) throw new Error(`classify returned null for ${hero} / ${board}`);
 
-  const analysis = read.backdoor
-    ? analyse({ hero, board, mode: 'backdoor' })
-    : analyse({ hero, board, hits: read.hits });
+  const analysis = analyse({ hero, board, hits: read.hits });
 
   return { read, analysis, exp: explain(read, analysis, hero, board) };
 }
@@ -263,23 +262,21 @@ describe('explain: overcards (Ah Kc / 9d 7s 2h)', () => {
   });
 });
 
-// ─── Fixture: backdoor fixture (Ah Kd / 9h 5h 2c) → overcards ───────────────
+// ─── Fixture: overcards over a 3-flush (Ah Kd / 9h 5h 2c) ───────────────────
 
-describe('explain: "backdoor" fixture classifies as overcards (Ah Kd / 9h 5h 2c)', () => {
-  const fx = fixtures.find((f) => f.id === 'backdoor')!;
+describe('explain: overcards over three hearts (Ah Kd / 9h 5h 2c)', () => {
+  const fx = fixtures.find((f) => f.id === 'overcardsWithThreeFlush')!;
 
-  it('classify returns overcards (not backdoor) — per DECISIONS', () => {
+  it('classify returns overcards — the three hearts are not a read', () => {
     const read = classify(fx.hero, fx.board);
     expect(read).not.toBeNull();
-    // Both A and K are overcards on a 9-high board; overcards win over backdoor
     expect(read!.primaryCategory).toBe('overcards');
   });
 
-  it('explain title is for overcards, not backdoor', () => {
+  it('explain title is the ordinary outs → % title', () => {
     const { exp, analysis } = runFixture(fx.hero, fx.board);
     // Should be "6 outs → 24%" (overcards)
     expect(exp.title).toBe(`${analysis.outs} outs → ${Math.round(analysis.total)}%`);
-    expect(exp.title).not.toBe('Roughly 4%, and no shortcut');
   });
 
   it('snapshot', () => {
@@ -384,46 +381,16 @@ describe('explain: openEnder+set (5s 5d / 6h 7c 8d)', () => {
   });
 });
 
-// ─── Standalone backdoor case: 8h 6d / Ah Kh 2c ─────────────────────────────
+// ─── The retired backdoor case: 8h 6d / Ah Kh 2c ────────────────────────────
 
-describe('explain: standalone backdoor (8h 6d / Ah Kh 2c)', () => {
+describe('the old standalone backdoor (8h 6d / Ah Kh 2c) is no longer a hand', () => {
   const hero: Card[] = ['8h', '6d'];
   const board: Card[] = ['Ah', 'Kh', '2c'];
 
-  it('classify returns backdoor', () => {
-    const read = classify(hero, board);
-    expect(read).not.toBeNull();
-    expect(read!.primaryCategory).toBe('backdoor');
-    expect(read!.backdoor).toBe(true);
-  });
-
-  it('explain title is "Roughly 4%, and no shortcut"', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp.title).toBe('Roughly 4%, and no shortcut');
-  });
-
-  it('step2 title is "The rule of 4 does not apply"', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp.step2.title).toBe('The rule of 4 does not apply');
-  });
-
-  it('step3 is null (backdoor → skip drift)', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp.step3).toBeNull();
-  });
-
-  it('step1 body mentions hearts', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp.step1.body.toLowerCase()).toContain('hearts');
-  });
-
-  it('headMaths quickSum is "No outs to multiply"', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp.headMaths.quickSum).toBe('No outs to multiply');
-  });
-
-  it('snapshot', () => {
-    const { exp } = runFixture(hero, board);
-    expect(exp).toMatchSnapshot();
+  it('classify rejects it as air, so explain is never called on it', () => {
+    // It used to be the one hand that reached explain() with zero outs, and
+    // every 'no shortcut' branch in the generator existed for it. Both are
+    // gone: see DECISIONS.md, "Backdoors are out".
+    expect(classify(hero, board)).toBeNull();
   });
 });

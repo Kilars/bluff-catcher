@@ -1,5 +1,6 @@
 /**
- * Tests for the persisted root-level choices — mode and stack depth.
+ * Tests for the persisted root-level choices — mode, stack depth, and whether
+ * the odds drill names the draw before the guess.
  *
  * This file used to be useMode.test.ts, and it re-implemented loadMode and
  * saveMode locally because they were module-private inside App.tsx. That meant
@@ -12,10 +13,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   MODE_KEY,
   DEPTH_KEY,
+  SHOW_DRAW_KEY,
   loadMode,
   saveMode,
   loadDepth,
   saveDepth,
+  loadShowDraw,
+  saveShowDraw,
 } from './useAppPrefs';
 import { DEFAULT_DEPTH, DEPTHS } from '../lib/preflop/ranges';
 
@@ -81,5 +85,39 @@ describe('depth persistence', () => {
   it('falls back to the default on a value that is not a tier', () => {
     localStorage.setItem(DEPTH_KEY, 'not-a-tier');
     expect(loadDepth()).toBe(DEFAULT_DEPTH);
+  });
+});
+
+describe('"show the draw" persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults to ON when localStorage is empty — a first run gets the default', () => {
+    expect(loadShowDraw()).toBe(true);
+  });
+
+  it('defaults to ON for an unrecognised stored value', () => {
+    localStorage.setItem(SHOW_DRAW_KEY, 'invalid_garbage');
+    expect(loadShowDraw()).toBe(true);
+  });
+
+  it('round-trips OFF — the one value that hides the draw', () => {
+    saveShowDraw(false);
+    expect(localStorage.getItem(SHOW_DRAW_KEY)).toBe('off');
+    expect(loadShowDraw()).toBe(false);
+  });
+
+  it('round-trips back ON', () => {
+    saveShowDraw(false);
+    saveShowDraw(true);
+    expect(localStorage.getItem(SHOW_DRAW_KEY)).toBe('on');
+    expect(loadShowDraw()).toBe(true);
+  });
+
+  it('uses the versioned key bluff-catcher:show-draw:v1', () => {
+    saveShowDraw(false);
+    expect(SHOW_DRAW_KEY).toBe('bluff-catcher:show-draw:v1');
+    expect(localStorage.getItem('bluff-catcher:show-draw:v1')).toBe('off');
   });
 });

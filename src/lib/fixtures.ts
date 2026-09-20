@@ -1,7 +1,7 @@
 /**
- * The ten verified poker draw spots for testing.
- * Each fixture includes the hero hand, board, category, hits predicate (or backdoor mode),
- * and expected outs/total percentage.
+ * The verified poker draw spots for testing.
+ * Each fixture includes the hero hand, board, category, hits predicate, and
+ * expected outs/total percentage.
  */
 
 import {
@@ -124,16 +124,22 @@ export const fixtures: Fixture[] = [
     expected: { outs: 6, total: 24.1 },
   },
   {
-    id: 'backdoor',
+    /**
+     * The hand that used to be the backdoor fixture. It is here as `overcards`
+     * because that is what it always classified as (A and K both over a 9-high
+     * board, 6 outs) — the three hearts never were the read. Backdoors are out
+     * of the drill entirely now; see DECISIONS.md.
+     */
+    id: 'overcardsWithThreeFlush',
     hero: ['Ah', 'Kd'],
     board: ['9h', '5h', '2c'],
-    category: 'backdoor',
+    category: 'overcards',
     spot: {
       hero: ['Ah', 'Kd'],
       board: ['9h', '5h', '2c'],
-      mode: 'backdoor',
+      hits: (cs, hero) => pairsUp(hero, cs, 2),
     },
-    expected: { outs: 0, total: 4.2 },
+    expected: { outs: 6, total: 24.1 },
   },
   {
     id: 'flushDrawTurn',

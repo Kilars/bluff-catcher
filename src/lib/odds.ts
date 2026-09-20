@@ -14,21 +14,21 @@ export interface Analysis {
   unseen: number;
   streets: number;
   total: number;
-  quick: number | null;
-  suitLeft?: number;
+  /** The rule-of-2-and-4 shortcut: outs × 4 on the flop, × 2 on the turn. */
+  quick: number;
 }
 
-export type Spot =
-  | {
-      hero: Card[];
-      board: Card[];
-      mode: 'backdoor';
-    }
-  | {
-      hero: Card[];
-      board: Card[];
-      hits: (cards: Card[], hero: Card[]) => boolean;
-    };
+/**
+ * A spot is hero + board + the composite `hits` predicate the classifier built.
+ * There is no second shape: backdoors were removed from the drill (DECISIONS.md,
+ * "Backdoors are out"), and with them the runner-runner branch that used to
+ * bypass `hits` and return zero outs.
+ */
+export interface Spot {
+  hero: Card[];
+  board: Card[];
+  hits: (cards: Card[], hero: Card[]) => boolean;
+}
 
 /**
  * Parse a card code into rank and suit.
@@ -107,11 +107,10 @@ export function pairsUp(
 
 /**
  * Analyse a poker draw: calculate outs, unseen cards, streets, and odds.
- * Spot must have either mode:'backdoor' or a hits predicate.
  *
  * Correctness invariants:
  * - hits predicates must be rank-specific (no generic "pairs")
- * - non-backdoor spots with 0 outs are logged as an error (mis-specified)
+ * - a spot with 0 outs is logged as an error (mis-specified)
  */
 export function analyse(spot: Spot): Analysis {
   const known = spot.hero.concat(spot.board);
@@ -119,28 +118,8 @@ export function analyse(spot: Spot): Analysis {
   const n = rest.length;
   const streets = 5 - spot.board.length;
 
-  // Backdoor flush draw: exactly 3 to a suit, two remaining streets.
-  if ('mode' in spot && spot.mode === 'backdoor') {
-    const counts = suitCounts(known);
-    const s = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-    const left = rest.filter((c) => c[1] === s).length;
-    const t = +((left / n) * 100).toFixed(1);
-    const r = +(((left - 1) / (n - 1)) * 100).toFixed(1);
-    return {
-      outs: 0,
-      outsList: [],
-      unseen: n,
-      streets,
-      suitLeft: left,
-      total: Math.round((t / 100) * (r / 100) * 1000) / 10,
-      quick: null,
-    };
-  }
-
-  // Standard draw: count outs via hits predicate.
-  // We know this is not a backdoor spot because of the type narrowing above.
-  const hitsFunc = (spot as Exclude<Spot, { mode: 'backdoor' }>).hits;
-  const outs = rest.filter((c) => hitsFunc(known.concat([c]), spot.hero));
+  // Count outs via the hits predicate.
+  const outs = rest.filter((c) => spot.hits(known.concat([c]), spot.hero));
   const o = outs.length;
 
   if (o === 0) {

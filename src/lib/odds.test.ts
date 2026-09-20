@@ -1,10 +1,13 @@
 /**
- * Test the odds engine against the ten verified fixtures.
+ * Test the odds engine against the verified fixtures.
  * Asserts:
  * 1. Every fixture returns the expected outs and total percentage (±0.05).
- * 2. Backdoor path returns outs: 0 and total ≈ 4.2.
- * 3. Zero-outs guard on mis-specified non-backdoor spots.
- * 4. quick equals outs × 4 on flop fixtures and outs × 2 on turn fixture.
+ * 2. Zero-outs guard on mis-specified spots.
+ * 3. quick equals outs × 4 on flop fixtures and outs × 2 on turn fixture.
+ *
+ * There is no backdoor path any more — the runner-runner branch and the
+ * category that used it are gone (DECISIONS.md, "Backdoors are out"), so every
+ * spot the engine sees has a hits predicate and at least one one-card out.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -23,43 +26,13 @@ describe('odds engine', () => {
       it(`${fixture.id}: quick is outs × multiplier`, () => {
         const result = analyse(fixture.spot);
         const multiplier = result.streets === 2 ? 4 : 2;
-        if (fixture.category === 'backdoor') {
-          expect(result.quick).toBeNull();
-        } else {
-          expect(result.quick).toBe(result.outs * multiplier);
-        }
+        expect(result.quick).toBe(result.outs * multiplier);
       });
     });
   });
 
-  describe('backdoor path', () => {
-    it('backdoor fixture returns outs: 0', () => {
-      const backdoor = fixtures.find((f) => f.id === 'backdoor')!;
-      const result = analyse(backdoor.spot);
-      expect(result.outs).toBe(0);
-    });
-
-    it('backdoor fixture returns total ≈ 4.2', () => {
-      const backdoor = fixtures.find((f) => f.id === 'backdoor')!;
-      const result = analyse(backdoor.spot);
-      expect(Math.abs(result.total - 4.2)).toBeLessThanOrEqual(0.05);
-    });
-
-    it('backdoor fixture returns quick: null', () => {
-      const backdoor = fixtures.find((f) => f.id === 'backdoor')!;
-      const result = analyse(backdoor.spot);
-      expect(result.quick).toBeNull();
-    });
-
-    it('backdoor fixture includes suitLeft', () => {
-      const backdoor = fixtures.find((f) => f.id === 'backdoor')!;
-      const result = analyse(backdoor.spot);
-      expect(result.suitLeft).toBeDefined();
-    });
-  });
-
   describe('zero-outs guard', () => {
-    it('logs console.error on mis-specified non-backdoor spot with 0 outs', () => {
+    it('logs console.error on a mis-specified spot with 0 outs', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // Q♣ 9♣ on J♦ 7♠ 2♥ is a double gutshot needing two cards (no one-card outs)
@@ -82,16 +55,6 @@ describe('odds engine', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('does NOT log error on backdoor spot with 0 outs', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const backdoor = fixtures.find((f) => f.id === 'backdoor')!;
-      analyse(backdoor.spot);
-
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
-    });
   });
 
   describe('flop vs turn multiplier', () => {

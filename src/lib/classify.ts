@@ -10,7 +10,10 @@
  * - The composite hits predicate is the OR of component predicates so that
  *   analyse() deduplicates overlapping outs automatically.
  * - Overcards stack on every other component (no carve-out).
- * - Backdoor is only the primary category when the hand is otherwise air.
+ * - Backdoors are not a draw here. A 3-flush needs two running cards, has zero
+ *   one-card outs, and the drill's question counts one-card outs only, so a
+ *   hand whose only feature is a 3-flush is air and gets re-dealt. See
+ *   DECISIONS.md, "Backdoors are out".
  */
 
 import {
@@ -29,8 +32,7 @@ export type Category =
   | 'combo'
   | 'pairImproving'
   | 'overcards'
-  | 'setDraw'
-  | 'backdoor';
+  | 'setDraw';
 
 export type Component =
   | 'flush'
@@ -39,8 +41,7 @@ export type Component =
   | 'doubleGutshot'
   | 'overcard'
   | 'pairImprove'
-  | 'set'
-  | 'backdoor';
+  | 'set';
 
 export interface DrawMeta {
   flushSuit: string | null;       // e.g. 's' when a 4-flush draw exists, else null
@@ -48,7 +49,6 @@ export interface DrawMeta {
   straightType: 'openEnder' | 'doubleGutshot' | 'gutshot' | null;
   completingRanks: string[];      // rank chars that complete the straight (deduped)
   pairedRank: string | null;      // hero rank already paired with board, else null
-  backdoorSuit: string | null;    // suit char when backdoor-only hand, else null
   pocketRank: string | null;      // rank char when hero has a pocket pair, else null
 }
 
@@ -58,7 +58,6 @@ export interface DrawRead {
   name: string;
   note: string;
   hits: (cards: Card[], hero: Card[]) => boolean;
-  backdoor?: boolean;
   meta: DrawMeta;
 }
 
@@ -175,21 +174,6 @@ function flushDrawSuit(
 }
 
 /**
- * Returns the suit that gives a backdoor draw (exactly 3 to a suit including >=1 hero card).
- * Ignores suits that already have 4+ (those are flush draws or made flushes).
- */
-function backdoorSuit(hero: Card[], board: Card[]): string | null {
-  const known = hero.concat(board);
-  const counts = suitCounts(known);
-  for (const suit of Object.keys(counts)) {
-    if (counts[suit] === 3 && hero.some((h) => h[1] === suit)) {
-      return suit;
-    }
-  }
-  return null;
-}
-
-/**
  * Detect which hero cards are overcards (strictly above max board rank).
  * Returns the rank characters of the overcards (e.g. ['A', 'K']).
  */
@@ -277,10 +261,8 @@ function composeName(components: Component[], overcards: string[], straightType:
     components.includes('doubleGutshot');
   const hasOvercard = components.includes('overcard');
   const hasPairImprove = components.includes('pairImprove');
-  const hasBackdoor = components.includes('backdoor');
   const hasSet = components.includes('set');
 
-  if (hasBackdoor) return 'A backdoor flush draw';
   if (hasPairImprove) return 'A pair looking to improve';
   // Standalone set draw (no other draw component): name the set explicitly.
   // When set augments another draw, keep the other draw's name — the note carries the set.
@@ -389,8 +371,6 @@ function composeNote(
     case 'setDraw':
       // Bare pocket pair, no other draw. Two outs to a set — small but real.
       return 'Only two outs, but a set is well disguised. Worth knowing the number.';
-    case 'backdoor':
-      return 'Three to a suit, not four. As a draw this is nearly nothing.';
     default:
       return '';
   }
@@ -422,12 +402,6 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   // Made pair (for pairImproving)
   const pairedRank = pairedHeroRank(hero, board);
 
-  // Backdoor (only 3 to a suit, no other components). A backdoor flush needs
-  // TWO running cards, so it is only a draw on the flop (3 board cards). On the
-  // turn a 3-flush can never complete — it is air, not a keeper.
-  const bdSuit = backdoorSuit(hero, board);
-  const hasBdFlush = bdSuit !== null && !hasFlushDraw && board.length === 3;
-
   // Pocket pair detection: hero holds two cards of the same rank (and isMadeHand
   // has already rejected trips/two-pair, so this is a genuine draw to a set).
   const isPocketPair = hero[0][0] === hero[1][0];
@@ -443,29 +417,11 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
   const hasOvercard = ocRanks.length > 0;
   const hasPairImprove = pairedRank !== null;
 
-  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !hasBdFlush && !isSet) {
+  // A hand whose only feature is three to a suit lands here: no component
+  // fired, so it is air and the dealer re-deals. That is the whole of the
+  // backdoor removal — there is no backdoor branch below.
+  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !isSet) {
     return null; // air
-  }
-
-  // ── Backdoor-only: no other component ──────────────────────────────────
-  if (!hasFlushDraw && !hasStraightDraw && !hasOvercard && !hasPairImprove && !isSet && hasBdFlush) {
-    return {
-      primaryCategory: 'backdoor',
-      components: ['backdoor'],
-      name: 'A backdoor flush draw',
-      note: `Three ${suitName(bdSuit!)}. As a draw this is nearly nothing.`,
-      hits: (_cs, _hero) => false, // backdoor uses mode:'backdoor' in analyse
-      backdoor: true,
-      meta: {
-        flushSuit: null,
-        overcardRanks: [],
-        straightType: null,
-        completingRanks: [],
-        pairedRank: null,
-        backdoorSuit: bdSuit,
-        pocketRank,
-      },
-    };
   }
 
   // ── Build components list ──────────────────────────────────────────────
@@ -580,7 +536,6 @@ export function classify(hero: Card[], board: Card[]): DrawRead | null {
       straightType: straightComp,
       completingRanks: cRankChars,
       pairedRank,
-      backdoorSuit: null,
       pocketRank,
     },
   };

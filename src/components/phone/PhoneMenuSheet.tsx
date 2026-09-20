@@ -11,8 +11,11 @@
  * door it was ("Menu" from `⋯`, "Mode & depth" from the chip).
  *
  * Selecting anything closes the sheet, exactly as the desktop dropdown does —
- * the choice is the whole reason the sheet is open. Reset is the exception: it
- * is destructive, so it takes two taps, and the second one closes.
+ * the choice is the whole reason the sheet is open. Two rows are exceptions.
+ * Reset is destructive, so it takes two taps and the second one closes. "Show
+ * the draw" is a checkbox rather than a choice of one-from-many, so it flips in
+ * place and leaves the sheet up: closing on the tap would hide the state you
+ * tapped to see.
  *
  * Presentation only. Every handler is the parent's; this component owns one
  * piece of state, whether Reset is armed.
@@ -40,6 +43,9 @@ export interface PhoneMenuSheetProps {
   onModeChange: (mode: AppMode) => void;
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Odds drill: name the draw before the commit. Default on. */
+  showDraw: boolean;
+  onShowDrawChange: (next: boolean) => void;
   /** Opens the standalone RFI range-chart browser. */
   onOpenRanges: () => void;
   /** Clears persisted stats for the current mode. Armed by one tap, fired by a second. */
@@ -55,6 +61,8 @@ export default function PhoneMenuSheet({
   onModeChange,
   depth,
   onDepthChange,
+  showDraw,
+  onShowDrawChange,
   onOpenRanges,
   onResetStats,
   onClose,
@@ -76,6 +84,11 @@ export default function PhoneMenuSheet({
     },
     [onDepthChange, onClose]
   );
+
+  // No onClose: see the header note.
+  const toggleShowDraw = useCallback(() => {
+    onShowDrawChange(!showDraw);
+  }, [onShowDrawChange, showDraw]);
 
   const openRanges = useCallback(() => {
     onOpenRanges();
@@ -144,6 +157,27 @@ export default function PhoneMenuSheet({
               {d === depth && <span className={styles.marker} aria-hidden="true" />}
             </button>
           ))}
+        </div>
+
+        <div className={styles.group}>
+          <span className={styles.groupLabel}>Odds drill</span>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={showDraw}
+            className={`${styles.row} ${showDraw ? styles.rowActive : ''}`}
+            onClick={toggleShowDraw}
+          >
+            <span className={styles.rowMain}>
+              Show the draw
+              <span className={styles.rowNote}>
+                {showDraw
+                  ? 'Named before you guess · tap to hide'
+                  : 'Hidden until you commit · tap to show'}
+              </span>
+            </span>
+            {showDraw && <span className={styles.marker} aria-hidden="true" />}
+          </button>
         </div>
 
         <div className={styles.group}>

@@ -38,7 +38,6 @@ const DEFAULT_WEIGHTS: Record<Category, number> = {
   pairImproving: 2,
   overcards: 2,
   setDraw: 1,
-  backdoor: 1,
 };
 
 /** Maximum attempts before falling back to any keeper. */

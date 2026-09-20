@@ -74,7 +74,7 @@ function clamp(value: number, min: number, max: number): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { mode, setMode, depth, setDepth } = useAppPrefs();
+  const { mode, setMode, depth, setDepth, showDraw, setShowDraw } = useAppPrefs();
 
   // Which component tree we are. Also stamps data-layout on <html>, which is
   // what every stylesheet keys off — see useLayoutMode for why this is a
@@ -186,6 +186,8 @@ export default function App() {
         onModeChange={setMode}
         depth={depth}
         onDepthChange={setDepth}
+        showDraw={showDraw}
+        onShowDrawChange={setShowDraw}
         onOpenRanges={() => setRangesOpen(true)}
         oddsStats={
           mode === 'odds'
@@ -211,7 +213,7 @@ export default function App() {
       />
       )}
 
-      {mode === 'odds' && <OddsTrainer stats={stats} />}
+      {mode === 'odds' && <OddsTrainer stats={stats} showDraw={showDraw} />}
 
       {/* key={depth}: changing tier re-deals and re-shows the briefing, rather
           than leaving a 60bb+ spot on screen labelled 10bb. */}
@@ -247,6 +249,8 @@ export default function App() {
           onModeChange={setMode}
           depth={depth}
           onDepthChange={setDepth}
+          showDraw={showDraw}
+          onShowDrawChange={setShowDraw}
           onOpenRanges={() => {
             setPhoneSheet(null);
             setRangesOpen(true);

@@ -40,9 +40,16 @@ const PHONE_WIDTH = 390;
 function ControlledBar({
   onOpenExplain = () => {},
   onNext = () => {},
+  showDraw = false,
 }: {
   onOpenExplain?: () => void;
   onNext?: () => void;
+  /**
+   * Defaults to OFF here, not to the app's default, because most of this file
+   * is about the gesture and the reveal — the two things the pre-commit label
+   * has no part in. The rows that do test it pass it explicitly.
+   */
+  showDraw?: boolean;
 }) {
   const [pending, setPending] = useState<number | null>(null);
   const [guess, setGuess] = useState<number | null>(null);
@@ -51,6 +58,7 @@ function ControlledBar({
   return (
     <PhoneCommitBar
       guess={guess}
+      showDraw={showDraw}
       pending={pending}
       trueTotal={TRUE_TOTAL}
       drawName="A flush draw"
@@ -266,7 +274,7 @@ describe('PhoneCommitBar', () => {
       expect(screen.getByTestId('phone-readout')).toHaveTextContent(/off by 16\.0/);
     });
 
-    it('names the draw and offers the explanation only once the hand is answered', () => {
+    it('with the draw hidden, names it and offers the explanation only once the hand is answered', () => {
       const onOpenExplain = vi.fn();
       renderAt('phone', <ControlledBar onOpenExplain={onOpenExplain} />);
 
@@ -335,5 +343,50 @@ describe('PhoneCommitBar', () => {
         expect(screen.getByText(label)).toBeInTheDocument();
       }
     });
+  });
+});
+
+// ─── Naming the draw before the guess ─────────────────────────────────────────
+//
+// The default. You cannot practise pricing a draw you have not identified, so
+// the name is the question's subject, not part of its answer. See DECISIONS.md,
+// "Naming the draw".
+
+describe('PhoneCommitBar — "Show the draw"', () => {
+  it('names the draw before the commit when it is on', () => {
+    renderAt('phone', <ControlledBar showDraw />);
+
+    expect(screen.getByTestId('phone-draw-preview')).toHaveTextContent('A flush draw');
+    // The kicker is still the question.
+    expect(screen.getByText('Chance you improve by the river')).toBeInTheDocument();
+  });
+
+  it('still withholds the note and the [?] until the guess lands', () => {
+    renderAt('phone', <ControlledBar showDraw />);
+
+    expect(screen.queryByText('Nine cards make it')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'How is this counted?' })
+    ).not.toBeInTheDocument();
+
+    grab(stubField(), 200);
+    fireEvent.click(button());
+
+    expect(screen.getByText('Nine cards make it')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'How is this counted?' })).toBeInTheDocument();
+  });
+
+  it('shows nothing before the commit when it is off', () => {
+    renderAt('phone', <ControlledBar showDraw={false} />);
+    expect(screen.queryByTestId('phone-draw-preview')).not.toBeInTheDocument();
+  });
+
+  it('drops the preview once the hand is answered — the revealed heading takes over', () => {
+    renderAt('phone', <ControlledBar showDraw />);
+    grab(stubField(), 200);
+    fireEvent.click(button());
+
+    expect(screen.queryByTestId('phone-draw-preview')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'A flush draw' })).toBeInTheDocument();
   });
 });

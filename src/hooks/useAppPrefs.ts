@@ -1,6 +1,7 @@
 /**
- * useAppPrefs — the two persisted root-level choices: which mode is running,
- * and which stack tier the preflop trainer drills.
+ * useAppPrefs — the persisted root-level choices: which mode is running, which
+ * stack tier the preflop trainer drills, and whether the odds drill names the
+ * draw before you guess.
  *
  * Both used to live as module-local helpers inside App.tsx. That was fine until
  * DECISIONS.md gained the rule that all state and persistence live in shared
@@ -25,6 +26,7 @@ export type AppMode = 'odds' | 'preflop';
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
+export const SHOW_DRAW_KEY = 'bluff-catcher:show-draw:v1';
 
 export function loadMode(): AppMode {
   try {
@@ -69,6 +71,36 @@ export function saveDepth(depth: Depth): void {
   }
 }
 
+// ─── Show the draw ────────────────────────────────────────────────────────────
+//
+// Default ON. You cannot practise counting outs for a draw you have not
+// identified, and the drill asks for one number over a board you have three
+// seconds to read — so naming the draw up front is the training default, not
+// the assist. Turning it off is the harder drill (identify it yourself, then
+// price it), which is why the toggle exists at all: it is the thing you switch
+// off once you no longer need it. See DECISIONS.md, "Naming the draw".
+
+export function loadShowDraw(): boolean {
+  try {
+    if (typeof window === 'undefined') return true;
+    const raw = localStorage.getItem(SHOW_DRAW_KEY);
+    // Only an explicit 'off' hides it: an absent or corrupt value means a
+    // first run, and a first run gets the default.
+    return raw !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveShowDraw(showDraw: boolean): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(SHOW_DRAW_KEY, showDraw ? 'on' : 'off');
+  } catch {
+    // localStorage might be disabled — silently fail
+  }
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface AppPrefs {
@@ -76,11 +108,15 @@ export interface AppPrefs {
   setMode: (next: AppMode) => void;
   depth: Depth;
   setDepth: (next: Depth) => void;
+  /** Odds drill: name the draw before the guess is committed. */
+  showDraw: boolean;
+  setShowDraw: (next: boolean) => void;
 }
 
 export function useAppPrefs(): AppPrefs {
   const [mode, setModeState] = useState<AppMode>(() => loadMode());
   const [depth, setDepthState] = useState<Depth>(() => loadDepth());
+  const [showDraw, setShowDrawState] = useState<boolean>(() => loadShowDraw());
 
   const setMode = useCallback((next: AppMode) => {
     setModeState(next);
@@ -92,5 +128,10 @@ export function useAppPrefs(): AppPrefs {
     saveDepth(next);
   }, []);
 
-  return { mode, setMode, depth, setDepth };
+  const setShowDraw = useCallback((next: boolean) => {
+    setShowDrawState(next);
+    saveShowDraw(next);
+  }, []);
+
+  return { mode, setMode, depth, setDepth, showDraw, setShowDraw };
 }

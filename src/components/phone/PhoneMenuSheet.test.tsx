@@ -19,6 +19,8 @@ function setup(overrides: Partial<Parameters<typeof PhoneMenuSheet>[0]> = {}) {
     onModeChange: vi.fn(),
     depth: 'deep' as const,
     onDepthChange: vi.fn(),
+    showDraw: true,
+    onShowDrawChange: vi.fn(),
     onOpenRanges: vi.fn(),
     onResetStats: vi.fn(),
     onClose: vi.fn(),
@@ -45,11 +47,13 @@ describe('PhoneMenuSheet', () => {
       ).toBeInTheDocument();
     }
 
+    expect(menu().getByRole('menuitemcheckbox', { name: /Show the draw/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitem', { name: /RFI range charts/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitem', { name: /Reset stats/ })).toBeInTheDocument();
 
-    // Two modes + three depths + charts + reset, and nothing else.
+    // Two modes + three depths + the draw toggle + charts + reset, and nothing else.
     expect(menu().getAllByRole('menuitemradio')).toHaveLength(2 + DEPTHS.length);
+    expect(menu().getAllByRole('menuitemcheckbox')).toHaveLength(1);
     expect(menu().getAllByRole('menuitem')).toHaveLength(2);
   });
 
@@ -125,5 +129,35 @@ describe('PhoneMenuSheet', () => {
   it('titles itself for the door it was opened from', () => {
     setup({ title: 'Mode & depth' });
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Mode & depth');
+  });
+});
+
+// ─── "Show the draw" ──────────────────────────────────────────────────────────
+
+describe('PhoneMenuSheet — "Show the draw"', () => {
+  it('reports its state and flips it', () => {
+    const props = setup({ showDraw: true });
+    const row = menu().getByRole('menuitemcheckbox', { name: /Show the draw/ });
+
+    expect(row).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(row);
+    expect(props.onShowDrawChange).toHaveBeenCalledWith(false);
+  });
+
+  it('flips the other way when it is off', () => {
+    const props = setup({ showDraw: false });
+    const row = menu().getByRole('menuitemcheckbox', { name: /Show the draw/ });
+
+    expect(row).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(row);
+    expect(props.onShowDrawChange).toHaveBeenCalledWith(true);
+  });
+
+  it('leaves the sheet open — unlike every other row', () => {
+    // The state you tapped to see is inside the sheet, so closing on the tap
+    // would hide it. See the component header.
+    const props = setup({ showDraw: true });
+    fireEvent.click(menu().getByRole('menuitemcheckbox', { name: /Show the draw/ }));
+    expect(props.onClose).not.toHaveBeenCalled();
   });
 });
