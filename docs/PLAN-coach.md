@@ -66,11 +66,15 @@ Requirements as stated, not softened into something easier to build.
 20. **`hands/` at the repo root, gitignored**, holding `.txt` exports. Grows as
     tournaments are played. Every run reads the whole archive.
 21. ~500 hands across 5 tournaments today. Built for that to increase.
+22. **A date range selects which hands are read.** Everything stays in
+    `hands/` forever and everything is labelled; a start and an end date pick
+    the window to report on. Labelling is cheap and scripted, so the window
+    is a reporting concern, never a parsing one.
 
 ### Process
 
-22. **No tests.** Drift is caught by a check script the skill runs, not by CI.
-23. **MVP first**, then increments. Position mapping stays simple.
+23. **No tests.** Drift is caught by a check script the skill runs, not by CI.
+24. **MVP first**, then increments. Position mapping stays simple.
 
 ---
 
@@ -251,6 +255,8 @@ ranks below the same bluff called.
 
 ```
 npm run leaks -- [paths] --mode leaks|blind|pots   # leaks stays the default
+                        --from YYYY-MM-DD          # window start, inclusive
+                        --to   YYYY-MM-DD          # window end, inclusive
                         --tag <name>               # the cohort selector
                         --exemplars N              # cap lines per tag
                         --vocab --check-doc
@@ -261,9 +267,35 @@ against that report.
 
 `--tag` is what makes the agent's loop work: counts first, then every hand
 carrying the tag it chose. `--exemplars N` caps lines per tag while counts stay
-whole-archive, which holds an invocation near 12k tokens at any archive size.
+whole-window, which holds an invocation near 12k tokens at any archive size.
 Ship it now; retrofitting it at 5000 hands means rewriting the reading
 procedure too.
+
+### The window
+
+`--from` and `--to` are both inclusive and both optional: `--from` alone runs
+to the present, `--to` alone runs from the start of the archive, neither reads
+everything. They filter **after** parsing and labelling, so a hand's tag never
+depends on which window it is read in, and the same hand always carries the
+same label whether you ask about October or about everything.
+
+Filtering is by **hand timestamp, not tournament date**. A tournament that
+crosses midnight or a month boundary is otherwise either split arbitrarily or
+pulled in whole, and the hand is the unit every count is built on. The cost is
+that a boundary tournament appears partially, so `meta` reports
+`tournaments: {whole, partial}` and the agent can say so.
+
+`meta` carries the window — the requested dates, the actual first and last
+hand timestamps inside it, and the hand count. **The agent never describes a
+window it was not given**: findings from `--from 2026-10-01` are about
+October, not about "your game", and the payload has to make that impossible to
+get wrong.
+
+A narrow window makes `thin` the normal verdict rather than the exception —
+one month can be 120 hands, where almost nothing clears its `minN`. When the
+window holds fewer hands than the whole archive, the payload says so and names
+how many tags cleared their minimum, so a short month reads as "not enough
+yet" instead of as a clean bill of health.
 
 **Step 10 — the skill.**
 
@@ -322,4 +354,7 @@ lines, and it is not a test in the suite.
 - Subagent fan-out. Revisit when the payload exceeds ~40k tokens, when
   per-tournament comparison is wanted, or when a hypothesis loop exists in
   which every proposal goes back to code to be counted.
+- Comparing two windows against each other — "is the overbetting closing?"
+  is the obvious next want once `--from`/`--to` exist, but it needs a stable
+  finding id and enough hands in both windows to clear `minN` twice.
 - Feeding found leaks into the trainers' drill weighting.
