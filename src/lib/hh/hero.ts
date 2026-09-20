@@ -38,8 +38,14 @@ export interface StreetPlay {
    * Not the same question as `facedBet`, and the difference is a whole
    * population: checking first out of position and then folding to the bet is
    * the commonest way there is to face a c-bet, and `facedBet` says false for
-   * all of it. Use this one to ask "did Hero face a bet", `facedBet` to ask
-   * "was Hero first to act into one".
+   * all of it. Postflop, use this one to ask "did Hero face a bet" and
+   * `facedBet` to ask "was Hero first to act into one".
+   *
+   * Preflop it means neither: everyone but a big blind who gets a walk has
+   * chips to put in, so it is true for the opener too. Read it on a postflop
+   * street or not at all. It also says nothing about *who* bet first — Hero
+   * betting and being raised sets it, so a caller that means "Hero faced a
+   * c-bet" must exclude `bet` as well.
    */
   facedBetEver: boolean;
   bettor: string | null;
@@ -119,6 +125,26 @@ const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
  */
 function handDate(timestamp: string): string {
   return timestamp.slice(0, 10).replaceAll('/', '-');
+}
+
+/**
+ * Did Hero reach a showdown?
+ *
+ * Not "did Hero show": a losing call-down prints `Hero: mucks hand` and no
+ * shows line, so reading Hero's own cards counted a showdown only when Hero
+ * won one — biasing WTSD down and WSD up every time, and booking the loss to
+ * the red line.
+ *
+ * But "anyone showed" is the same error inverted. An opponent who folds may
+ * still flash a hand, which would book an uncontested c-bet win to the blue
+ * line. So: Hero did not fold, and either Hero's cards are face up, or someone
+ * else's are and Hero's last bet was called — an uncalled bet coming back to
+ * Hero is the signature of a pot that ended before anyone had to show.
+ */
+function sawShowdown(hand: Hand, hero: string): boolean {
+  if (hand.actions.some((a) => a.player === hero && a.kind === 'fold')) return false;
+  if (hand.shows.some((s) => s.player === hero)) return true;
+  return hand.shows.length > 0 && hand.uncalled?.player !== hero;
 }
 
 function isVoluntary(a: Action): boolean {
@@ -303,11 +329,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     pfa: lastPreflopRaiser === hero,
     sawFlop: streets.some((s) => s.street === 'flop'),
     streetReached,
-    // Not "Hero showed": a losing call-down is printed as `Hero: mucks hand`
-    // with no shows line, so counting shows made Hero reach showdown only when
-    // he won it. That biased WTSD down and WSD up every single time, and booked
-    // the loss to the red line. Cards were turned over and Hero did not fold.
-    showdown: hand.shows.length > 0 && !hand.actions.some((a) => a.player === hero && a.kind === 'fold'),
+    showdown: sawShowdown(hand, hero),
     wonPot: won > 0,
     streets,
     decisions: hand.actions.filter((a) => a.player === hero && isVoluntary(a)),

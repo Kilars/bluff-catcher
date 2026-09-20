@@ -70,7 +70,7 @@ The compounding asset, and where four verified bugs live.
   merely warn. In an accumulating archive that garbage is permanent.
 
 Types, introduced here rather than later because `lines.ts` and every renderer
-need the `Hand` that `heroHands()` (`hero.ts:289`) currently discards:
+need the `Hand` that `heroHand()` (`hero.ts`) discards:
 
 ```ts
 interface HandRecord { hand: Hand; hero: HeroHand; file: string; handDate: string }
@@ -251,7 +251,7 @@ which throws on an unknown key (`stats.ts:177`). Then `--mode blind` as an
 printed.
 
 `blind` must strip more than the obvious: `wwsf`/`wtsd`/`wsd`
-(`stats.ts:303`), `byRole[].netBB`, `worstPots` and `bestPots`,
+(`stats.ts`), `byRole[].netBB`, `worstPots`,
 `HeroHand.won`/`net`/`invested`, `wonPot` and `showdown` (`hero.ts:281`), and
 `board`, which is the full five cards at `hero.ts:285`.
 

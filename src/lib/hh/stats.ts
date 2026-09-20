@@ -307,9 +307,13 @@ export function summarise(hs: HeroHand[]): Summary {
   // facedBetEver, not facedBet: checking first from the blinds and folding to
   // the c-bet is the commonest version of this spot, and facedBet excludes it
   // from the numerator and the denominator both.
+  //
+  // `!f.bet` because facedBetEver is also true when Hero bets first and folds
+  // to a raise. That is a donk bet getting blown off, not a c-bet faced, and
+  // it is always a fold — so counting it could only push the stat up.
   const faceCbetOpps = sawFlop.filter((h) => {
     const f = flopOf(h);
-    return !h.pfa && f && f.facedBetEver;
+    return !h.pfa && f && f.facedBetEver && !f.bet;
   });
   const foldedToCbet = faceCbetOpps.filter((h) => flopOf(h)?.folded);
 
@@ -383,7 +387,10 @@ export function summarise(hs: HeroHand[]): Summary {
           potOdds: a.toCall / (a.potBefore + a.toCall),
         })),
     )
-    .sort((a, b) => b.toCall / (b.hand.bb || 1) - a.toCall / (a.hand.bb || 1))
+    .sort(
+      (a, b) =>
+        (b.hand.bb > 0 ? b.toCall / b.hand.bb : 0) - (a.hand.bb > 0 ? a.toCall / a.hand.bb : 0),
+    )
     .slice(0, 8);
 
   const levels = hs.map((h) => h.level);

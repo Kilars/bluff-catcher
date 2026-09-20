@@ -41,10 +41,11 @@ console.log('smoke: leaks CLI');
 // ── argv survives its flags ──────────────────────────────────────────────────
 // `--mode pots --from …` used to put "pots" and the date into the target list,
 // where statSync threw ENOENT on them.
-const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-08', '--json'));
-// Length, not just shape: an empty `pots` array would satisfy Array.isArray
-// while the window quietly matched nothing.
-check('argv: --mode and --from consume their values', pots.pots?.length === 4);
+// 09-09 so the date does real work here: it drops the first day. Length, not
+// just shape — an empty `pots` array would satisfy Array.isArray while the
+// window quietly matched nothing.
+const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-09', '--json'));
+check('argv: --mode and --from consume their values', pots.pots?.length === 2);
 
 // ── the window filters, in both directions ───────────────────────────────────
 // Against the slash-formatted timestamp these silently returned everything

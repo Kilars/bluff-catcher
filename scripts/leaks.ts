@@ -16,6 +16,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import type { Dirent } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -56,6 +57,19 @@ function die(message: string): never {
  * paths so a symlink that points back up its own tree terminates instead of
  * recursing forever.
  */
+function isDirectory(path: string, entry: Dirent): boolean {
+  if (entry.isDirectory()) return true;
+  if (!entry.isSymbolicLink()) return false;
+  try {
+    // statSync follows the link, so a stale one — an unmounted drive, a
+    // renamed download folder — throws instead of answering. Skipping it is
+    // right; crashing the whole run over one dead link is not.
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function collect(target: string, seen = new Set<string>()): string[] {
   if (!existsSync(target)) die(`no such path: ${target}`);
   if (statSync(target).isFile()) return [target];
@@ -66,7 +80,7 @@ function collect(target: string, seen = new Set<string>()): string[] {
 
   return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
     const path = join(target, entry.name);
-    if (statSync(path).isDirectory()) return collect(path, seen);
+    if (isDirectory(path, entry)) return collect(path, seen);
     return entry.name.toLowerCase().endsWith('.txt') ? [path] : [];
   });
 }

@@ -271,7 +271,6 @@ describe('heroHand', () => {
     expect(h.streetReached).toBe('river');
   });
 
-
   it('classifies a flat of a single raise as a cold-call', () => {
     const h = heroHand(parseHands(HAND).hands[0])!;
     expect(h.role).toBe('cold-call');
