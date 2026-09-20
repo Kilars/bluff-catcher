@@ -31,9 +31,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 22, not 20: `npm run leaks` and `npm run smoke` run TypeScript through
+      # `node --experimental-strip-types`, which Node 20 rejects outright
+      # ("bad option"). Nothing in CI ran those scripts before, so the pin and
+      # the toolchain had quietly disagreed.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
