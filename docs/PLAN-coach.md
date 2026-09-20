@@ -101,9 +101,17 @@ From §2 stage 1. "Mine" is relative to who raised preflop.
 
 ### Action taken
 
-`check / fold / call / bet-33 / bet-75 / bet-150 / bet-200`, bucketed from
-`amount / potBefore`. Raises flagged, not split into their own scale. Nut
-advantage gates `bet-150` and `bet-200` (§6).
+`check / fold / call / bet-33 / bet-75 / bet-over`, bucketed from
+`amount / potBefore`. Raises flagged, not split into their own scale.
+
+§6 draws the size tree as 33 / 75 / 150 / 200, and the 150-vs-200
+discriminator is real — 150 is wide value against a spread of decent hands,
+200 is near-nuts against one hand they cannot fold. Both collapse to
+`bet-over` for now: at 500 hands they would carry a couple of hits each,
+which names nothing. Split them when the archive supports it.
+
+Nut advantage is a stored facet, not a gate on any tag. Gating narrows the
+tag further at exactly the sample size where hits are scarce.
 
 ### Street bluff logic
 
@@ -115,10 +123,9 @@ Gives a per-street test rather than one generic one.
 Not a free-form label. Prescription vs action:
 
 ```
-strong-invulnerable × bet-150  → overbet-no-denial
-strong-invulnerable × bet-200  → overbet-no-denial
+strong-invulnerable × bet-over → overbet-invuln
 strong-vulnerable   × check    → underprotection
-marginal-made       × bet-150  → nonpremium-overbet
+marginal-made       × bet-over → nonpremium-overbet
 air-nothing         × bet-*    → worst-bluff-candidate
 draw                × check    → missed-semibluff
 ```
@@ -184,6 +191,8 @@ meaningfully inside the range count. Needs a tolerance band.
 - Blind defense, 3-bet and cold-call ranges — no charts in the repo yet, and
   `ranges.ts` is RFI-only.
 - Conditional slicing on facets. Needs thousands of hands; at 500 it is noise.
+- Splitting `bet-over` back into 150 and 200, and gating the overbet tags on
+  nut advantage. Both are correct distinctions that need volume to earn.
 - Subagent fan-out for open-ended hypotheses. Only worth it once tag
   clustering stops finding things, and only with every proposed hypothesis
   sent back to code to be counted.
