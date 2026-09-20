@@ -47,6 +47,13 @@ jobs:
       - name: Test
         run: npm test
 
+      # ── Leaks CLI smoke check (PLAN-coach §2 step 0) ───────────────────────
+      # The CLI has no test suite by design. Every bug it has had failed
+      # silently — a window that filtered the wrong way, a flag's value parsed
+      # as a path — so one end-to-end run against the fixtures is the gate.
+      - name: Smoke-check the leaks CLI
+        run: npm run smoke
+
       # ── Layout guard (PLAN-phone §4.3) ─────────────────────────────────────
       # grep -r exits 1 when it finds nothing, which is the passing case here,
       # so the exit code is inverted deliberately. The pattern is a regex rather

@@ -1,0 +1,83 @@
+Poker Hand #TM1: Tournament #310296737, Daily Special $2.50 Hold'em No Limit - Level7(175/350(45)) - 2026/09/08 20:03:09
+Table '19' 8-max Seat #6 is the button
+Seat 1: p1 (11,405 in chips)
+Seat 2: p2 (5,155 in chips)
+Seat 3: Villain (27,060 in chips)
+Seat 4: p4 (18,250 in chips)
+Seat 5: p5 (10,295 in chips)
+Seat 6: Hero (18,094 in chips)
+Seat 7: p7 (7,485 in chips)
+Seat 8: p8 (9,910 in chips)
+Hero: posts the ante 45
+Villain: posts the ante 45
+p8: posts the ante 45
+p4: posts the ante 45
+p2: posts the ante 45
+p7: posts the ante 45
+p5: posts the ante 45
+p1: posts the ante 45
+p7: posts small blind 175
+p8: posts big blind 350
+*** HOLE CARDS ***
+Dealt to p1 
+Dealt to p2 
+Dealt to Villain 
+Dealt to p4 
+Dealt to p5 
+Dealt to Hero [4s Ac]
+Dealt to p7 
+Dealt to p8 
+p1: folds
+p2: folds
+Villain: raises 525 to 875
+p4: folds
+p5: folds
+Hero: calls 875
+p7: folds
+p8: folds
+*** FLOP *** [3h 2c As]
+Villain: bets 1,050
+Hero: calls 1,050
+*** TURN *** [3h 2c As] [2d]
+Villain: bets 2,368
+Hero: calls 2,368
+*** RIVER *** [3h 2c As 2d] [8s]
+Villain: bets 22,722 and is all-in
+Hero: calls 13,756 and is all-in
+Uncalled bet (8,966) returned to Villain
+Villain: shows [Ad Kh] (two pair, Aces and Twos)
+Hero: shows [4s Ac] (two pair, Aces and Twos)
+*** SHOWDOWN ***
+Villain collected 36,983 from pot
+*** SUMMARY ***
+Total pot 36,983 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [3h 2c As 2d 8s]
+Seat 6: Hero (button) showed [4s Ac] and lost with two pair, Aces and Twos
+
+Poker Hand #TM2: Tournament #310296737, Daily Special $2.50 Hold'em No Limit - Level5(100/200(25)) - 2026/09/08 19:30:00
+Table '19' 8-max Seat #4 is the button
+Seat 3: Villain (10,000 in chips)
+Seat 4: p4 (10,000 in chips)
+Seat 5: p5 (10,000 in chips)
+Seat 6: Hero (10,000 in chips)
+Villain: posts the ante 25
+p4: posts the ante 25
+p5: posts the ante 25
+Hero: posts the ante 25
+p5: posts small blind 100
+Hero: posts big blind 200
+*** HOLE CARDS ***
+Dealt to Villain 
+Dealt to p4 
+Dealt to p5 
+Dealt to Hero [Ks Kd]
+Villain: raises 200 to 400
+p4: folds
+p5: folds
+Hero: raises 800 to 1,200
+Villain: folds
+Uncalled bet (800) returned to Hero
+*** SHOWDOWN ***
+Hero collected 1,000 from pot
+*** SUMMARY ***
+Total pot 1,000 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0

@@ -15,7 +15,7 @@
  * Cards use the existing Card type from odds.ts: e.g. 'As', 'Td', '2c'
  */
 
-import { type Card, RANKS } from '../odds';
+import { type Card, RANKS } from '../odds.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

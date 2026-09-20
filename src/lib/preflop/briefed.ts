@@ -13,7 +13,7 @@
  * Info button (and the `I` key, where there is a keyboard) is how you get back.
  */
 
-import type { Depth } from './ranges';
+import type { Depth } from './ranges.ts';
 
 export const BRIEFED_KEY = 'bluff-catcher:briefed:v1';
 

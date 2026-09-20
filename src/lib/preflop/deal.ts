@@ -6,14 +6,14 @@
  * Uses a pluggable Pool strategy for combo sampling.
  */
 
-import type { Card } from '../odds';
+import type { Card } from '../odds.ts';
 import {
   type HandClass,
   handClass,
   HAND_STRENGTH_RANKING,
   strengthRank,
   combosForClass,
-} from './hands';
+} from './hands.ts';
 import {
   type Depth,
   type Position,
@@ -21,7 +21,7 @@ import {
   POSITIONS,
   isOpen,
   getRangeSet,
-} from './ranges';
+} from './ranges.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

@@ -58,8 +58,8 @@
  * charts round to the majority action.
  */
 
-import type { HandClass } from './hands';
-import { RANKS } from '../odds';
+import type { HandClass } from './hands.ts';
+import { RANKS } from '../odds.ts';
 
 // ─── Position enum ────────────────────────────────────────────────────────────
 

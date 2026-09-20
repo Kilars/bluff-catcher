@@ -1,6 +1,6 @@
 # Leak coaching reference
 
-Grounding for an agent that turns `npm run leaks -- <hh> --json` into coaching.
+Grounding for an agent that turns `npm run leaks -- --json` into coaching.
 Written to be read by a model, not a person: every threshold is a value, every
 trigger is a condition over fields that exist in the JSON report, and every
 finding names the evidence it must cite.
@@ -15,19 +15,33 @@ changed and this file is stale — say so rather than guessing.
 ## 0. Input contract
 
 ```
-meta        {game, date, hands, levels}
-chipFlow    {netChips, netBB, showdownBB, nonShowdownBB, investedBB}
-stats[]     {key, label, made, opportunities, pct, band, verdict, flag}
-byRole[]    {role, hands, netBB}
-worstPots[] {id, position, cards, board, stackBB, role, pfa, streetReached,
-             showdown, netBB, decisions[]}
+meta.window  {requestedFrom, requestedTo, first, last, hands, decisions}
+meta.archive {files, hands, excluded, skipped, first, last, tournaments,
+              games, timezone}
+meta.levels, meta.tournaments — of the window
+chipFlow     {netChips, netBB, showdownBB, nonShowdownBB, investedBB}
+stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
+byBoard      {caveat, splits[]}
+rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
+byRole[]     {role, hands, netBB}
+worstPots[]  {id, position, cards, board, stackBB, role, pfa, streetReached,
+              showdown, grossBB, netBB, decisions[]}
 biggestCalls[] {id, street, costBB, equityNeeded, cards, board}
 ```
 
 `decisions[]` = `{street, action, chips, potBefore, toCall, equityNeeded}`.
 `equityNeeded` is a percentage and is `null` when the action was not a call.
 
+`splits[]` = `{key, board, made, opportunities, pct}`, where `key` is one of
+`cbetFlop | cbetTurn | foldToCbetFlop` and `board` is one of
+`dry-high-mine | wet-high-mine | middling-theirs | paired | monotone`.
+
 `verdict` ∈ `low | ok | high | thin | none`. `flag` ∈ `bleed | missed | null`.
+
+**Every stat, every pot and every count is the window, not the archive.** A
+date window is selected with `--from` / `--to`, inclusive, either usable alone.
+`board` stops at the last street Hero acted on, so it is what Hero saw, not the
+full runout. Villain hole cards are not in the payload at any point.
 
 - **bleed** — chips leaving that should not. Nearly always calling.
 - **missed** — chips not coming in that should. Nearly always declining to raise.
@@ -38,8 +52,12 @@ biggestCalls[] {id, street, costBB, equityNeeded, cards, board}
 
 1. **Never coach a stat whose `verdict` is `thin`.** The sample is below its
    minimum. Reporting it as a leak is a factual error, not a judgement call.
-2. **Never coach opening ranges.** Roles `open` and `iso-raise` are drilled in
-   the app's preflop trainer. Report their net if asked; never flag frequency.
+2. **Never coach opening *frequency*.** Roles `open` and `iso-raise` are
+   drilled in the app's preflop trainer. Report their net if asked; never flag
+   how often Hero opens. The carve-out is `rfiFolds[]`: a named fold of a named
+   hand from a named seat is a per-hand fact, not a frequency, and it is the
+   one finding that is sound at n=1. Coach those; they are already filtered to
+   folds outside the chart's bottom 3% of combos.
 3. **Never assert an equity number you did not compute.** `equityNeeded` is
    given. Hand-vs-range equity is not in the report — say "needs 48%, which
    requires beating their range nearly half the time", not "you had 34%".
@@ -50,7 +68,13 @@ biggestCalls[] {id, street, costBB, equityNeeded, cards, board}
 6. **On a sample under 200 hands, lead with `byRole` and `biggestCalls`,** not
    with percentages. Only `vpip`, `pfr` and `threeBet` settle early; postflop
    stats need thousands.
-7. **Report at most 3 findings.** Ranked by rule 2 below. More is noise.
+7. **Report at most 3 findings.** Ranked by rule 2 below. More is noise, and
+   **fewer than three is a correct output** — say nothing rather than reach.
+8. **Describe only `meta.window`.** `meta.archive` is there so you know how
+   thin a slice you were handed. Never describe hands outside the window, and
+   never call the window "your session" unless the dates say it is one.
+9. **`byBoard.splits` are never banded.** Read the direction between buckets,
+   never the percentage, and repeat `byBoard.caveat` if you cite one at all.
 
 ---
 
@@ -225,6 +249,32 @@ Declining to use it gives back the value the raise bought.
 **fix** C-bet on boards that favour your range; give up on ones that don't.
 One-and-done is a leak; so is auto-firing every board.
 
+**where to look** `byBoard.splits` cuts these by flop texture. A high figure on
+`dry-high-mine` next to a low one on `middling-theirs` is discipline, not a
+leak — that is the shape the fix describes. The reverse is the leak worth
+naming. Never quote a split's percentage as a number; the buckets are tiny.
+
+---
+
+### `LEAK-RFIFOLD` — folding a hand the chart opens
+
+**trigger**
+```
+rfiFolds[] is non-empty
+```
+**cite** the hand's `id`, `cards`, `position`, `stackBB` and `depth`, plus its
+`caveat` when one is set. Never aggregate them into a rate — that would be
+opening frequency, which rule 2 forbids.
+
+**why it costs** First in, with fold equity and position still to come, these
+are the cheapest chips in the game to pick up. Unlike everything else here the
+finding needs no sample: the chart either plays the hand from that seat at that
+depth or it does not.
+
+**fix** Name the seat and the hand, and send them to the preflop trainer's
+matching position and depth. One fold is a slip; the same seat twice is a
+habit.
+
 ---
 
 ### `LEAK-LIMP` — limping
@@ -324,8 +374,9 @@ them to play a few hundred hands with it as the only focus, then re-run.
 - Then at most 3 findings, ranked per §2. Each: what the number is, why it
   costs, the fix. Cite the finding's required evidence.
 - Close with `MINDSET-ONELEAK`.
-- State the sample size and, when under 200 hands, that percentages are not yet
-  reliable.
+- State `meta.window.hands` as the sample size and, when under 200, that
+  percentages are not yet reliable. If `meta.archive.hands` is much larger, say
+  the window is a slice of a bigger archive — do not quietly imply otherwise.
 - Do not restate the whole stat table. The user can read the report.
 
 ---

@@ -16,15 +16,15 @@
  * Pure. No UI imports, no React.
  */
 
-import { RANKS } from '../odds';
-import type { HandClass } from './hands';
+import { RANKS } from '../odds.ts';
+import type { HandClass } from './hands.ts';
 import {
   DEFAULT_DEPTH,
   DEPTH_META,
   getRangeSet,
   type Depth,
   type Position,
-} from './ranges';
+} from './ranges.ts';
 
 // ─── Seat labels ──────────────────────────────────────────────────────────────
 

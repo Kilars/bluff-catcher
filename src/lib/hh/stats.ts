@@ -12,6 +12,7 @@
 
 import type { Street } from './parse.ts';
 import type { HeroHand, PreflopRole } from './hero.ts';
+import { boardType, type BoardType } from './board.ts';
 
 /** Which side of the ledger a reading falls on. */
 export type Flag = 'bleed' | 'missed' | null;
@@ -207,6 +208,45 @@ function stat(key: string, made: number, opp: number): Stat {
 
 const POSTFLOP: readonly Street[] = ['flop', 'turn', 'river'];
 
+/** A stat cut by flop texture. Always thin — see `SPLIT_CAVEAT`. */
+export interface BoardSplit {
+  key: 'cbetFlop' | 'cbetTurn' | 'foldToCbetFlop';
+  board: BoardType;
+  made: number;
+  opp: number;
+  pct: number | null;
+}
+
+/**
+ * Printed next to every split, because the sample will be too small for a long
+ * time and the honest thing is to say so rather than to withhold the cut. The
+ * aggregate is not a safer number — it is a wrong one that looks safe.
+ */
+export const SPLIT_CAVEAT =
+  'split by flop texture and never banded: one session is ~7 c-bets spread over five buckets. ' +
+  'Read the direction, not the percentage. The turn cut is keyed off the flop texture, not the turn card.';
+
+function splitByBoard(
+  key: BoardSplit['key'],
+  opps: HeroHand[],
+  made: (h: HeroHand) => boolean,
+): BoardSplit[] {
+  const buckets = new Map<BoardType, { made: number; opp: number }>();
+
+  for (const h of opps) {
+    const board = boardType(h.board);
+    if (!board) continue;
+    const bucket = buckets.get(board) ?? { made: 0, opp: 0 };
+    bucket.opp += 1;
+    if (made(h)) bucket.made += 1;
+    buckets.set(board, bucket);
+  }
+
+  return [...buckets]
+    .map(([board, b]) => ({ key, board, made: b.made, opp: b.opp, pct: (b.made / b.opp) * 100 }))
+    .sort((a, b) => b.opp - a.opp);
+}
+
 export interface RoleLine {
   role: PreflopRole;
   hands: number;
@@ -226,6 +266,8 @@ export interface Summary {
   nonShowdownBB: number;
   investedBB: number;
   stats: Stat[];
+  /** cbetFlop / cbetTurn / foldToCbetFlop, cut by flop texture. */
+  byBoard: BoardSplit[];
   byRole: RoleLine[];
   worstPots: HeroHand[];
   bestPots: HeroHand[];
@@ -305,6 +347,12 @@ export function summarise(hs: HeroHand[]): Summary {
     stat('wsd', showdowns.filter((h) => h.wonPot).length, showdowns.length),
   ];
 
+  const byBoard: BoardSplit[] = [
+    ...splitByBoard('cbetFlop', cbetOpps, (h) => Boolean(flopOf(h)?.bet)),
+    ...splitByBoard('cbetTurn', barrelOpps, (h) => Boolean(turnOf(h)?.bet)),
+    ...splitByBoard('foldToCbetFlop', faceCbetOpps, (h) => Boolean(flopOf(h)?.folded)),
+  ];
+
   // ── Money ─────────────────────────────────────────────────────────────────
   const netBB = hs.reduce((t, h) => t + h.netBB, 0);
   const showdownBB = hs.filter((h) => h.showdown).reduce((t, h) => t + h.netBB, 0);
@@ -334,17 +382,19 @@ export function summarise(hs: HeroHand[]): Summary {
     .slice(0, 8);
 
   const levels = hs.map((h) => h.level);
+  const levelSpan: [number, number] = n ? [Math.min(...levels), Math.max(...levels)] : [0, 0];
 
   return {
     hands: n,
     tournaments: new Set(hs.map((h) => h.tournamentId)).size,
-    levels: [Math.min(...levels), Math.max(...levels)],
+    levels: levelSpan,
     netChips: hs.reduce((t, h) => t + h.net, 0),
     netBB,
     showdownBB,
     nonShowdownBB: netBB - showdownBB,
     investedBB: hs.reduce((t, h) => t + h.invested / h.bb, 0),
     stats,
+    byBoard,
     byRole: [...roles.values()].sort((a, b) => a.netBB - b.netBB),
     worstPots: byNet.slice(0, 5),
     bestPots: byNet.slice(-3).reverse(),

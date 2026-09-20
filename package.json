@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "leaks": "node --experimental-strip-types scripts/leaks.ts",
+    "smoke": "node --experimental-strip-types scripts/smoke.ts",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",

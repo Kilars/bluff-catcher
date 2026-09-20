@@ -9,8 +9,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { parseHands } from './parse.ts';
-import { heroHands } from './hero.ts';
+import { readArchive, selectWindow } from './archive.ts';
+import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
 import { renderJson } from './report.ts';
 
@@ -58,12 +58,13 @@ Hero: calls 5,000
 Villain: shows [Ad Kh] (two pair, Aces and Twos)
 Hero: shows [4s Ac] (two pair, Aces and Twos)
 *** SHOWDOWN ***
-Villain collected 19,111 from pot
+Villain collected 19,291 from pot
 *** SUMMARY ***
-Total pot 19,111 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Total pot 19,291 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 `;
-  const { hands } = parseHands(hand);
-  return renderJson(summarise(heroHands(hands)), { game: 'test', date: '2026-09-08' });
+  const archive = readArchive([{ path: 'doc.test.txt', text: hand }]);
+  const { hands, window } = selectWindow(archive.hands);
+  return renderJson(summarise(hands), { archive: archive.meta, window }, rfiFolds(hands));
 }
 
 describe('docs/leak-coaching.md', () => {
@@ -81,9 +82,27 @@ describe('docs/leak-coaching.md', () => {
   });
 
   it('describes the input contract with keys that exist', () => {
-    for (const key of ['meta', 'chipFlow', 'stats', 'byRole', 'worstPots', 'biggestCalls']) {
+    for (const key of [
+      'meta',
+      'chipFlow',
+      'stats',
+      'byBoard',
+      'rfiFolds',
+      'byRole',
+      'worstPots',
+      'biggestCalls',
+    ]) {
       expect(report, key).toHaveProperty(key);
     }
+    // Only meta.window may be described to a reader; meta.archive is context.
+    expect(Object.keys(report.meta.window).sort()).toEqual([
+      'decisions',
+      'first',
+      'hands',
+      'last',
+      'requestedFrom',
+      'requestedTo',
+    ]);
     expect(Object.keys(report.chipFlow).sort()).toEqual([
       'investedBB',
       'netBB',

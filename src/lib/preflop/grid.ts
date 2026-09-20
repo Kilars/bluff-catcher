@@ -14,7 +14,7 @@
  *   - Lower-left triangle: offsuit hands (row rank < col rank → hiRank=col, loRank=row, suffix 'o').
  */
 
-import type { HandClass } from './hands';
+import type { HandClass } from './hands.ts';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

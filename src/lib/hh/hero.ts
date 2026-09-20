@@ -45,6 +45,8 @@ export interface HeroHand {
   id: string;
   tournamentId: string;
   timestamp: string;
+  /** Calendar date, YYYY-MM-DD, off the export's own clock — the window key. */
+  handDate: string;
   level: number;
   bb: number;
   position: string;
@@ -55,6 +57,12 @@ export interface HeroHand {
   playersDealt: number;
 
   invested: number;
+  /**
+   * Chips Hero put in before an uncalled bet came back, in big blinds. What it
+   * cost to contest the pot: a river bluff that got through is the same size
+   * whether or not it was called, and `invested` alone would rank it lower.
+   */
+  grossBB: number;
   won: number;
   net: number;
   netBB: number;
@@ -93,6 +101,15 @@ export interface HeroHand {
 
 const STEAL_POSITIONS = new Set(['CO', 'BTN', 'SB']);
 const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
+
+/**
+ * The hand's calendar date. GGPoker prints `2026/09/08 20:03:09` with no zone,
+ * so this is the export's local day — good enough to slice sessions by, and the
+ * only date the file gives us.
+ */
+export function handDate(timestamp: string): string {
+  return timestamp.slice(0, 10).replaceAll('/', '-');
+}
 
 function isVoluntary(a: Action): boolean {
   return a.kind !== 'ante' && a.kind !== 'sb' && a.kind !== 'bb';
@@ -241,6 +258,7 @@ export function heroHand(hand: Hand): HeroHand | null {
 
   const invested = hand.invested[hero] ?? 0;
   const won = hand.won[hero] ?? 0;
+  const returned = hand.uncalled?.player === hero ? hand.uncalled.amount : 0;
 
   const pre = classifyPreflop(hand, hero);
   const streets = (['preflop', 'flop', 'turn', 'river'] as const)
@@ -258,6 +276,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     id: hand.id,
     tournamentId: hand.tournamentId,
     timestamp: hand.timestamp,
+    handDate: handDate(hand.timestamp),
     level: hand.level,
     bb: hand.bb,
     position: hand.position[hero] ?? '?',
@@ -267,6 +286,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     playersDealt: hand.order.length,
 
     invested,
+    grossBB: hand.bb > 0 ? (invested + returned) / hand.bb : 0,
     won,
     net: won - invested,
     netBB: hand.bb > 0 ? (won - invested) / hand.bb : 0,
