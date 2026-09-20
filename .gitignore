@@ -26,3 +26,7 @@ dist-ssr
 # project-specific
 Poker percentages teaching game.zip
 dev-dist
+
+# Local hand-history archive and coach output — never committed
+hands/
+leaks-log.md
