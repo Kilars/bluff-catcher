@@ -3,8 +3,6 @@
  *
  * Nothing here looks at a hole card — texture is what you read *before* your
  * own hand, and it is the single biggest thing a flat c-bet percentage hides.
- * Betting 90% on A-7-2 rainbow and 25% on T-9-7 two-tone averages out to a
- * number that is correct on neither board.
  *
  * "mine" and "theirs" are written from the preflop raiser's seat: a high card
  * is in the raising range and largely not in the calling range, a middling
@@ -15,15 +13,12 @@
 
 import { RANKS } from '../odds.ts';
 
-export const BOARD_TYPES = [
-  'dry-high-mine',
-  'wet-high-mine',
-  'middling-theirs',
-  'paired',
-  'monotone',
-] as const;
-
-export type BoardType = (typeof BOARD_TYPES)[number];
+export type BoardType =
+  | 'dry-high-mine'
+  | 'wet-high-mine'
+  | 'middling-theirs'
+  | 'paired'
+  | 'monotone';
 
 /** Index in RANKS: 0 = '2', 12 = 'A'. */
 const TEN = RANKS.indexOf('T');

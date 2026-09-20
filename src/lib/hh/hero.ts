@@ -30,8 +30,18 @@ export interface StreetPlay {
   /** Stack-to-pot ratio Hero was playing. */
   spr: number | null;
   actions: Action[];
-  /** Someone had bet before Hero's first action on this street. */
+  /** Someone had bet before Hero's *first* action on this street. */
   facedBet: boolean;
+  /**
+   * Hero had to put chips in at some point on this street.
+   *
+   * Not the same question as `facedBet`, and the difference is a whole
+   * population: checking first out of position and then folding to the bet is
+   * the commonest way there is to face a c-bet, and `facedBet` says false for
+   * all of it. Use this one to ask "did Hero face a bet", `facedBet` to ask
+   * "was Hero first to act into one".
+   */
+  facedBetEver: boolean;
   bettor: string | null;
   bet: boolean;
   raised: boolean;
@@ -107,18 +117,12 @@ const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
  * so this is the export's local day — good enough to slice sessions by, and the
  * only date the file gives us.
  */
-export function handDate(timestamp: string): string {
+function handDate(timestamp: string): string {
   return timestamp.slice(0, 10).replaceAll('/', '-');
 }
 
 function isVoluntary(a: Action): boolean {
   return a.kind !== 'ante' && a.kind !== 'sb' && a.kind !== 'bb';
-}
-
-/** Pot odds Hero was laid on a call: the share of the final pot they put in. */
-export function potOdds(a: Action): number | null {
-  if (a.toCall <= 0) return null;
-  return a.toCall / (a.potBefore + a.toCall);
 }
 
 function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | null {
@@ -143,6 +147,7 @@ function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | nul
     spr: potAtStart > 0 ? first.stackBefore / potAtStart : null,
     actions: mine,
     facedBet: street === 'preflop' ? first.toCall > 0 : Boolean(aggressor),
+    facedBetEver: mine.some((a) => a.toCall > 0),
     bettor: aggressor?.player ?? null,
     bet: kinds.includes('bet'),
     raised: kinds.includes('raise'),
@@ -298,7 +303,11 @@ export function heroHand(hand: Hand): HeroHand | null {
     pfa: lastPreflopRaiser === hero,
     sawFlop: streets.some((s) => s.street === 'flop'),
     streetReached,
-    showdown: hand.shows.some((s) => s.player === hero),
+    // Not "Hero showed": a losing call-down is printed as `Hero: mucks hand`
+    // with no shows line, so counting shows made Hero reach showdown only when
+    // he won it. That biased WTSD down and WSD up every single time, and booked
+    // the loss to the red line. Cards were turned over and Hero did not fold.
+    showdown: hand.shows.length > 0 && !hand.actions.some((a) => a.player === hero && a.kind === 'fold'),
     wonPot: won > 0,
     streets,
     decisions: hand.actions.filter((a) => a.player === hero && isVoluntary(a)),
@@ -306,6 +315,3 @@ export function heroHand(hand: Hand): HeroHand | null {
   };
 }
 
-export function heroHands(hands: Hand[]): HeroHand[] {
-  return hands.map(heroHand).filter((h): h is HeroHand => h !== null);
-}

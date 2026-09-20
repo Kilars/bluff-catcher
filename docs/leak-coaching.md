@@ -27,6 +27,7 @@ byRole[]     {role, hands, netBB}
 worstPots[]  {id, position, cards, board, stackBB, role, pfa, streetReached,
               showdown, grossBB, netBB, decisions[]}
 biggestCalls[] {id, street, costBB, equityNeeded, cards, board}
+pots[]       same shape as worstPots[], top 20 by grossBB — `--mode pots` only
 ```
 
 `decisions[]` = `{street, action, chips, potBefore, toCall, equityNeeded}`.

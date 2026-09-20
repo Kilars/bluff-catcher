@@ -15,10 +15,16 @@
  * slice it is looking at.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DATE_PATTERN, readArchive, selectWindow, type ArchiveFile } from '../src/lib/hh/archive.ts';
+import {
+  DATE_PATTERN,
+  readArchive,
+  selectWindow,
+  type ArchiveFile,
+  type Excluded,
+} from '../src/lib/hh/archive.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -42,14 +48,25 @@ function die(message: string): never {
   process.exit(1);
 }
 
-/** Every .txt under a directory, recursively — tournaments live in subfolders. */
-function collect(target: string): string[] {
+/**
+ * Every .txt under a directory, recursively — tournaments live in subfolders.
+ *
+ * Symlinked directories are followed, because pointing `hands/` at the folder
+ * the client downloads into is the obvious way to use this. `seen` holds real
+ * paths so a symlink that points back up its own tree terminates instead of
+ * recursing forever.
+ */
+function collect(target: string, seen = new Set<string>()): string[] {
   if (!existsSync(target)) die(`no such path: ${target}`);
   if (statSync(target).isFile()) return [target];
 
+  const real = realpathSync(target);
+  if (seen.has(real)) return [];
+  seen.add(real);
+
   return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
     const path = join(target, entry.name);
-    if (entry.isDirectory()) return collect(path);
+    if (statSync(path).isDirectory()) return collect(path, seen);
     return entry.name.toLowerCase().endsWith('.txt') ? [path] : [];
   });
 }
@@ -73,7 +90,9 @@ for (let i = 0; i < args.length; i++) {
     asJson = true;
   } else if (VALUED.has(arg)) {
     const value = args[++i];
-    if (value === undefined) die(`${arg} needs a value\n${USAGE}`);
+    // A flag is never a value. `--out --json` would otherwise write a file
+    // called "--json" and drop the --json the user asked for.
+    if (value === undefined || value.startsWith('--')) die(`${arg} needs a value\n${USAGE}`);
     flags[arg] = value;
   } else if (arg.startsWith('--')) {
     die(`unknown flag: ${arg}\n${USAGE}`);
@@ -102,7 +121,7 @@ if (!targets.length && !existsSync(DEFAULT_TARGET)) {
   die(`no ${DEFAULT_TARGET}/ directory and no path given\n${USAGE}`);
 }
 
-const files = paths.flatMap(collect);
+const files = paths.flatMap((path) => collect(path));
 if (files.length === 0) die(`no .txt hand-history files found under ${paths.join(', ')}`);
 
 const archive = readArchive(
@@ -138,14 +157,19 @@ if (outFile) {
   console.log(output);
 }
 
-if (hands.length === 0) {
+// The text report says this in the body; JSON has nowhere to put it.
+if (hands.length === 0 && asJson) {
   console.error(`\nwarning: the window ${from ?? '…'} → ${to ?? '…'} selected 0 of ${archive.meta.hands} hands`);
 }
 
-const counts = new Map<string, number>();
-for (const e of archive.excluded) counts.set(e.reason, (counts.get(e.reason) ?? 0) + 1);
-if (archive.meta.skipped) counts.set('unparsed block', archive.meta.skipped);
-if (counts.size) {
-  const parts = [...counts].map(([reason, n]) => `${n} ${reason}`);
-  console.error(`\nexcluded from every count: ${parts.join('; ')}`);
+// Name the hands, not just the count. In an archive that accumulates, a hand
+// whose pot does not reconcile is dropped from every future report too, so
+// which file it is in is the actionable half.
+const byReason = new Map<string, Excluded[]>();
+for (const e of archive.excluded) byReason.set(e.reason, [...(byReason.get(e.reason) ?? []), e]);
+for (const [reason, dropped] of byReason) {
+  const shown = dropped.slice(0, 5).map((e) => `${e.id} (${e.file})`).join(', ');
+  const more = dropped.length > 5 ? `, +${dropped.length - 5} more` : '';
+  console.error(`excluded — ${dropped.length} ${reason}: ${shown}${more}`);
 }
+if (archive.meta.skipped) console.error(`excluded — ${archive.meta.skipped} unparsed block(s)`);

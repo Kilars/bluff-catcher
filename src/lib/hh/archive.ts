@@ -18,7 +18,7 @@
  * Only the window may be described to a reader. `meta.archive` is context.
  */
 
-import { parseHands, type Hand } from './parse.ts';
+import { parseHands } from './parse.ts';
 import { heroHand, type HeroHand } from './hero.ts';
 
 export interface ArchiveFile {
@@ -66,21 +66,8 @@ export interface Archive {
 
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * GGPoker prints no zone on the timestamp, so every date here is the export's
- * own local day. Stated rather than guessed: a window is off by a few hours at
- * the edges if the client clock is not the reader's.
- */
+/** Shipped in `meta` so a reader knows the window's edges are not UTC. */
 const TIMEZONE = 'export-local (no zone printed)';
-
-/**
- * Identity of a hand, for dedupe. `Hand` keeps no raw text, so this is a
- * structural key: the same hand id with the same pot and the same number of
- * actions is the same hand exported twice.
- */
-function key(h: Hand): string {
-  return `${h.id}|${h.totalPot}|${h.actions.length}`;
-}
 
 export function readArchive(files: ArchiveFile[]): Archive {
   const hands: HeroHand[] = [];
@@ -95,12 +82,18 @@ export function readArchive(files: ArchiveFile[]): Archive {
     skipped += parsed.skipped.length;
 
     for (const hand of parsed.hands) {
-      const k = key(hand);
-      if (seen.has(k)) {
+      // Tournament + id, and nothing else. Adding the pot or the action count
+      // would fail *open* — a re-export that parsed even slightly differently
+      // would be kept as a second copy of a hand already on file, which is the
+      // thing dedupe exists to stop. Leaving the tournament out would fail
+      // *closed* if GGPoker ever reuses an id across tournaments, silently
+      // dropping real hands from every future report. This fails neither way.
+      const key = `${hand.tournamentId}|${hand.id}`;
+      if (seen.has(key)) {
         excluded.push({ id: hand.id, file: file.path, reason: 'duplicate' });
         continue;
       }
-      seen.add(k);
+      seen.add(key);
 
       if (!hand.potMatches) {
         excluded.push({ id: hand.id, file: file.path, reason: 'pot check failed' });

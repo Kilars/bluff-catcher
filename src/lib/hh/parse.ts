@@ -330,9 +330,16 @@ function parseHand(block: string): Hand | { error: string } {
   // Seats that took part, rotated so the seat left of the button comes first.
   const live = seats.filter((s) => acted.has(s.name));
   const sorted = [...live].sort((a, b) => a.seat - b.seat);
-  const btnIdx = sorted.findIndex((s) => s.seat === Number(tbl[3]));
-  const rotated =
-    btnIdx < 0 ? sorted : [...sorted.slice(btnIdx + 1), ...sorted.slice(0, btnIdx + 1)];
+  // Rotate to the first live seat *past* the button rather than to the button
+  // itself. Under the dead-button rule the button sits on an empty seat after a
+  // bust, and there is no seat to find — the old fallback kept raw seat order
+  // and then labelled by it, so every position in the hand was wrong and the
+  // small blind came back as a late seat. For a live button this is identical
+  // to starting at btnIdx + 1.
+  const btnSeat = Number(tbl[3]);
+  const after = sorted.findIndex((s) => s.seat > btnSeat);
+  const start = after < 0 ? 0 : after;
+  const rotated = [...sorted.slice(start), ...sorted.slice(0, start)];
   const labels = positionNames(rotated.length);
   const position: Record<string, string> = {};
   rotated.forEach((s, i) => {

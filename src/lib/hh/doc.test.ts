@@ -4,12 +4,17 @@
  * The doc is grounding for an agent: its triggers are conditions over report
  * fields, and a renamed key or a retuned band silently turns them into
  * fiction. These tests make that a failing build instead.
+ *
+ * The report is built from the same on-disk fixtures the smoke check uses, so
+ * every section it documents is actually populated — an inline one-hand
+ * literal left `rfiFolds` and `byBoard.splits` empty, and a field list that is
+ * never reached is not a guard.
  */
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { readArchive, selectWindow } from './archive.ts';
+import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
 import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
 import { renderJson } from './report.ts';
@@ -17,58 +22,41 @@ import { renderJson } from './report.ts';
 // Relative to the repo root, which is vitest's working directory.
 const DOC = readFileSync('docs/leak-coaching.md', 'utf8');
 
-/** The §3 band table: | `key` | lo–hi | … */
+const FIXTURES = [
+  'src/lib/hh/fixtures/t310296737/day1.txt',
+  'src/lib/hh/fixtures/t310299999/day2.txt',
+];
+
+/**
+ * The §3 band table. The trailing columns are matched but not captured: they
+ * pin the table's shape, so a row that loses its high/low/minN cells stops
+ * parsing and fails the "documents exactly the stats" test rather than
+ * silently reading as a band-only row.
+ */
 function docBands(): Map<string, [number, number]> {
   const out = new Map<string, [number, number]>();
-  for (const m of DOC.matchAll(/^\| `(\w+)` \| (\d+)–(\d+) \|/gm)) {
+  for (const m of DOC.matchAll(/^\| `(\w+)` \| (\d+)–(\d+) \| .+? \| .+? \| \d+ \|/gm)) {
     out.set(m[1], [Number(m[2]), Number(m[3])]);
   }
   return out;
 }
 
-/** A report built from a hand that reaches showdown, so every section is populated. */
 function sampleReport() {
-  const hand = `Poker Hand #TM1: Tournament #1, Daily Special $2.50 Hold'em No Limit - Level7(175/350(45)) - 2026/09/08 20:03:09
-Table '19' 8-max Seat #6 is the button
-Seat 3: Villain (27,060 in chips)
-Seat 6: Hero (18,094 in chips)
-Seat 7: p7 (7,485 in chips)
-Seat 8: p8 (9,910 in chips)
-Hero: posts the ante 45
-Villain: posts the ante 45
-p7: posts the ante 45
-p8: posts the ante 45
-p7: posts small blind 175
-p8: posts big blind 350
-*** HOLE CARDS ***
-Dealt to Hero [4s Ac]
-Villain: raises 525 to 875
-Hero: calls 875
-p7: folds
-p8: folds
-*** FLOP *** [3h 2c As]
-Villain: bets 1,050
-Hero: calls 1,050
-*** TURN *** [3h 2c As] [2d]
-Villain: bets 2,368
-Hero: calls 2,368
-*** RIVER *** [3h 2c As 2d] [8s]
-Villain: bets 5,000
-Hero: calls 5,000
-Villain: shows [Ad Kh] (two pair, Aces and Twos)
-Hero: shows [4s Ac] (two pair, Aces and Twos)
-*** SHOWDOWN ***
-Villain collected 19,291 from pot
-*** SUMMARY ***
-Total pot 19,291 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
-`;
-  const archive = readArchive([{ path: 'doc.test.txt', text: hand }]);
+  const files = FIXTURES.map((path): ArchiveFile => ({ path, text: readFileSync(path, 'utf8') }));
+  const archive = readArchive(files);
   const { hands, window } = selectWindow(archive.hands);
   return renderJson(summarise(hands), { archive: archive.meta, window }, rfiFolds(hands));
 }
 
 describe('docs/leak-coaching.md', () => {
   const report = sampleReport();
+
+  it('builds a report with every documented section populated', () => {
+    expect(report.rfiFolds.length).toBeGreaterThan(0);
+    expect(report.byBoard.splits.length).toBeGreaterThan(0);
+    expect(report.worstPots[0].decisions.length).toBeGreaterThan(0);
+    expect(report.biggestCalls.length).toBeGreaterThan(0);
+  });
 
   it('documents exactly the stats the report emits', () => {
     expect([...docBands().keys()].sort()).toEqual(report.stats.map((s) => s.key).sort());
@@ -94,6 +82,7 @@ describe('docs/leak-coaching.md', () => {
     ]) {
       expect(report, key).toHaveProperty(key);
     }
+
     // Only meta.window may be described to a reader; meta.archive is context.
     expect(Object.keys(report.meta.window).sort()).toEqual([
       'decisions',
@@ -103,12 +92,40 @@ describe('docs/leak-coaching.md', () => {
       'requestedFrom',
       'requestedTo',
     ]);
+    expect(Object.keys(report.meta.archive).sort()).toEqual([
+      'excluded',
+      'files',
+      'first',
+      'games',
+      'hands',
+      'last',
+      'skipped',
+      'timezone',
+      'tournaments',
+    ]);
     expect(Object.keys(report.chipFlow).sort()).toEqual([
       'investedBB',
       'netBB',
       'netChips',
       'nonShowdownBB',
       'showdownBB',
+    ]);
+    expect(Object.keys(report.byBoard.splits[0]).sort()).toEqual([
+      'board',
+      'key',
+      'made',
+      'opportunities',
+      'pct',
+    ]);
+    expect(Object.keys(report.rfiFolds[0]).sort()).toEqual([
+      'action',
+      'cards',
+      'caveat',
+      'depth',
+      'hand',
+      'id',
+      'position',
+      'stackBB',
     ]);
     expect(Object.keys(report.worstPots[0].decisions[0]).sort()).toEqual([
       'action',

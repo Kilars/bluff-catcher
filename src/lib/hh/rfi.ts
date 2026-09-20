@@ -36,14 +36,14 @@ import type { HeroHand } from './hero.ts';
  * distance from the button, so a 6-max lojack and a 9-max lojack are the same
  * seat and read the same chart.
  */
-export function chartPosition(label: string): Position | null {
+function chartPosition(label: string): Position | null {
   if (label === 'SB' || label === 'BB' || label === 'SB/BTN') return null;
   if (/^UTG[3-9]$/.test(label)) return 'UTG';
   return (POSITIONS as readonly string[]).includes(label) ? (label as Position) : null;
 }
 
 /** Which chart a stack reads. The charts are 60bb+ / 20bb / 10bb. */
-export function depthFor(stackBB: number): Depth {
+function depthFor(stackBB: number): Depth {
   if (stackBB >= 40) return 'deep';
   if (stackBB >= 15) return 'mid';
   return 'short';
@@ -66,14 +66,18 @@ const FAMILY_ORDER: Record<'offsuit' | 'suited' | 'pair', number> = {
 /**
  * The bottom sliver of a range — folds inside it are never flagged.
  *
- * 3% of the range's combos, accumulated from its weakest class upward. A flat
- * "about 40 combos" would be 19% of UTG-deep and 6% of the button, which is not
- * one tolerance but seven different ones wearing the same number.
+ * At least 3% of the range's combos, accumulated from its weakest class upward.
+ * A flat "about 40 combos" would be 19% of UTG-deep and 6% of the button, which
+ * is not one tolerance but seven different ones wearing the same number.
+ *
+ * "At least" because a whole class goes in or stays out — the realised band
+ * runs 3.2%–5.6% depending on the seat. That errs toward staying quiet, which
+ * is the right direction for a check that accuses you by name.
  *
  * Below 15bb the chart is a jam chart and there is no edge to be near: you are
  * in or you are out, so the band is empty.
  */
-export function toleranceBand(pos: Position, depth: Depth): ReadonlySet<HandClass> {
+function toleranceBand(pos: Position, depth: Depth): ReadonlySet<HandClass> {
   if (depth === 'short') return new Set();
 
   const budget = Math.ceil(TOLERANCE * rangeComboCount(pos, depth));
@@ -119,7 +123,7 @@ export function rfiFolds(hands: HeroHand[]): RfiFold[] {
 
   for (const h of hands) {
     if (h.role !== 'fold' || !h.firstInOpp || h.limpersAhead > 0) continue;
-    if (!h.cards || h.cards.length < 2) continue;
+    if (!h.cards) continue;
 
     const pos = chartPosition(h.position);
     if (!pos) continue;
@@ -139,7 +143,7 @@ export function rfiFolds(hands: HeroHand[]): RfiFold[] {
       action: DEPTH_META[depth].actionNoun,
       caveat:
         h.stackBB >= NO_CHART_FROM && h.stackBB <= NO_CHART_TO
-          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts; neither is written for it. Read against ${DEPTH_META[depth].label}, and treat a borderline hand as a coin-flip rather than a fold`
+          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts; read against ${DEPTH_META[depth].label}`
           : null,
     });
   }

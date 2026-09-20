@@ -214,7 +214,7 @@ export interface BoardSplit {
   board: BoardType;
   made: number;
   opp: number;
-  pct: number | null;
+  pct: number;
 }
 
 /**
@@ -270,7 +270,6 @@ export interface Summary {
   byBoard: BoardSplit[];
   byRole: RoleLine[];
   worstPots: HeroHand[];
-  bestPots: HeroHand[];
   /** Hands where Hero called off the most, ranked — the drill-down list. */
   biggestCalls: { hand: HeroHand; street: Street; toCall: number; potOdds: number }[];
 }
@@ -280,7 +279,7 @@ export function summarise(hs: HeroHand[]): Summary {
   const sawFlop = hs.filter((h) => h.sawFlop);
 
   // ── Preflop, excluding open-raise selection ───────────────────────────────
-  const firstIn = hs.filter((h) => h.firstInOpp);
+  const firstIn = hs.filter((h) => h.firstInOpp && h.limpersAhead === 0);
   const threeBetOpps = hs.filter((h) => h.threeBetOpp);
   const coldCallOpps = threeBetOpps.filter((h) => h.position !== 'SB' && h.position !== 'BB');
   const faced3 = hs.filter((h) => h.faced3Bet);
@@ -305,13 +304,19 @@ export function summarise(hs: HeroHand[]): Summary {
   });
   const barrels = barrelOpps.filter((h) => turnOf(h)?.bet);
 
+  // facedBetEver, not facedBet: checking first from the blinds and folding to
+  // the c-bet is the commonest version of this spot, and facedBet excludes it
+  // from the numerator and the denominator both.
   const faceCbetOpps = sawFlop.filter((h) => {
     const f = flopOf(h);
-    return !h.pfa && f && f.facedBet;
+    return !h.pfa && f && f.facedBetEver;
   });
   const foldedToCbet = faceCbetOpps.filter((h) => flopOf(h)?.folded);
 
-  const xrOpps = sawFlop.filter((h) => flopOf(h)?.checked);
+  const xrOpps = sawFlop.filter((h) => {
+    const f = flopOf(h);
+    return f?.checked && f.facedBetEver;
+  });
   const xrs = xrOpps.filter((h) => flopOf(h)?.checkRaised);
 
   let aggressive = 0;
@@ -378,7 +383,7 @@ export function summarise(hs: HeroHand[]): Summary {
           potOdds: a.toCall / (a.potBefore + a.toCall),
         })),
     )
-    .sort((a, b) => b.toCall / b.hand.bb - a.toCall / a.hand.bb)
+    .sort((a, b) => b.toCall / (b.hand.bb || 1) - a.toCall / (a.hand.bb || 1))
     .slice(0, 8);
 
   const levels = hs.map((h) => h.level);
@@ -392,12 +397,11 @@ export function summarise(hs: HeroHand[]): Summary {
     netBB,
     showdownBB,
     nonShowdownBB: netBB - showdownBB,
-    investedBB: hs.reduce((t, h) => t + h.invested / h.bb, 0),
+    investedBB: hs.reduce((t, h) => t + (h.bb > 0 ? h.invested / h.bb : 0), 0),
     stats,
     byBoard,
     byRole: [...roles.values()].sort((a, b) => a.netBB - b.netBB),
     worstPots: byNet.slice(0, 5),
-    bestPots: byNet.slice(-3).reverse(),
     biggestCalls,
   };
 }

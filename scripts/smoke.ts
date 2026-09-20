@@ -41,9 +41,10 @@ console.log('smoke: leaks CLI');
 // ── argv survives its flags ──────────────────────────────────────────────────
 // `--mode pots --from …` used to put "pots" and the date into the target list,
 // where statSync threw ENOENT on them.
-const potsRun = leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-08', '--json');
-const pots = JSON.parse(potsRun);
-check('argv: --mode and --from consume their values', Array.isArray(pots.pots));
+const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-08', '--json'));
+// Length, not just shape: an empty `pots` array would satisfy Array.isArray
+// while the window quietly matched nothing.
+check('argv: --mode and --from consume their values', pots.pots?.length === 4);
 
 // ── the window filters, in both directions ───────────────────────────────────
 // Against the slash-formatted timestamp these silently returned everything
@@ -70,8 +71,9 @@ check(
 
 // ── a raise is read as a raise ───────────────────────────────────────────────
 // "raises 525 to 875" is a raise *to* 875, not a bet of 525. Getting it
-// backwards inflates every pot, and the pot check is what catches it. TM1's
-// numbers are worked out by hand in docs/PLAN-coach.md's fixture note.
+// backwards inflates every pot, and the pot check is what catches it. TM1 is
+// Hero's whole stack: 45 ante + 875 + 1,050 + 2,368 + 13,756 = 18,094, which
+// over a 350 big blind is 51.7bb.
 const day1 = readArchive([{ path: DAY1, text: readFileSync(DAY1, 'utf8') }]);
 const tm1 = day1.hands.find((h) => h.id === 'TM1');
 check('raise: TM1 reconciles against its printed total pot', day1.excluded.length === 0);
@@ -82,11 +84,17 @@ check('raise: TM1 cost Hero 51.7bb gross', tm1 !== undefined && tm1.grossBB.toFi
 const tm2 = day1.hands.find((h) => h.id === 'TM2');
 check('raise: an uncalled 3-bet still ranks by what went in', tm2?.grossBB.toFixed(1) === '6.1');
 
+// ── the default mode renders end to end ──────────────────────────────────────
+// The JSON payload is covered by doc.test.ts; this is the terminal path, and
+// the chart-fold line is the one finding that is sound at n=1.
+const text = leaks(FIXTURES);
+check('leaks: the text report names the CO fold of AJo', text.includes('TM3') && text.includes('(AJo)'));
+
 // ── the same export read twice is still one archive ──────────────────────────
-const text = readFileSync(DAY1, 'utf8');
+const day1Text = readFileSync(DAY1, 'utf8');
 const twice = readArchive([
-  { path: DAY1, text },
-  { path: `${DAY1}.copy`, text },
+  { path: DAY1, text: day1Text },
+  { path: `${DAY1}.copy`, text: day1Text },
 ]);
 check(
   'dedupe: a re-exported file adds no hands',

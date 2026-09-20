@@ -103,6 +103,72 @@ Hero collected 1,000 from pot
 Total pot 1,000 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 `;
 
+/**
+ * The dead-button rule: after a bust the button sits on an empty seat, so no
+ * `Seat N:` line matches it. Hero is in seat 4 and posts the small blind.
+ */
+const DEAD_BUTTON = `Poker Hand #DB1: Tournament #999, Test $1 Hold'em No Limit - Level2(50/100(10)) - 2026/09/11 10:00:00
+Table '1' 8-max Seat #3 is the button
+Seat 1: p1 (10,000 in chips)
+Seat 2: p2 (10,000 in chips)
+Seat 4: Hero (6,000 in chips)
+Seat 5: p5 (10,000 in chips)
+p1: posts the ante 10
+p2: posts the ante 10
+Hero: posts the ante 10
+p5: posts the ante 10
+Hero: posts small blind 50
+p5: posts big blind 100
+*** HOLE CARDS ***
+Dealt to p1 
+Dealt to p2 
+Dealt to Hero [Ah Qc]
+Dealt to p5 
+p1: folds
+p2: folds
+Hero: folds
+Uncalled bet (50) returned to p5
+*** SHOWDOWN ***
+p5 collected 140 from pot
+*** SUMMARY ***
+Total pot 140 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+`;
+
+/** Hero calls the river and loses. GGPoker prints a muck, never a shows line. */
+const MUCKED = `Poker Hand #MK1: Tournament #999, Test $1 Hold'em No Limit - Level2(50/100(10)) - 2026/09/10 10:00:00
+Table '1' 8-max Seat #4 is the button
+Seat 1: p1 (10,000 in chips)
+Seat 3: Villain (10,000 in chips)
+Seat 4: Hero (10,000 in chips)
+p1: posts the ante 10
+Villain: posts the ante 10
+Hero: posts the ante 10
+p1: posts small blind 50
+Villain: posts big blind 100
+*** HOLE CARDS ***
+Dealt to p1 
+Dealt to Villain 
+Dealt to Hero [Ah Qc]
+Hero: raises 150 to 250
+p1: folds
+Villain: calls 150
+*** FLOP *** [Kd 7c 2h]
+Villain: checks
+Hero: checks
+*** TURN *** [Kd 7c 2h] [3s]
+Villain: checks
+Hero: checks
+*** RIVER *** [Kd 7c 2h 3s] [9d]
+Villain: bets 350
+Hero: calls 350
+Villain: shows [Kh Qd] (a pair of Kings)
+Hero: mucks hand
+*** SHOWDOWN ***
+Villain collected 1,280 from pot
+*** SUMMARY ***
+Total pot 1,280 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+`;
+
 describe('positionNames', () => {
   it('labels an 8-handed pot in preflop action order', () => {
     expect(positionNames(8)).toEqual(['SB', 'BB', 'UTG', 'UTG1', 'LJ', 'HJ', 'CO', 'BTN']);
@@ -180,7 +246,32 @@ describe('parseHands', () => {
   });
 });
 
+describe('a dead button', () => {
+  it('labels seats from the first live seat past it, not by seat number', () => {
+    const h = parseHands(DEAD_BUTTON).hands[0];
+    expect(h.potMatches).toBe(true);
+    // Falling back to raw seat order used to make Hero the lojack while he was
+    // posting the small blind — and every other label was wrong with it.
+    expect(h.position.Hero).toBe('SB');
+    expect(h.position.p5).toBe('BB');
+    expect(h.position.p1).toBe('CO');
+    expect(h.position.p2).toBe('BTN');
+  });
+});
+
 describe('heroHand', () => {
+  it('counts a mucked river call as a showdown', () => {
+    const parsed = parseHands(MUCKED).hands[0];
+    expect(parsed.potMatches).toBe(true);
+    const h = heroHand(parsed)!;
+    // Hero shows when he wins and mucks when he loses, so reading `shows` made
+    // every losing call-down vanish from WTSD and land on the red line.
+    expect(h.showdown).toBe(true);
+    expect(h.wonPot).toBe(false);
+    expect(h.streetReached).toBe('river');
+  });
+
+
   it('classifies a flat of a single raise as a cold-call', () => {
     const h = heroHand(parseHands(HAND).hands[0])!;
     expect(h.role).toBe('cold-call');

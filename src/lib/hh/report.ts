@@ -138,12 +138,12 @@ export function renderText(s: Summary, meta: ReportMeta, folds: RfiFold[]): stri
   if (!s.byBoard.length) out.push('  no postflop spots in this window.');
   for (const b of s.byBoard) {
     out.push(
-      `  ${pad(b.key, 18)}${pad(b.board, 18)}${padLeft(`${b.made}/${b.opp}`, 7)}${padLeft(pct(b.pct), 9)}`,
+      `  ${pad(b.key, 18)}${pad(b.board, 18)}${padLeft(`${b.made}/${b.opp}`, 7)}${padLeft(`${b.pct.toFixed(1)}%`, 9)}`,
     );
   }
   out.push('');
 
-  out.push('CHART FOLDS  (raise first in — fires at n=1)');
+  out.push('CHART FOLDS  (first in, and the chart plays it)');
   if (!folds.length) out.push('  none: every first-in fold was outside the chart, or too close to call.');
   for (const f of folds) {
     out.push(
@@ -209,7 +209,7 @@ export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
         board: b.board,
         made: b.made,
         opportunities: b.opp,
-        pct: b.pct === null ? null : Number(b.pct.toFixed(1)),
+        pct: Number(b.pct.toFixed(1)),
       })),
     },
     rfiFolds: folds,
@@ -230,7 +230,7 @@ export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
  * `--mode pots`: the biggest pots Hero contested, by what they cost to play —
  * not by what they returned. Money is visible here; that is the whole mode.
  */
-export const POTS_LIMIT = 20;
+const POTS_LIMIT = 20;
 
 export function topPots(hands: HeroHand[]): HeroHand[] {
   return [...hands].sort((a, b) => b.grossBB - a.grossBB).slice(0, POTS_LIMIT);
