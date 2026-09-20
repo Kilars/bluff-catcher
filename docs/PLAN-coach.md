@@ -36,45 +36,50 @@ Requirements as stated, not softened into something easier to build.
    vocabulary. It is not loaded at runtime and never handed to the agent.
 9. **Every tag carries its denominator** and reads `thin` below a minimum.
    8 of 15 is a leak; 8 of 200 is noise.
+10. **Thin tags are shown, not hidden.** The agent sees every tag with its
+    count and verdict and is trusted to say "3 of 5, too early to call". This
+    is a deliberate divergence from `leak-coaching.md` rule 1, which suppresses
+    thin stats outright: a suppressed tag cannot be named as something to watch,
+    and in a narrow window most tags are thin.
 
 ### Outcome blindness
 
-10. **Villain hole cards never reach the agent.** `shows[]` is parsed and stays
+11. **Villain hole cards never reach the agent.** `shows[]` is parsed and stays
     out of every payload.
-11. **The board truncates at the street Hero left**, and so does the action line.
-12. **`blind` carries no money and no result** — no `netBB`, no `chipFlow`, no
+12. **The board truncates at the street Hero left**, and so does the action line.
+13. **`blind` carries no money and no result** — no `netBB`, no `chipFlow`, no
     `wonPot`, no showdown stats, no result-derived ordering.
-13. **The agent never reads `hands/` directly.** The payload is the only input.
+14. **The agent never reads `hands/` directly.** The payload is the only input.
     One `cat` of a raw export defeats the entire design.
 
 ### Modes
 
-14. **`blind`** — no outcome. Cohorts, tags, action lines.
-15. **`pots`** — the big pots, wins and losses both, ranked by Hero's gross
+15. **`blind`** — no outcome. Cohorts, tags, action lines.
+16. **`pots`** — the big pots, wins and losses both, ranked by Hero's gross
     chips in. Money visible; that is the point of the mode.
-16. **`leaks`** — the existing aggregate report, unchanged, still the default.
+17. **`leaks`** — the existing aggregate report, unchanged, still the default.
 
 ### Folds
 
-17. **Preflop folds are absent from `handLines[]`.** They still feed tag counts
+18. **Preflop folds are absent from `handLines[]`.** They still feed tag counts
     and the RFI block.
-18. **The range check is code, never a model.**
-19. **RFI only for now.** Blind defense, 3-bet and cold-call ranges later.
+19. **The range check is code, never a model.**
+20. **RFI only for now.** Blind defense, 3-bet and cold-call ranges later.
 
 ### Archive
 
-20. **`hands/` at the repo root, gitignored**, holding `.txt` exports. Grows as
+21. **`hands/` at the repo root, gitignored**, holding `.txt` exports. Grows as
     tournaments are played. Every run reads the whole archive.
-21. ~500 hands across 5 tournaments today. Built for that to increase.
-22. **A date range selects which hands are read.** Everything stays in
+22. ~500 hands across 5 tournaments today. Built for that to increase.
+23. **A date range selects which hands are read.** Everything stays in
     `hands/` forever and everything is labelled; a start and an end date pick
     the window to report on. Labelling is cheap and scripted, so the window
     is a reporting concern, never a parsing one.
 
 ### Process
 
-23. **No tests.** Drift is caught by a check script the skill runs, not by CI.
-24. **MVP first**, then increments. Position mapping stays simple.
+24. **No tests.** Drift is caught by a check script the skill runs, not by CI.
+25. **MVP first**, then increments. Position mapping stays simple.
 
 ---
 
@@ -216,7 +221,7 @@ classify rather than under `hh/`, which is history-shaped. One module, because
 `vulnerable = f(handClass, boardTexture)` and splitting it scans ranks and
 suits twice.
 
-No 7-card evaluator. An evaluator exists to compare two hands, and spec item 10
+No 7-card evaluator. An evaluator exists to compare two hands, and spec item 11
 forbids ever seeing villain cards. What is needed is one comparison — Hero's
 best five against the board's five — to catch playing the board and
 board-made straights, which `classify.ts:206` gets wrong by its own admission
@@ -292,10 +297,10 @@ October, not about "your game", and the payload has to make that impossible to
 get wrong.
 
 A narrow window makes `thin` the normal verdict rather than the exception —
-one month can be 120 hands, where almost nothing clears its `minN`. When the
-window holds fewer hands than the whole archive, the payload says so and names
-how many tags cleared their minimum, so a short month reads as "not enough
-yet" instead of as a clean bill of health.
+one month can be 120 hands, where almost nothing clears its `minN`. Thin tags
+are still emitted with their full counts. The agent reads them, says which are
+established and which are only forming, and the payload names how many cleared
+their minimum so a short month cannot be mistaken for a clean bill of health.
 
 **Step 10 — the skill.**
 
@@ -318,9 +323,14 @@ SKILL.md — one copy, and the skill points at it. The skill shells out to
 most likely to drift.
 
 Hard rules in SKILL.md: never read `hands/`; never state a number absent from
-the payload; at most 3 findings; never coach a `thin` tag; `blind` runs before
-`pots`, in its own invocation, because one agent running both defeats the mode
-split.
+the payload; at most 3 established findings; `blind` runs before `pots`, in
+its own invocation, because one agent running both defeats the mode split.
+
+Thin tags get their own rule rather than a ban. The agent may raise one as a
+**watch item** — named as thin, with its counts, phrased as forming rather
+than established — and a watch item never occupies one of the three finding
+slots. Stating a thin tag as an established leak is the error; mentioning it
+is not.
 
 **Step 11 — the log.** Findings append to `leaks-log.md` at the repo root,
 gitignored, dated, with a stable finding id so re-runs do not duplicate. Chat
