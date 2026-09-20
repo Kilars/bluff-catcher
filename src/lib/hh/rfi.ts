@@ -139,7 +139,7 @@ export function rfiFolds(hands: HeroHand[]): RfiFold[] {
       action: DEPTH_META[depth].actionNoun,
       caveat:
         h.stackBB >= NO_CHART_FROM && h.stackBB <= NO_CHART_TO
-          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts — read against the ${DEPTH_META[depth].label} chart, which is the nearer of the two`
+          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts; neither is written for it. Read against ${DEPTH_META[depth].label}, and treat a borderline hand as a coin-flip rather than a fold`
           : null,
     });
   }

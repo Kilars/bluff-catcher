@@ -118,7 +118,9 @@ export function readArchive(files: ArchiveFile[]): Archive {
     }
   }
 
-  hands.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  // `YYYY/MM/DD HH:MM:SS` is fixed-width, so a plain compare is chronological.
+  // localeCompare is not: ICU can weight the punctuation differently per locale.
+  hands.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
 
   return {
     hands,

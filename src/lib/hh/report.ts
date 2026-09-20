@@ -99,6 +99,14 @@ export function renderText(s: Summary, meta: ReportMeta, folds: RfiFold[]): stri
 
   out.push('BLUFF-CATCHER · LEAK REPORT');
   out.push(...headerLines(meta));
+
+  // Every stat below would read 0/0 and every span 0–0. A table of dashes looks
+  // like a finding; one sentence does not.
+  if (!s.hands) {
+    out.push('', 'The window selected no hands. Widen --from / --to.');
+    return out.join('\n');
+  }
+
   out.push(`levels ${s.levels[0]}–${s.levels[1]} · ${s.tournaments} tournament(s) in window`);
   out.push('');
 

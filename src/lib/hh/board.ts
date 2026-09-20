@@ -52,6 +52,6 @@ export function boardType(board: readonly string[]): BoardType | null {
   if (high < TEN) return 'middling-theirs';
 
   const twoTone = new Set(suits).size === 2;
-  const connected = Math.max(...ranks) - Math.min(...ranks) <= CONNECTED_SPAN;
+  const connected = high - Math.min(...ranks) <= CONNECTED_SPAN;
   return twoTone || connected ? 'wet-high-mine' : 'dry-high-mine';
 }
