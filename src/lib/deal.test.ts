@@ -17,14 +17,12 @@ function seeded(seed: number): () => number {
 
 const ALL_CATEGORIES: Category[] = [
   'flushDraw', 'openEnder', 'gutshot', 'doubleGutshot',
-  'combo', 'pairImproving', 'overcards', 'setDraw', 'backdoor',
+  'combo', 'pairImproving', 'overcards', 'setDraw',
 ];
 
 /** Rebuild an odds Spot from a dealt spot so we can re-run analyse(). */
 function oddsSpotOf(s: ReturnType<typeof dealSpot>): OddsSpot {
-  return s.read.backdoor
-    ? { hero: s.hero, board: s.board, mode: 'backdoor' }
-    : { hero: s.hero, board: s.board, hits: s.read.hits };
+  return { hero: s.hero, board: s.board, hits: s.read.hits };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -76,15 +74,27 @@ describe('dealSpot', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('never hands analyse a non-backdoor spot with 0 outs', () => {
+  it('never hands analyse a spot with 0 outs', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const rng = seeded(2024);
     for (let i = 0; i < 500; i++) {
       const spot = dealSpot({ rng });
       const a = analyse(oddsSpotOf(spot));
-      if (!spot.read.backdoor) expect(a.outs).toBeGreaterThan(0);
+      expect(a.outs).toBeGreaterThan(0);
     }
     expect(errSpy).not.toHaveBeenCalled();
+  });
+
+  it('never deals a backdoor: every spot has at least one one-card out', () => {
+    // The old taxonomy had a zero-out 'backdoor' category. It is gone, so the
+    // invariant above is now unconditional — this asserts the category itself
+    // never comes back through the dealer.
+    const rng = seeded(7);
+    for (let i = 0; i < 500; i++) {
+      const spot = dealSpot({ rng });
+      expect(spot.read.primaryCategory).not.toBe('backdoor');
+      expect(spot.read.name).not.toContain('backdoor');
+    }
   });
 
   it('covers every category over many default-weighted deals', () => {
@@ -99,7 +109,7 @@ describe('dealSpot', () => {
     }
     // Weighted: the weight-3 categories should out-appear the weight-1 ones overall.
     const heavy = (counts.flushDraw ?? 0) + (counts.openEnder ?? 0);
-    const light = (counts.combo ?? 0) + (counts.doubleGutshot ?? 0) + (counts.backdoor ?? 0);
+    const light = (counts.combo ?? 0) + (counts.doubleGutshot ?? 0) + (counts.setDraw ?? 0);
     expect(heavy).toBeGreaterThan(light);
   }, 20_000);
 });

@@ -68,12 +68,6 @@ function suitWord(suit: string): string {
   return suitName(suit);
 }
 
-/** Full suit name, singular: 'spade', 'heart', 'diamond', 'club'. */
-function suitWordSingular(suit: string): string {
-  const map: Record<string, string> = { s: 'spade', h: 'heart', d: 'diamond', c: 'club' };
-  return map[suit] ?? suitName(suit);
-}
-
 /** Count of a given suit among a card list. */
 function suitCount(cards: Card[], suit: string): number {
   let n = 0;
@@ -254,23 +248,6 @@ function step1Set(
   };
 }
 
-function step1Backdoor(
-  backdoorSuit: string,
-  hero: Card[],
-  board: Card[]
-): ExplainStep {
-  const known = hero.concat(board);
-  const knownOfSuit = suitCount(known, backdoorSuit);
-  const remaining = 13 - knownOfSuit;
-  const suitW = suitWord(backdoorSuit);
-  const suitSingular = suitWordSingular(backdoorSuit);
-  return {
-    index: '01',
-    title: 'Zero outs — you need both cards',
-    body: `You hold one ${suitSingular} and the board brought two, so three of five. ${numberWord(remaining)} ${suitW} remain, but no single card gets you there.`,
-  };
-}
-
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export function explain(
@@ -279,18 +256,15 @@ export function explain(
   hero: Card[],
   board: Card[]
 ): Explanation {
-  const { meta, name, backdoor } = read;
+  const { meta, name } = read;
   const { outs, streets, total, quick } = analysis;
 
-  const isBackdoor = backdoor === true;
   const mult = streets === 2 ? 4 : 2;
   const street = streets === 2 ? 'Flop' : 'Turn';
   const toCome = streets === 2 ? 'two cards to come' : 'one card to come';
 
   // ── title ──────────────────────────────────────────────────────────────
-  const title = isBackdoor
-    ? 'Roughly 4%, and no shortcut'
-    : `${outs} outs → ${Math.round(total)}%`;
+  const title = `${outs} outs → ${Math.round(total)}%`;
 
   // ── subline ────────────────────────────────────────────────────────────
   const subline = `${name} · ${street} · ${toCome}`;
@@ -298,10 +272,7 @@ export function explain(
   // ── step1 ──────────────────────────────────────────────────────────────
   let step1: ExplainStep;
 
-  if (isBackdoor) {
-    const bdSuit = meta.backdoorSuit ?? meta.flushSuit ?? 'h';
-    step1 = step1Backdoor(bdSuit, hero, board);
-  } else if (read.components.includes('flush') && read.components.includes('overcard') && !read.components.some(c => c === 'openEnder' || c === 'gutshot' || c === 'doubleGutshot')) {
+  if (read.components.includes('flush') && read.components.includes('overcard') && !read.components.some(c => c === 'openEnder' || c === 'gutshot' || c === 'doubleGutshot')) {
     // flush + overcard (no straight component)
     step1 = step1FlushOvercard(meta.flushSuit!, meta.overcardRanks, hero, board, analysis);
   } else if (read.components.includes('flush') && read.components.some(c => c === 'openEnder' || c === 'gutshot' || c === 'doubleGutshot')) {
@@ -331,14 +302,7 @@ export function explain(
   // ── step2 ──────────────────────────────────────────────────────────────
   let step2: ExplainStep;
 
-  if (isBackdoor) {
-    const bdSuitName = suitWord(meta.backdoorSuit ?? 'hearts');
-    step2 = {
-      index: '02',
-      title: 'The rule of 4 does not apply',
-      body: `There is nothing to multiply — zero outs times four is still zero. Both remaining cards have to be ${bdSuitName}, and two things that both must happen are much rarer than one thing that might. Treat a backdoor as a bonus attached to whatever else your hand is doing, never as a reason to call.`,
-    };
-  } else if (streets === 2) {
+  if (streets === 2) {
     step2 = {
       index: '02',
       title: 'Two cards to come, so multiply by 4',
@@ -354,45 +318,30 @@ export function explain(
 
   // ── step3 ──────────────────────────────────────────────────────────────
   let step3: ExplainStep | null = null;
+  const truePct = Math.round(total);
+  const drift = quick - total;
 
-  if (!isBackdoor && quick !== null) {
-    const truePct = Math.round(total);
-    const drift = quick - total;
-
-    if (streets === 2 && outs > 8) {
-      step3 = {
-        index: '03',
-        title: 'Where the shortcut drifts',
-        body: `Past eight outs the ×4 runs hot: ${outs} × 4 says ${quick}%, the deck says ${truePct}%. The fix is one subtraction — take off the outs above eight. ${outs} × 4 = ${quick}, minus ${outs - 8} = ${quick - (outs - 8)}%. Within a point.`,
-      };
-    } else if (Math.abs(drift) > 0.9) {
-      step3 = {
-        index: '03',
-        title: 'Where the shortcut drifts',
-        body: `×${mult} says ${quick}%, the deck says ${truePct}% — ${Math.abs(drift).toFixed(1)} of a point out. Ignore it. What actually costs you money is an out that is not clean: a card that fills your flush and also fills villain’s straight is worth less than one out.`,
-      };
-    }
+  if (streets === 2 && outs > 8) {
+    step3 = {
+      index: '03',
+      title: 'Where the shortcut drifts',
+      body: `Past eight outs the ×4 runs hot: ${outs} × 4 says ${quick}%, the deck says ${truePct}%. The fix is one subtraction — take off the outs above eight. ${outs} × 4 = ${quick}, minus ${outs - 8} = ${quick - (outs - 8)}%. Within a point.`,
+    };
+  } else if (Math.abs(drift) > 0.9) {
+    step3 = {
+      index: '03',
+      title: 'Where the shortcut drifts',
+      body: `×${mult} says ${quick}%, the deck says ${truePct}% — ${Math.abs(drift).toFixed(1)} of a point out. Ignore it. What actually costs you money is an out that is not clean: a card that fills your flush and also fills villain’s straight is worth less than one out.`,
+    };
   }
 
   // ── headMaths ──────────────────────────────────────────────────────────
-  let headMaths: Explanation['headMaths'];
-
-  if (isBackdoor) {
-    const bdSuitName = suitWord(meta.backdoorSuit ?? 'hearts');
-    headMaths = {
-      quickSum: 'No outs to multiply',
-      quickNote: 'Memorise the number instead',
-      trueNumber: total.toFixed(1),
-      trueNote: `Both cards must come ${bdSuitName}`,
-    };
-  } else {
-    headMaths = {
-      quickSum: `${outs} × ${mult} = ${quick}%`,
-      quickNote: `outs × ${mult}, done in your head`,
-      trueNumber: total.toFixed(1),
-      trueNote: 'What the deck actually does',
-    };
-  }
+  const headMaths: Explanation['headMaths'] = {
+    quickSum: `${outs} × ${mult} = ${quick}%`,
+    quickNote: `outs × ${mult}, done in your head`,
+    trueNumber: total.toFixed(1),
+    trueNote: 'What the deck actually does',
+  };
 
   // ── memorise (fixed six rows) ──────────────────────────────────────────
   const memorise: Explanation['memorise'] = [

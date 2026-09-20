@@ -26,10 +26,10 @@ import PhoneOddsTrainer from './PhoneOddsTrainer';
 // ─── Harness ──────────────────────────────────────────────────────────────────
 
 /** Exactly the wiring the parent mode does: one hook instance, one tree. */
-function Harness() {
+function Harness({ showDraw = false }: { showDraw?: boolean } = {}) {
   const stats = useStats();
   const drill = useOddsDrill(stats);
-  return <PhoneOddsTrainer drill={drill} />;
+  return <PhoneOddsTrainer drill={drill} showDraw={showDraw} />;
 }
 
 const PHONE_WIDTH = 390;

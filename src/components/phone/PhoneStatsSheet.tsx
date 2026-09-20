@@ -28,8 +28,12 @@ import styles from './PhoneStatsSheet.module.css';
  * hand's components, which is too specific to bucket by, so the short form
  * lives here. An unknown key falls back to the key itself rather than
  * disappearing — a new category should look odd, not be invisible.
+ *
+ * 'backdoor' is a retired category (DECISIONS.md, "Backdoors are out") and is
+ * kept in the map for one reason: stats saved before it was retired are still
+ * in localStorage, and a row reading 'backdoor' looks like a bug.
  */
-const CATEGORY_LABELS: Record<Category, string> = {
+const CATEGORY_LABELS: Record<Category | 'backdoor', string> = {
   flushDraw: 'Flush draw',
   openEnder: 'Open-ender',
   gutshot: 'Gutshot',
@@ -38,7 +42,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
   pairImproving: 'Pair improving',
   overcards: 'Two overcards',
   setDraw: 'Set draw',
-  backdoor: 'Backdoor flush',
+  backdoor: 'Backdoor flush (retired)',
 };
 
 const BANDS: Band[] = ['green', 'amber', 'red'];

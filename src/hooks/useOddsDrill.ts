@@ -56,12 +56,7 @@ export function useOddsDrill(stats: UseStatsReturn) {
   // ── Derived (memoised on spot) ─────────────────────────────────────────────
 
   const analysis = useMemo(
-    () =>
-      analyse(
-        spot.read.backdoor
-          ? { hero: spot.hero, board: spot.board, mode: 'backdoor' }
-          : { hero: spot.hero, board: spot.board, hits: spot.read.hits }
-      ),
+    () => analyse({ hero: spot.hero, board: spot.board, hits: spot.read.hits }),
     [spot]
   );
 

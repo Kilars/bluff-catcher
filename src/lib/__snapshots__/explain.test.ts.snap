@@ -1,63 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`explain: "backdoor" fixture classifies as overcards (Ah Kd / 9h 5h 2c) > snapshot 1`] = `
-{
-  "headMaths": {
-    "quickNote": "outs × 4, done in your head",
-    "quickSum": "6 × 4 = 24%",
-    "trueNote": "What the deck actually does",
-    "trueNumber": "24.1",
-  },
-  "memorise": [
-    {
-      "label": "15 outs",
-      "value": "54%",
-    },
-    {
-      "label": "8 · open-ender",
-      "value": "31%",
-    },
-    {
-      "label": "12 outs",
-      "value": "45%",
-    },
-    {
-      "label": "6 · overcards",
-      "value": "24%",
-    },
-    {
-      "label": "9 · flush draw",
-      "value": "35%",
-    },
-    {
-      "label": "4 · gutshot",
-      "value": "17%",
-    },
-  ],
-  "outsList": [
-    "Ks",
-    "Kh",
-    "Kc",
-    "As",
-    "Ad",
-    "Ac",
-  ],
-  "step1": {
-    "body": "Both hole cards beat every card on this board. Three aces pair your ace, three kings pair your king. Either makes top pair. Six outs.",
-    "index": "01",
-    "title": "Three aces, three kings",
-  },
-  "step2": {
-    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
-    "index": "02",
-    "title": "Two cards to come, so multiply by 4",
-  },
-  "step3": null,
-  "subline": "Two overcards · Flop · two cards to come",
-  "title": "6 outs → 24%",
-}
-`;
-
 exports[`explain: combo flush+straight (Jd Td / 9d 8c 2d) > snapshot 1`] = `
 {
   "headMaths": {
@@ -649,6 +591,64 @@ exports[`explain: overcards (Ah Kc / 9d 7s 2h) > snapshot 1`] = `
 }
 `;
 
+exports[`explain: overcards over three hearts (Ah Kd / 9h 5h 2c) > snapshot 1`] = `
+{
+  "headMaths": {
+    "quickNote": "outs × 4, done in your head",
+    "quickSum": "6 × 4 = 24%",
+    "trueNote": "What the deck actually does",
+    "trueNumber": "24.1",
+  },
+  "memorise": [
+    {
+      "label": "15 outs",
+      "value": "54%",
+    },
+    {
+      "label": "8 · open-ender",
+      "value": "31%",
+    },
+    {
+      "label": "12 outs",
+      "value": "45%",
+    },
+    {
+      "label": "6 · overcards",
+      "value": "24%",
+    },
+    {
+      "label": "9 · flush draw",
+      "value": "35%",
+    },
+    {
+      "label": "4 · gutshot",
+      "value": "17%",
+    },
+  ],
+  "outsList": [
+    "Ks",
+    "Kh",
+    "Kc",
+    "As",
+    "Ad",
+    "Ac",
+  ],
+  "step1": {
+    "body": "Both hole cards beat every card on this board. Three aces pair your ace, three kings pair your king. Either makes top pair. Six outs.",
+    "index": "01",
+    "title": "Three aces, three kings",
+  },
+  "step2": {
+    "body": "Each remaining card is roughly a 2% shot per out, and you get two of them. So outs × 4 is your chance of getting there by the river — the only arithmetic you need at the table.",
+    "index": "02",
+    "title": "Two cards to come, so multiply by 4",
+  },
+  "step3": null,
+  "subline": "Two overcards · Flop · two cards to come",
+  "title": "6 outs → 24%",
+}
+`;
+
 exports[`explain: pairImproving (Ah 9c / 9d 5s 2h) > snapshot 1`] = `
 {
   "headMaths": {
@@ -757,56 +757,5 @@ exports[`explain: setDraw (5s 5d / Kh Qc 8d) > snapshot 1`] = `
   "step3": null,
   "subline": "A pair drawing to a set · Flop · two cards to come",
   "title": "2 outs → 8%",
-}
-`;
-
-exports[`explain: standalone backdoor (8h 6d / Ah Kh 2c) > snapshot 1`] = `
-{
-  "headMaths": {
-    "quickNote": "Memorise the number instead",
-    "quickSum": "No outs to multiply",
-    "trueNote": "Both cards must come hearts",
-    "trueNumber": "4.2",
-  },
-  "memorise": [
-    {
-      "label": "15 outs",
-      "value": "54%",
-    },
-    {
-      "label": "8 · open-ender",
-      "value": "31%",
-    },
-    {
-      "label": "12 outs",
-      "value": "45%",
-    },
-    {
-      "label": "6 · overcards",
-      "value": "24%",
-    },
-    {
-      "label": "9 · flush draw",
-      "value": "35%",
-    },
-    {
-      "label": "4 · gutshot",
-      "value": "17%",
-    },
-  ],
-  "outsList": [],
-  "step1": {
-    "body": "You hold one heart and the board brought two, so three of five. Ten hearts remain, but no single card gets you there.",
-    "index": "01",
-    "title": "Zero outs — you need both cards",
-  },
-  "step2": {
-    "body": "There is nothing to multiply — zero outs times four is still zero. Both remaining cards have to be hearts, and two things that both must happen are much rarer than one thing that might. Treat a backdoor as a bonus attached to whatever else your hand is doing, never as a reason to call.",
-    "index": "02",
-    "title": "The rule of 4 does not apply",
-  },
-  "step3": null,
-  "subline": "A backdoor flush draw · Flop · two cards to come",
-  "title": "Roughly 4%, and no shortcut",
 }
 `;

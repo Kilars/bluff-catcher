@@ -38,6 +38,14 @@
  * takes 27px. The guess is already drawn on the bar; the true number is the
  * thing worth memorising.
  *
+ * The label row above the readout carries the draw. With `showDraw` on (the
+ * default) it names the draw **before** the commit, muted, above the kicker:
+ * you cannot practise pricing a draw you have not identified, and on a phone
+ * the board is four cards and a thumb away. The note and the [?] still wait for
+ * the commit — those are the answer, not the question. With `showDraw` off the
+ * asking state is the bare 20px kicker it always was. See DECISIONS.md,
+ * "Naming the draw".
+ *
  * Behaviour lives in `hooks/useOddsDrill` (DECISIONS.md, "two trees, one
  * behaviour"). The pending, uncommitted dial position is the hook's `hover`
  * state — the same slot the desktop rail's ghost uses — passed in here as
@@ -77,6 +85,8 @@ function clampPct(value: number): number {
 interface PhoneCommitBarProps {
   /** Committed guess, or null while the hand is still open. */
   guess: number | null;
+  /** Name the draw before the commit. Default behaviour; off is the hard mode. */
+  showDraw: boolean;
   /** Uncommitted dial position (the drill hook's `hover`), or null pre-touch. */
   pending: number | null;
   trueTotal: number;
@@ -94,6 +104,7 @@ interface PhoneCommitBarProps {
 
 export default function PhoneCommitBar({
   guess,
+  showDraw,
   pending,
   trueTotal,
   drawName,
@@ -207,8 +218,16 @@ export default function PhoneCommitBar({
 
   return (
     <section className={styles.commitBar} data-testid="phone-commit-bar">
-      {/* ── Label row — 20px asking, 108px answering ─────────────────────── */}
-      <div className={committed ? styles.labelRowRevealed : styles.labelRow}>
+      {/* ── Label row — 20px asking (46px hinted), 108px answering ───────── */}
+      <div
+        className={
+          committed
+            ? styles.labelRowRevealed
+            : showDraw
+              ? styles.labelRowHinted
+              : styles.labelRow
+        }
+      >
         {committed ? (
           <>
             <div className={styles.drawHeading}>
@@ -225,7 +244,14 @@ export default function PhoneCommitBar({
             <p className={styles.drawNote}>{drawNote}</p>
           </>
         ) : (
-          <span className={styles.kicker}>Chance you improve by the river</span>
+          <>
+            <span className={styles.kicker}>Chance you improve by the river</span>
+            {showDraw && (
+              <span className={styles.drawNamePreview} data-testid="phone-draw-preview">
+                {drawName}
+              </span>
+            )}
+          </>
         )}
       </div>
 

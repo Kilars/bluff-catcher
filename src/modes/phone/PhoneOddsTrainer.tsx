@@ -28,11 +28,13 @@ import type { UseOddsDrillReturn } from '../../hooks/useOddsDrill';
 interface PhoneOddsTrainerProps {
   /** The whole return value of `useOddsDrill(stats)`, called by the parent. */
   drill: UseOddsDrillReturn;
+  /** Name the draw before the commit. A preference, so it comes from the root. */
+  showDraw: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PhoneOddsTrainer({ drill }: PhoneOddsTrainerProps) {
+export default function PhoneOddsTrainer({ drill, showDraw }: PhoneOddsTrainerProps) {
   const {
     spot,
     guess,
@@ -56,6 +58,7 @@ export default function PhoneOddsTrainer({ drill }: PhoneOddsTrainerProps) {
           phone it is the dial's pending value, which is the same thing. */}
       <PhoneCommitBar
         guess={guess}
+        showDraw={showDraw}
         pending={hover}
         trueTotal={analysis.total}
         drawName={spot.read.name}

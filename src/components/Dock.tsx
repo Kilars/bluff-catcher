@@ -1,7 +1,14 @@
 /**
  * Dock — bottom 226px band.
- * Left column: draw read (hidden until commit) + ? button.
+ * Left column: the draw read + ? button.
  * Right column: question → result + buttons, plus the GuessRail.
+ *
+ * The left column has three states, not two. With `showDraw` on (the default)
+ * the draw is **named before the guess**, in a muted preview, so you know which
+ * outs you are being asked to price — the note and the [?] still wait for the
+ * commit, because those are the answer. With `showDraw` off the old behaviour
+ * is back: an em dash until you commit, and identifying the draw is part of the
+ * task. See DECISIONS.md, "Naming the draw".
  */
 
 import GuessRail from './GuessRail';
@@ -10,6 +17,8 @@ import styles from './Dock.module.css';
 
 interface DockProps {
   guess: number | null;
+  /** Name the draw before the commit. Default behaviour; off is the hard mode. */
+  showDraw: boolean;
   hover: number | null;
   trueTotal: number;
   drawName: string;
@@ -24,6 +33,7 @@ interface DockProps {
 
 export default function Dock({
   guess,
+  showDraw,
   hover,
   trueTotal,
   drawName,
@@ -58,6 +68,13 @@ export default function Dock({
               </button>
             </div>
             <p className={styles.drawNote}>{drawNote}</p>
+          </div>
+        ) : showDraw ? (
+          <div className={styles.drawPreview} data-testid="dock-draw-preview">
+            <h2 className={styles.drawNamePreview}>{drawName}</h2>
+            <p className={styles.drawPreviewHint}>
+              Now price it — the outs are yours to count.
+            </p>
           </div>
         ) : (
           <div className={styles.drawPlaceholder}>

@@ -19,12 +19,6 @@ import { analyse, type Card } from './odds';
 function analyseWith(hero: Card[], board: Card[]) {
   const read = classify(hero, board);
   if (!read) return null;
-
-  if (read.backdoor) {
-    // Backdoor uses mode:'backdoor' in analyse — 0 one-card outs by design.
-    return analyse({ hero, board, mode: 'backdoor' });
-  }
-
   return analyse({ hero, board, hits: read.hits });
 }
 
@@ -139,16 +133,12 @@ describe('classify()', () => {
       expect(result.outs).toBe(11); // 8 straight + 3 K overcards
     });
 
-    it('8h 6d / Ah Kh 2c → backdoor, 0 one-card outs', () => {
-      const hero: Card[] = ['8h', '6d'];
-      const board: Card[] = ['Ah', 'Kh', '2c'];
-      const read = classify(hero, board);
-      expect(read).not.toBeNull();
-      expect(read!.primaryCategory).toBe('backdoor');
-      expect(read!.backdoor).toBe(true);
-      // Backdoor: 0 one-card outs (the ~4% math uses a two-card formula)
-      const result = analyse({ hero, board, mode: 'backdoor' });
-      expect(result.outs).toBe(0);
+    it('8h 6d / Ah Kh 2c → null: a bare 3-flush is air, not a backdoor keeper', () => {
+      // Two hearts on the board plus one in hand is three to a suit and nothing
+      // else: no flush draw, no straight draw, no overcard (A and K are both
+      // above 8), no pair. It has zero one-card outs, so the drill never asks
+      // about it. See DECISIONS.md, "Backdoors are out".
+      expect(classify(['8h', '6d'] as Card[], ['Ah', 'Kh', '2c'] as Card[])).toBeNull();
     });
   });
 
@@ -250,9 +240,7 @@ describe('classify()', () => {
       for (const [hero, board] of keepers) {
         const read = classify(hero, board);
         expect(read).not.toBeNull();
-        if (!read!.backdoor) {
-          analyse({ hero, board, hits: read!.hits });
-        }
+        analyse({ hero, board, hits: read!.hits });
       }
 
       expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -283,9 +271,10 @@ describe('classify()', () => {
       expect(read!.name).toBe('A pair looking to improve');
     });
 
-    it('backdoor has name "A backdoor flush draw"', () => {
-      const read = classify(['8h', '6d'] as Card[], ['Ah', 'Kh', '2c'] as Card[]);
-      expect(read!.name).toBe('A backdoor flush draw');
+    it('no hand is ever named a backdoor flush draw', () => {
+      // The name is gone with the category: an otherwise-air 3-flush is a
+      // reject now, so nothing can carry it. See DECISIONS.md.
+      expect(classify(['8h', '6d'] as Card[], ['Ah', 'Kh', '2c'] as Card[])).toBeNull();
     });
 
     it('combo (flush + openEnder) has name "A flush draw and an open-ended straight draw"', () => {

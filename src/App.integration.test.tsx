@@ -121,3 +121,53 @@ describe('phone drops what a phone cannot use', () => {
     expect(screen.queryByText(/the situation/i)).not.toBeInTheDocument();
   });
 });
+
+describe('"Show the draw" — the whole wire, root to tree', () => {
+  // The preference is persisted in useAppPrefs, flipped in two different menus
+  // and consumed in two different trees. Each end has its own test; this is the
+  // only place the wire between them is exercised.
+
+  it('names the draw before the commit by default, on phone', () => {
+    renderAt('phone', <App />);
+    expect(screen.getByTestId('phone-draw-preview')).toBeInTheDocument();
+  });
+
+  it('names the draw before the commit by default, on desktop', () => {
+    renderAt('desktop', <App />);
+    expect(screen.getByTestId('dock-draw-preview')).toBeInTheDocument();
+  });
+
+  it('hides it from the phone menu, and remembers that', () => {
+    const first = renderAt('phone', <App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /more|menu/i }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Show the draw/ }));
+
+    expect(screen.queryByTestId('phone-draw-preview')).not.toBeInTheDocument();
+    first.unmount();
+
+    // Second launch: still hidden, because the choice outlives the session.
+    renderAt('phone', <App />);
+    expect(screen.queryByTestId('phone-draw-preview')).not.toBeInTheDocument();
+  });
+
+  it('hides it from the desktop menu', () => {
+    renderAt('desktop', <App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Show the draw/ }));
+
+    expect(screen.queryByTestId('dock-draw-preview')).not.toBeInTheDocument();
+  });
+
+  it('offers the toggle in odds mode only — it means nothing to the preflop drill', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
+    renderAt('desktop', <App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: /Show the draw/ })
+    ).not.toBeInTheDocument();
+  });
+});
+
