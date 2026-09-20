@@ -116,7 +116,14 @@ export interface HeroHand {
 }
 
 const STEAL_POSITIONS = new Set(['CO', 'BTN', 'SB']);
-const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
+/**
+ * Every label that is a blind, including the heads-up button — which posts the
+ * small blind and is therefore in one. Exported because `stats.ts` asks the
+ * same question and was answering it with two literals, so `SB/BTN` walked
+ * into the cold-call denominator: a heads-up blind defence counted as a
+ * cold-call opportunity it could never satisfy.
+ */
+export const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
 
 /**
  * The hand's calendar date. GGPoker prints `2026/09/08 20:03:09` with no zone,

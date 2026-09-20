@@ -54,8 +54,28 @@ describe('docs/leak-coaching.md', () => {
   it('builds a report with every documented section populated', () => {
     expect(report.rfiFolds.length).toBeGreaterThan(0);
     expect(report.byBoard.splits.length).toBeGreaterThan(0);
-    expect(report.worstPots[0].decisions.length).toBeGreaterThan(0);
-    expect(report.biggestCalls.length).toBeGreaterThan(0);
+    expect(report.byRole.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The payload's whole premise. An agent that can see what a hand returned
+   * coaches the hands that lost, and those are not the hands played worst —
+   * so every route from the payload to a result is closed, and stays closed.
+   */
+  it('hands the agent no way to tell what anything returned', () => {
+    expect(report).not.toHaveProperty('chipFlow');
+    expect(report).not.toHaveProperty('worstPots');
+    expect(report).not.toHaveProperty('biggestCalls');
+    for (const r of report.byRole) {
+      expect(Object.keys(r).sort(), `byRole ${r.role}`).toEqual(['hands', 'role']);
+    }
+    for (const key of ['wwsf', 'wtsd', 'wsd']) {
+      expect(report.stats.map((x) => x.key), key).not.toContain(key);
+    }
+    // Nothing that survives may carry a chip count or a big-blind figure.
+    const money = /net|won|invested|cost|chips|BB\b/i;
+    const leaked = JSON.stringify(report).match(/"(\w*(?:net|won|invested|cost|BB))"\s*:/gi) ?? [];
+    expect(leaked.filter((k) => !/stackBB/i.test(k) && money.test(k))).toEqual([]);
   });
 
   it('documents exactly the stats the report emits', () => {
@@ -70,16 +90,7 @@ describe('docs/leak-coaching.md', () => {
   });
 
   it('describes the input contract with keys that exist', () => {
-    for (const key of [
-      'meta',
-      'chipFlow',
-      'stats',
-      'byBoard',
-      'rfiFolds',
-      'byRole',
-      'worstPots',
-      'biggestCalls',
-    ]) {
+    for (const key of ['meta', 'stats', 'byBoard', 'rfiFolds', 'byRole']) {
       expect(report, key).toHaveProperty(key);
     }
 
@@ -103,13 +114,6 @@ describe('docs/leak-coaching.md', () => {
       'timezone',
       'tournaments',
     ]);
-    expect(Object.keys(report.chipFlow).sort()).toEqual([
-      'investedBB',
-      'netBB',
-      'netChips',
-      'nonShowdownBB',
-      'showdownBB',
-    ]);
     expect(Object.keys(report.byBoard.splits[0]).sort()).toEqual([
       'board',
       'key',
@@ -126,22 +130,6 @@ describe('docs/leak-coaching.md', () => {
       'id',
       'position',
       'stackBB',
-    ]);
-    expect(Object.keys(report.worstPots[0].decisions[0]).sort()).toEqual([
-      'action',
-      'chips',
-      'equityNeeded',
-      'potBefore',
-      'street',
-      'toCall',
-    ]);
-    expect(Object.keys(report.biggestCalls[0]).sort()).toEqual([
-      'board',
-      'cards',
-      'costBB',
-      'equityNeeded',
-      'id',
-      'street',
     ]);
   });
 

@@ -11,7 +11,7 @@
  */
 
 import type { Street } from './parse.ts';
-import type { HeroHand, PreflopRole } from './hero.ts';
+import { BLINDS, type HeroHand, type PreflopRole } from './hero.ts';
 import { boardType, type BoardType } from './board.ts';
 
 /** Which side of the ledger a reading falls on. */
@@ -281,7 +281,7 @@ export function summarise(hs: HeroHand[]): Summary {
   // ── Preflop, excluding open-raise selection ───────────────────────────────
   const firstIn = hs.filter((h) => h.firstInOpp && h.limpersAhead === 0);
   const threeBetOpps = hs.filter((h) => h.threeBetOpp);
-  const coldCallOpps = threeBetOpps.filter((h) => h.position !== 'SB' && h.position !== 'BB');
+  const coldCallOpps = threeBetOpps.filter((h) => !BLINDS.has(h.position));
   const faced3 = hs.filter((h) => h.faced3Bet);
   const steals = hs.filter((h) => h.stealDefenceOpp);
 

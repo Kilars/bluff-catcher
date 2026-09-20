@@ -196,6 +196,56 @@ function parseActionBody(rest: string): RawAction | null {
   return null;
 }
 
+/**
+ * Rotate the live seats into preflop action order and name them.
+ *
+ * The anchor is a *posted blind*, not the button's seat number, because the
+ * seat number is not a reliable anchor in two common cases:
+ *
+ *  - **Heads-up the button IS the small blind.** `positionNames(2)` returns
+ *    `['SB/BTN', 'BB']`, an array that starts at the small blind, but "the
+ *    first live seat past the button" is the big blind when only two players
+ *    remain. Anchoring on the seat number handed the button player `BB` and
+ *    the big blind `SB/BTN` — exactly backwards, on every hand of every final
+ *    table.
+ *  - **A dead button with a dead small blind.** After a bust the button can
+ *    sit on an empty seat with no small blind posted behind it. The first live
+ *    seat past the button is then the *big* blind, so labelling it `SB` shifted
+ *    every position in the hand by one — including the non-blind seats, which
+ *    is how a fold from UTG came back as a fold from the big blind.
+ *
+ * The small blind is the anchor whenever one is posted, which is identical to
+ * the old behaviour for every hand that has one: the first live seat past the
+ * button *is* the small blind, live button or dead. When no small blind is
+ * posted, the big blind anchors instead and the `SB` label is dropped, because
+ * there is no player in that position to wear it.
+ *
+ * A hand with neither blind posted is not a hand we can read positions from,
+ * so it falls back to the seat number and labels as best it can.
+ */
+function rotateToBlinds(
+  sorted: Seat[],
+  actions: Action[],
+  btnSeat: number,
+): { rotated: Seat[]; labels: string[] } {
+  const poster = (kind: 'sb' | 'bb') => actions.find((a) => a.kind === kind)?.player ?? null;
+  const rotate = (start: number) => [...sorted.slice(start), ...sorted.slice(0, start)];
+
+  const sbIdx = sorted.findIndex((s) => s.name === poster('sb'));
+  if (sbIdx >= 0) return { rotated: rotate(sbIdx), labels: positionNames(sorted.length) };
+
+  const bbIdx = sorted.findIndex((s) => s.name === poster('bb'));
+  if (bbIdx >= 0) {
+    // Name the seats as though the empty small blind were still at the table,
+    // then drop its label. Sizing the array to the live count instead would
+    // walk every remaining seat one position closer to the button.
+    return { rotated: rotate(bbIdx), labels: positionNames(sorted.length + 1).slice(1) };
+  }
+
+  const after = sorted.findIndex((s) => s.seat > btnSeat);
+  return { rotated: rotate(after < 0 ? 0 : after), labels: positionNames(sorted.length) };
+}
+
 function parseHand(block: string): Hand | { error: string } {
   const lines = block.split(/\r?\n/);
   const head = HEADER.exec(lines[0]);
@@ -327,20 +377,10 @@ function parseHand(block: string): Hand | { error: string } {
     }
   }
 
-  // Seats that took part, rotated so the seat left of the button comes first.
+  // Seats that took part, rotated into preflop action order.
   const live = seats.filter((s) => acted.has(s.name));
   const sorted = [...live].sort((a, b) => a.seat - b.seat);
-  // Rotate to the first live seat *past* the button rather than to the button
-  // itself. Under the dead-button rule the button sits on an empty seat after a
-  // bust, and there is no seat to find — the old fallback kept raw seat order
-  // and then labelled by it, so every position in the hand was wrong and the
-  // small blind came back as a late seat. For a live button this is identical
-  // to starting at btnIdx + 1.
-  const btnSeat = Number(tbl[3]);
-  const after = sorted.findIndex((s) => s.seat > btnSeat);
-  const start = after < 0 ? 0 : after;
-  const rotated = [...sorted.slice(start), ...sorted.slice(0, start)];
-  const labels = positionNames(rotated.length);
+  const { rotated, labels } = rotateToBlinds(sorted, actions, Number(tbl[3]));
   const position: Record<string, string> = {};
   rotated.forEach((s, i) => {
     position[s.name] = labels[i] ?? '?';

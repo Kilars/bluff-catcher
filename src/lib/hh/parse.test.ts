@@ -134,6 +134,61 @@ p5 collected 140 from pot
 Total pot 140 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 `;
 
+/**
+ * Heads-up, where the button posts the *small* blind. Hero is on the button in
+ * seat 4; p2 in seat 2 posts the big blind.
+ */
+const HEADS_UP = `Poker Hand #HU1: Tournament #999, Test $1 Hold'em No Limit - Level2(50/100(10)) - 2026/09/11 10:00:00
+Table '1' 8-max Seat #4 is the button
+Seat 2: p2 (10,000 in chips)
+Seat 4: Hero (10,000 in chips)
+p2: posts the ante 10
+Hero: posts the ante 10
+Hero: posts small blind 50
+p2: posts big blind 100
+*** HOLE CARDS ***
+Dealt to p2 
+Dealt to Hero [Ah Qc]
+Hero: folds
+Uncalled bet (50) returned to p2
+*** SHOWDOWN ***
+p2 collected 120 from pot
+*** SUMMARY ***
+Total pot 120 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+`;
+
+/**
+ * A dead button *and* a dead small blind: the button is on empty seat 3 and
+ * nobody posts a small blind, so the first live seat past the button is the big
+ * blind rather than the small.
+ */
+const DEAD_BUTTON_DEAD_SB = `Poker Hand #DB2: Tournament #999, Test $1 Hold'em No Limit - Level2(50/100(10)) - 2026/09/11 10:00:00
+Table '1' 8-max Seat #3 is the button
+Seat 1: p1 (10,000 in chips)
+Seat 2: p2 (10,000 in chips)
+Seat 5: Hero (6,000 in chips)
+Seat 6: p6 (10,000 in chips)
+p1: posts the ante 10
+p2: posts the ante 10
+Hero: posts the ante 10
+p6: posts the ante 10
+Hero: posts big blind 100
+*** HOLE CARDS ***
+Dealt to p1 
+Dealt to p2 
+Dealt to Hero [Ah Qc]
+Dealt to p6 
+p6: folds
+p1: folds
+p2: raises 200 to 300
+Hero: folds
+Uncalled bet (200) returned to p2
+*** SHOWDOWN ***
+p2 collected 240 from pot
+*** SUMMARY ***
+Total pot 240 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+`;
+
 /** Hero calls the river and loses. GGPoker prints a muck, never a shows line. */
 const MUCKED = `Poker Hand #MK1: Tournament #999, Test $1 Hold'em No Limit - Level2(50/100(10)) - 2026/09/10 10:00:00
 Table '1' 8-max Seat #4 is the button
@@ -247,7 +302,7 @@ describe('parseHands', () => {
 });
 
 describe('a dead button', () => {
-  it('labels seats from the first live seat past it, not by seat number', () => {
+  it('labels seats from the posted small blind, not by seat number', () => {
     const h = parseHands(DEAD_BUTTON).hands[0];
     expect(h.potMatches).toBe(true);
     // Falling back to raw seat order used to make Hero the lojack while he was
@@ -256,6 +311,33 @@ describe('a dead button', () => {
     expect(h.position.p5).toBe('BB');
     expect(h.position.p1).toBe('CO');
     expect(h.position.p2).toBe('BTN');
+  });
+
+  it('anchors on the big blind when no small blind is posted', () => {
+    const h = parseHands(DEAD_BUTTON_DEAD_SB).hands[0];
+    expect(h.potMatches).toBe(true);
+    // Hero posts the big blind. Anchoring on the button's seat number called
+    // the first live seat past it the SB and walked every other label one
+    // position with it — so an UTG fold came back as a fold from the blinds.
+    expect(h.position.Hero).toBe('BB');
+    expect(h.position.p6).toBe('HJ');
+    expect(h.position.p1).toBe('CO');
+    expect(h.position.p2).toBe('BTN');
+    // Nobody wears the small blind: the seat is empty.
+    expect(Object.values(h.position)).not.toContain('SB');
+  });
+});
+
+describe('heads-up', () => {
+  it('gives the button the small blind, not the big', () => {
+    const h = parseHands(HEADS_UP).hands[0];
+    expect(h.potMatches).toBe(true);
+    // positionNames(2) starts at the small blind, but heads-up the button IS
+    // the small blind — so "first live seat past the button" is the big blind
+    // and anchoring on it handed out both labels backwards.
+    expect(h.position.Hero).toBe('SB/BTN');
+    expect(h.position.p2).toBe('BB');
+    expect(h.order).toEqual(['Hero', 'p2']);
   });
 });
 

@@ -181,27 +181,43 @@ export function renderText(s: Summary, meta: ReportMeta, folds: RfiFold[]): stri
   return out.join('\n');
 }
 
-/** The same numbers, shaped for a coaching prompt rather than a terminal. */
+/**
+ * Stats that answer "did it work" rather than "what did you do". They are in
+ * the text report, which a human reads, and never in the payload.
+ */
+const RESULT_STATS = new Set(['wwsf', 'wtsd', 'wsd']);
+
+/**
+ * The payload the coaching agent reads. **Blind to results by construction.**
+ *
+ * An agent that can see what a hand returned will coach the hands that lost,
+ * and the hands that lost are not the hands that were played badly — a cooler
+ * played perfectly loses a stack, and a dreadful fold costs nothing and leaves
+ * no trace. So the money never reaches here: no chip flow, no net by role, no
+ * loss-ranked pot list, no won-when/won-at-showdown, and `board` stops where
+ * Hero stopped.
+ *
+ * This is why there is no `--mode blind`: the main path *is* blind, and
+ * `--mode pots` is the one place results are deliberately visible, for a human
+ * asking where the chips went. Nothing selects hands by money any more, which
+ * leaves `rfiFolds` as the only hand-level finding — the honest state of the
+ * harness until labelling lands.
+ */
 export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
   return {
     meta: { ...meta, levels: s.levels, tournaments: s.tournaments },
-    chipFlow: {
-      netChips: s.netChips,
-      netBB: Number(s.netBB.toFixed(2)),
-      showdownBB: Number(s.showdownBB.toFixed(2)),
-      nonShowdownBB: Number(s.nonShowdownBB.toFixed(2)),
-      investedBB: Number(s.investedBB.toFixed(2)),
-    },
-    stats: s.stats.map((x) => ({
-      key: x.key,
-      label: x.label,
-      made: x.made,
-      opportunities: x.opp,
-      pct: x.pct === null ? null : Number(x.pct.toFixed(1)),
-      band: x.band,
-      verdict: x.verdict,
-      flag: x.flag as Flag,
-    })),
+    stats: s.stats
+      .filter((x) => !RESULT_STATS.has(x.key))
+      .map((x) => ({
+        key: x.key,
+        label: x.label,
+        made: x.made,
+        opportunities: x.opp,
+        pct: x.pct === null ? null : Number(x.pct.toFixed(1)),
+        band: x.band,
+        verdict: x.verdict,
+        flag: x.flag as Flag,
+      })),
     byBoard: {
       caveat: SPLIT_CAVEAT,
       splits: s.byBoard.map((b) => ({
@@ -213,16 +229,9 @@ export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
       })),
     },
     rfiFolds: folds,
-    byRole: s.byRole.map((r) => ({ ...r, netBB: Number(r.netBB.toFixed(2)) })),
-    worstPots: s.worstPots.map(handDetail),
-    biggestCalls: s.biggestCalls.map((c) => ({
-      id: c.hand.id,
-      street: c.street,
-      costBB: Number((c.toCall / c.hand.bb).toFixed(2)),
-      equityNeeded: Number((c.potOdds * 100).toFixed(1)),
-      cards: c.hand.cards,
-      board: boardSeen(c.hand),
-    })),
+    // How Hero entered, without what it returned: the distribution is a fact
+    // about play, the net is a fact about luck.
+    byRole: s.byRole.map((r) => ({ role: r.role, hands: r.hands })),
   };
 }
 
