@@ -1,198 +1,325 @@
-# Plan — hand-history coach pipeline
+# Plan — hand-history coach skill
 
-Turns a growing archive of GGPoker exports into two payloads for an LLM coach:
-one that never sees results, and one that reviews the biggest pots.
+A local archive of GGPoker exports, a script that labels every decision
+deterministically, and an agent that reasons over cohorts of labelled hands.
+Ships as a Claude Code skill.
 
-Supersedes nothing. `docs/leak-coaching.md` stays as-is — it grounds the
-existing stat report. This plan adds the per-hand layer beside it.
+`docs/leak-coaching.md` is untouched and stays the grounding for the existing
+aggregate report. This adds the per-hand layer beside it.
 
 ---
 
 ## 1. Spec
 
-Requirements as stated, not paraphrased into something easier to build.
+Requirements as stated, not softened into something easier to build.
 
 ### Output
 
-1. **Minimal.** Parse, then emit the desired action only. No padding.
-2. **Per-hand action lines**, not aggregate-only. The coach sees hands.
-3. **The LLM never computes a statistic.** Every frequency, count and
-   percentage comes from code. The model reads and judges; it does not count.
+1. **Minimal.** Parse, emit the desired action, stop.
+2. **Per-hand action lines**, not aggregate-only.
+3. **The model never computes a statistic.** Every count, frequency and
+   percentage comes from code.
+4. **Findings go to a local `leaks-log.md`**, gitignored, plus a short summary
+   in chat. Not a wall of text in either place.
+
+### Labelling
+
+5. **Labelling is scripted.** Hand class, board type, action bucket and the
+   resulting tag are all computed. No model in the labelling path, so the same
+   hand always carries the same tag and the denominators mean something.
+6. **The agent reasons over cohorts, not single hands.** It asks the script for
+   every hand carrying a tag, reads that cohort, and applies poker knowledge to
+   say what the pattern is and how to fix it — "you are overbetting, but too
+   small" is the shape of the output, and it is a claim about the group.
+7. **Wide enough to name real mistakes, narrow enough to cluster.**
+8. **Derived from `docs/strategy-notes.md`**, which is input material for the
+   vocabulary. It is not loaded at runtime and never handed to the agent.
+9. **Every tag carries its denominator** and reads `thin` below a minimum.
+   8 of 15 is a leak; 8 of 200 is noise.
 
 ### Outcome blindness
 
-4. **Villain hole cards are never passed to the coach.** `shows[]` is parsed
-   and stays out of every payload.
-5. **The board truncates at the street Hero left.** Folding the flop means the
-   turn and river are not emitted.
-6. **Mode `blind` carries no money at all** — no `netBB`, no `chipFlow`, no
-   result-derived ordering.
+10. **Villain hole cards never reach the agent.** `shows[]` is parsed and stays
+    out of every payload.
+11. **The board truncates at the street Hero left**, and so does the action line.
+12. **`blind` carries no money and no result** — no `netBB`, no `chipFlow`, no
+    `wonPot`, no showdown stats, no result-derived ordering.
+13. **The agent never reads `hands/` directly.** The payload is the only input.
+    One `cat` of a raw export defeats the entire design.
 
 ### Modes
 
-7. **`blind`** — no outcome. Looks for patterns and misplays.
-8. **`pots`** — the big pots, wins and losses both. Ranked by Hero's own
-   invested BB, so a pot villains built after Hero folded never surfaces.
-   Money is visible here; that is the point of the mode.
+14. **`blind`** — no outcome. Cohorts, tags, action lines.
+15. **`pots`** — the big pots, wins and losses both, ranked by Hero's gross
+    chips in. Money visible; that is the point of the mode.
+16. **`leaks`** — the existing aggregate report, unchanged, still the default.
 
 ### Folds
 
-9. **Preflop folds are removed from the `blind` payload entirely.** `vpip` and
-   `pfr` already state that exactly.
-10. **The range check is code, never an LLM.** Checking a fold against a chart
-    by prompting a model is inefficient and unnecessary.
-11. **RFI only for now.** Blind defense, 3-bet and cold-call ranges are a later
-    increment. Small steps.
-
-### Labels
-
-12. **Wide enough to name real mistakes, narrow enough to cluster.**
-13. **Derived from `docs/strategy-notes.md`**, which is *input material for the
-    vocabulary* — it is not read at runtime and not handed to the agent.
-14. **Every tag carries its denominator**, and reads `thin` below a minimum.
-    8 of 15 is a leak; 8 of 200 is noise.
+17. **Preflop folds are absent from `handLines[]`.** They still feed tag counts
+    and the RFI block.
+18. **The range check is code, never a model.**
+19. **RFI only for now.** Blind defense, 3-bet and cold-call ranges later.
 
 ### Archive
 
-15. **A local folder of hand histories** that grows as tournaments are played.
-    Every run parses the whole archive. Counts accumulate across exports
-    rather than restarting.
-16. Currently ~500 hands across 5 tournaments. Built for that to increase.
+20. **`hands/` at the repo root, gitignored**, holding `.txt` exports. Grows as
+    tournaments are played. Every run reads the whole archive.
+21. ~500 hands across 5 tournaments today. Built for that to increase.
 
 ### Process
 
-17. **No tests** for this work.
-18. **MVP first**, then increments.
-19. Position mapping stays simple — use what the history gives.
+22. **No tests.** Drift is caught by a check script the skill runs, not by CI.
+23. **MVP first**, then increments. Position mapping stays simple.
 
 ---
 
-## 2. The label model
+## 2. Label model
 
-Four axes. Each of the first two carries a *prescription*, which is what makes
-tags generate instead of being enumerated by hand.
+### Hand class — four, not six
 
-### Hand class — prescribes an action
+`strong / marginal-made / draw / air`
 
-| Class | Prescription |
-|---|---|
-| `strong-vulnerable` | bet nearly always |
-| `strong-invulnerable` | bet small, or check some |
-| `marginal-made` | check/call, pot control |
-| `draw` | bet often |
-| `air-backdoor` | bet at balancing frequency |
-| `air-nothing` | check |
+`strong-vulnerable` and `strong-invulnerable` were one class times a facet the
+plan already stored, so they collapse. `vulnerable` is a boolean beside the
+class, and `overbet-invuln` is `strong` + `!vulnerable` + `bet-over`.
 
-Five come from strategy-notes §2 stage 2. `marginal-made` is added because
-that table is written about betting, so bluff-catchers and TPWK fall through
-it, and `LEAK-TPWK` already exists as a named finding.
+`air-backdoor` is dropped. `DECISIONS.md:126` deleted backdoor detection on
+purpose, and reintroducing it to name one tag is not worth reopening that
+decision. Backdoor hands fall into `air`.
 
-### Board — prescribes a size
+**`vulnerable` is forced `false` on the river.** Zero cards to come means
+nothing to deny, and without this every river check tags `underprotection`.
 
-| Type | Prescription |
-|---|---|
-| `dry-high-mine` | 33%, ~90% frequency |
-| `wet-high-mine` | 75%, ~55% |
-| `middling-theirs` | check ~60%, else 33% |
-| `paired` | 33%, high frequency |
-| `monotone` | check often, small when betting |
+### Action — two trees, not one
 
-From §2 stage 1. "Mine" is relative to who raised preflop.
+You cannot check while facing a bet. One flat axis silently folds every
+fold-to-a-bet into `missed-semibluff`.
 
-### Action taken
+| Tree | Values | Prescriptions |
+|---|---|---|
+| `unopened` | `check / bet-33 / bet-75 / bet-over` | strategy-notes §2 stage 2 |
+| `facing` | `fold / call / raise` | none yet — facets only, no tag |
 
-`check / fold / call / bet-33 / bet-75 / bet-over`, bucketed from
-`amount / potBefore`. Raises flagged, not split into their own scale.
+§3 gives a price table for the facing tree, not a prescription. Until there is
+one, facing decisions emit facets and `tag: null`.
 
-§6 draws the size tree as 33 / 75 / 150 / 200, and the 150-vs-200
-discriminator is real — 150 is wide value against a spread of decent hands,
-200 is near-nuts against one hand they cannot fold. Both collapse to
-`bet-over` for now: at 500 hands they would carry a couple of hits each,
-which names nothing. Split them when the archive supports it.
+Buckets from `Action.to` (`parse.ts:52`), never `Action.amount`, which for a
+raise is chips *added* (`parse.ts:296`). Boundaries: `<0.45` / `0.45–1.0` /
+`>1.0` of the pot. **`Action.allIn` excludes the decision from bucketing** — a
+12bb jam into a 6bb pot is `bet-over` by ratio and is not an overbet decision.
+At MTT depths this is otherwise a large false-positive source.
 
-Nut advantage is a stored facet, not a gate on any tag. Gating narrows the
-tag further at exactly the sample size where hits are scarce.
+### Prescriptions apply to the preflop aggressor only
 
-### Street bluff logic
+strategy-notes §2 is headed "Postflop **as the preflop aggressor**", and §3
+has the BB caller checking to the PFA. Ungated, `underprotection` fires on
+correct caller checks and on the check half of a check-raise — which §3 calls
+"correct and underused".
 
-`flop = equity`, `turn = equity + blockers`, `river = blockers only` (§5).
-Gives a per-street test rather than one generic one.
+Gate on `hero.ts:278 pfa` and `StreetPlay.facedBet`. Evaluate the street by
+`checkRaised` (`hero.ts:135`), not by its first action.
 
-### The tag is the mismatch
+### Board type is an aggregate, never a tag
 
-Not a free-form label. Prescription vs action:
+§2 stage 1 prescribes a *frequency* — "33%, ~90%". That is a property of a
+population. One check on A-7-2r is not a mistake, and tagging it as one is
+simply wrong.
+
+Board type contributes to the bucket key and produces one aggregate row per
+type, through the existing `Stat` shape:
 
 ```
-strong-invulnerable × bet-over → overbet-invuln
-strong-vulnerable   × check    → underprotection
-marginal-made       × bet-over → nonpremium-overbet
-air-nothing         × bet-*    → worst-bluff-candidate
-draw                × check    → missed-semibluff
+cbet on dry-high-mine: 12/19 = 63%  vs ~90%
 ```
 
-A closed vocabulary that clusters, because the axes are small and the tag is a
-function of them.
+The five types stay: `dry-high-mine / wet-high-mine / middling-theirs /
+paired / monotone`.
 
-### Facets — stored, read by the coach, never clustered on
+### The tag
 
-IP/OOP · pot type (SRP / 3BP / limped) · SPR as a number · multiway · level ·
-stack depth in bb · `vulnerable` bool · `nut-advantage` bool.
+Prescription versus action, on the `unopened` tree, as PFA:
 
-These fragment the key if clustered. Four facets across 24 tags is ~576 cells,
-which never fires a three-hand threshold. They are context, not key.
+```
+strong + !vulnerable × bet-over → overbet-invuln
+strong +  vulnerable × check    → underprotection
+marginal-made        × bet-over → nonpremium-overbet
+air                  × bet-*    → worst-bluff-candidate
+draw                 × check    → missed-semibluff
+```
+
+### "This was fine" is data, not absence
+
+Every postflop decision emits a row. The prescription returns `ok | off | n-a`:
+
+- `ok` — matched. `tag: null`.
+- `off` — mismatched. Tag set.
+- `n-a` — no prescription applies: caller, multiway, facing a bet, under 15bb.
+  **Excluded from the denominator.** Collapsing `n-a` into `ok` dilutes every
+  frequency printed.
+
+### Facets — stored, read, never clustered on
+
+IP/OOP · pot type (SRP / 3BP / limped) · players in on the street · SPR ·
+level · stack depth · `vulnerable` · `nutAdvantage`.
+
+IP/OOP, pot type and players-in are functions of the parsed `Hand` and nothing
+currently produces them — see step 3. SPR, level and `stackBB` already exist
+(`hero.ts:49-55`, `:126`); do not recompute them.
 
 ---
 
 ## 3. Build order
 
-Each step lands on its own.
+**Step 0 — module resolution.** `node --experimental-strip-types` is ESM and
+needs file extensions. `classify.ts:23`, `ranges.ts:62`, `hands.ts:18`,
+`boundary.ts:19` and `:27` import values without one, and
+`import('src/lib/preflop/ranges.ts')` throws `ERR_MODULE_NOT_FOUND` today.
+`hh/*.ts` works only because it already writes `.ts`. Add the extensions; vite
+and vitest tolerate them. **Nothing else in this plan runs until this lands.**
 
-**1. Archive and accumulation.**
-`hands/` at the repo root, gitignored. The CLI walks it, parses every export,
-dedupes by hand id. One run, whole archive.
+**Step 1 — archive and CLI.** `hands/` at the repo root, gitignored, walked
+**recursively** (`collect()` at `leaks.ts:17` is not, so per-tournament
+subfolders vanish silently). Dedupe by hand id, asserting same-id records carry
+identical text. `meta` currently reports the first tournament's name and date
+as the whole archive's (`leaks.ts:59`) — widen it to a span. **Hands failing
+the pot check are excluded from denominators, not merely warned about**: in an
+accumulating archive that garbage is permanent. Return
+`{hands, perFile: {file, hands, skipped, potFails, noHero}}`.
 
-**2. Made-hand strength.** `src/lib/hh/strength.ts`.
-The load-bearing gap: `classify.ts` returns `null` for made hands and air, so
-it covers draws only. Needs a 7-card evaluator producing the six classes plus
-the `vulnerable` boolean (are there live cards that turn this into a loser).
-`odds.ts` has `hasFlush` / `hasStraight` / `pairsUp` to build on.
+**Step 2 — action lines.** `src/lib/hh/lines.ts`. Compact per-hand notation,
+board and line both truncated at Hero's last action, preflop folds omitted.
+Depends only on parse and hero, and it is the thing the agent actually reads.
 
-**3. Board typing.** `src/lib/hh/board.ts`. The five types, plus
-`draw-completed` on turn and river. `nut-advantage` computed from board type
-and preflop role.
+**Step 3 — decision facets.** Extend `StreetPlay` (`hero.ts:25`) with IP/OOP,
+pot type and players-in. Doing this in `tags.ts` instead would re-walk
+`hand.actions` and produce a second pot-state computation — exactly what the
+parser's pot check exists to guard against.
 
-**4. Action lines.** `src/lib/hh/lines.ts`. Per-hand compact notation, board
-truncated at exit street, preflop folds omitted. This is the thing the coach
-actually reads.
+**Step 4 — RFI fold check.** Fires on preflop folds, which are most hands, and
+needs no new poker logic. `positionNames` (`parse.ts:155`) already maps by
+distance from the button and its labels are a subset of `ranges.ts:66`
+POSITIONS apart from the blinds, so the check is
+`POSITIONS.includes(position)` plus first-in — noting `firstInOpp`
+(`hero.ts:228`) currently admits SB and limped pots, which RFI is not.
+Tolerance band from `strengthRank` / `HAND_STRENGTH_RANKING`
+(`preflop/hands.ts:200`, `:170`): per strategy-notes §1 the line should sit
+*tighter* than the chart, so boundary folds are correct and only folds above
+the Nth-weakest in-range hand are flagged.
 
-**5. Tagging.** `src/lib/hh/tags.ts`. Prescription vs action per street
-decision. Emits tag plus the facets for that decision.
+**Step 5 — hand and board reading.** `src/lib/read.ts`, beside odds and
+classify rather than under `hh/`, which is history-shaped. One module, because
+`vulnerable = f(handClass, boardTexture)` and splitting it scans ranks and
+suits twice.
 
-**6. Aggregation.** Tag counts with denominators — how often the spot arose,
-how often it was misplayed. `thin` below minN, reusing the shape in
-`stats.ts:184`.
+No 7-card evaluator. An evaluator exists to compare two hands, and spec item 10
+forbids ever seeing villain cards. What is needed is one comparison — Hero's
+best five against the board's five — to catch playing the board and
+board-made straights, which `classify.ts:206` gets wrong by its own admission
+(see the comment at `:211`). A category-plus-kicker tuple over C(7,5), reusing
+`hasStraight` and `hasFlush`.
 
-**7. Payloads.** Split `renderJson` into `renderBlind` and `renderPots`.
-`blind` = stats with money stripped + action lines + tag counts.
-`pots` = top N by Hero's invested BB, full decisions, money visible.
+`vulnerable` is wrong in four known places, all of which belong in the doc
+rather than in silent code: forced `false` on the river; it scales with
+opponents still in, which step 3 supplies; counterfeiting on paired rivers;
+and Hero's own blocker to a two-flush suit.
 
-**8. CLI.** `--mode blind|pots` on `scripts/leaks.ts`, default `blind`.
+**Step 6 — tagging.** `src/lib/hh/tags.ts`. Prescription versus action per
+decision, on the unopened tree, gated on PFA. Emits tag or `null`, plus the
+`ok/off/n-a` verdict and the facets. `nutAdvantage` lives here, not in
+`read.ts`, because it needs the preflop role.
 
-**9. RFI fold check.** Map Hero's seat to a chart column by distance from the
-button; skip the hand when the table is too short to have one. Depth tier from
-`stackBB`. Per strategy-notes §1 the line should sit *tighter* than the chart,
-so boundary folds are correct and must not be flagged — only folds
-meaningfully inside the range count. Needs a tolerance band.
+**Step 7 — counting.** Tag counts with denominators. `stat()` dereferences
+`BANDS[key]` at `stats.ts:177` and throws on an unknown key, so this is a new
+`tagStat()`, not a reuse.
+
+**Step 8 — payloads.** One `HandRecord`, with `renderBlind` and `renderPots`
+as **field-pickers over it**. Splitting `renderJson` in two invites two shapes
+that drift, and blind mode is exactly where a drifted field leaks a result.
+
+What must be stripped from `blind`, beyond the obvious: `wwsf`, `wtsd` and
+`wsd` (`stats.ts:303-305`) are results; `byRole[].netBB` is money;
+`worstPots` and `biggestCalls` (`stats.ts:320-334`) are result-ranked;
+`HeroHand.wonPot` and `showdown` (`hero.ts:281-282`) leak per hand. Ordering
+is archive order, stated explicitly in the payload.
+
+`pots` ranks by **gross chips Hero put in**, not `hero.ts:242 invested` —
+`parse.ts:274` subtracts the uncalled bet, so a river bluff that got through
+ranks below the same bluff called.
+
+**Step 9 — CLI surface.**
+
+```
+npm run leaks -- [paths] --mode leaks|blind|pots   # leaks stays the default
+                        --tag <name>               # the cohort selector
+                        --exemplars N              # cap lines per tag
+                        --vocab --check-doc
+```
+
+`--mode leaks` remains the default because `docs/leak-coaching.md` is written
+against that report.
+
+`--tag` is what makes the agent's loop work: counts first, then every hand
+carrying the tag it chose. `--exemplars N` caps lines per tag while counts stay
+whole-archive, which holds an invocation near 12k tokens at any archive size.
+Ship it now; retrofitting it at 5000 hands means rewriting the reading
+procedure too.
+
+**Step 10 — the skill.**
+
+```
+.claude/skills/hand-review/
+  SKILL.md              trigger, run command, mode order, hard rules,
+                        output contract, pointers
+  references/
+    blind-review.md     reading a cohort; per-street bluff logic
+    pots-review.md      reading pots mode
+docs/
+  hand-tags.md          canonical: axes, prescription tables, closed tag
+                        list, minN, per-tag cost and fix. Peer of
+                        leak-coaching.md.
+```
+
+The rubric lives in `docs/` beside the code that emits it, not inside
+SKILL.md — one copy, and the skill points at it. The skill shells out to
+`npm run leaks` and vendors nothing: a second copy of the parser is the thing
+most likely to drift.
+
+Hard rules in SKILL.md: never read `hands/`; never state a number absent from
+the payload; at most 3 findings; never coach a `thin` tag; `blind` runs before
+`pots`, in its own invocation, because one agent running both defeats the mode
+split.
+
+**Step 11 — the log.** Findings append to `leaks-log.md` at the repo root,
+gitignored, dated, with a stable finding id so re-runs do not duplicate. Chat
+gets a short summary, not the file.
 
 ---
 
-## 4. Deferred
+## 4. Keeping the vocabulary honest without tests
 
-- Blind defense, 3-bet and cold-call ranges — no charts in the repo yet, and
-  `ranges.ts` is RFI-only.
-- Conditional slicing on facets. Needs thousands of hands; at 500 it is noise.
+The CLI emits `vocabulary[]` — every tag key the tagger can produce, with its
+`minN`. SKILL.md treats the payload as authoritative: a tag in
+`docs/hand-tags.md` but not in `vocabulary[]`, or the reverse, means the doc is
+stale, and the agent says so instead of coaching it.
+
+`npm run leaks -- --vocab --check-doc` diffs the emitted keys against the doc's
+headings and exits non-zero. The skill runs it at the start of a review. This
+is `leak-coaching.md` §0's advisory rule made mechanical, at about twenty
+lines, and it is not a test in the suite.
+
+---
+
+## 5. Deferred
+
+- Blind defense, 3-bet and cold-call charts. `ranges.ts` is RFI-only, so the
+  `facing` tree has no prescriptions and emits no tags until they exist.
 - Splitting `bet-over` back into 150 and 200, and gating the overbet tags on
-  nut advantage. Both are correct distinctions that need volume to earn.
-- Subagent fan-out for open-ended hypotheses. Only worth it once tag
-  clustering stops finding things, and only with every proposed hypothesis
-  sent back to code to be counted.
+  nut advantage. Correct distinctions that need volume to earn.
+- Conditional slicing on facets. Needs thousands of hands.
+- A parsed-hand cache. 500 to 5000 hands re-parse in well under a second, and
+  step 1's `perFile` return makes a cache a drop-in later.
+- Subagent fan-out. Revisit when the payload exceeds ~40k tokens, when
+  per-tournament comparison is wanted, or when a hypothesis loop exists in
+  which every proposal goes back to code to be counted.
+- Feeding found leaks into the trainers' drill weighting.
