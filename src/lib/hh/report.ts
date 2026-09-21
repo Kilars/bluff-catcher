@@ -94,6 +94,7 @@ export function renderText(
   meta: ReportMeta,
   folds: RfiFold[],
   groups: LabelGroup[],
+  perLabel?: number,
 ): string {
   const out: string[] = [];
   const flags = s.stats.filter((x) => x.flag);
@@ -121,7 +122,7 @@ export function renderText(
   for (const g of groups) {
     const shared = Object.entries(g.shared).map(([k, v]) => `${k}=${v}`).join(' · ');
     out.push(`  ${pad(g.label, 26)}${padLeft(String(g.decisions.length), 4)}   ${shared || 'nothing in common'}`);
-    for (const d of everyNth(g.decisions, strideFor(g.decisions))) {
+    for (const d of everyNth(g.decisions, strideFor(g.decisions, perLabel))) {
       out.push(`  ${' '.repeat(15)}${pad(d.id, 15)}${pad(d.street, 7)}${d.cards.join(' ')} on ${d.board.join(' ')}`);
     }
   }
@@ -219,6 +220,7 @@ export function renderJson(
   meta: ReportMeta,
   folds: RfiFold[],
   groups: LabelGroup[],
+  perLabel?: number,
 ) {
   return {
     // Ordered as it should be read. `labels` is why any hand is in the
@@ -226,7 +228,7 @@ export function renderJson(
     // the finding.
     meta: { ...meta, levels: s.levels, tournaments: s.tournaments },
     labels: groups.map((g) => {
-      const stride = strideFor(g.decisions);
+      const stride = strideFor(g.decisions, perLabel);
       return {
         label: g.label,
         shared: g.shared,
@@ -278,8 +280,9 @@ export function renderJson(
  */
 const PER_LABEL = 5;
 
-function strideFor(ds: unknown[]): number {
-  return Math.ceil(ds.length / PER_LABEL);
+/** `--label` passes Infinity: asking for one label is asking for all of it. */
+function strideFor(ds: unknown[], perLabel = PER_LABEL): number {
+  return Math.max(1, Math.ceil(ds.length / perLabel));
 }
 
 function everyNth<T>(xs: T[], stride: number): T[] {

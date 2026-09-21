@@ -55,6 +55,23 @@ export interface LabelGroup {
 const OVERBET = 1;
 
 /**
+ * Every label the code can emit. Exported because three places need to agree
+ * on it — `--label` validates against it, `doc.test.ts` pins it to the names
+ * §4 documents, and a name only one of them knows is a name the agent will
+ * either invent or never see.
+ */
+export const LABELS = [
+  'pfa-check-flop',
+  'check-draw',
+  'overbet-strong',
+  'river-bluff-with-blocker',
+  'river-bluff-no-blocker',
+  'river-call-marginal',
+] as const;
+
+export type Label = (typeof LABELS)[number];
+
+/**
  * The vocabulary. Board texture and hand class are *not* spelled into most of
  * these names, because both are grouping facets — a name carries one only where
  * the facet is the whole event: checking is unremarkable, checking a *draw* is

@@ -91,6 +91,23 @@ check('raise: an uncalled 3-bet still ranks by what went in', tm2?.grossBB.toFix
 const text = leaks(FIXTURES);
 check('leaks: the text report names the CO fold of AJo', text.includes('TM3') && text.includes('(AJo)'));
 
+// ── --label narrows, and refuses a name the code cannot emit ─────────────────
+// An unknown label must not render an empty report: "you never did this" and
+// "that label does not exist" look identical on the page and mean opposite
+// things.
+const only = leaks(FIXTURES, '--label', 'check-draw');
+check(
+  'label: --label keeps its own group and drops the others',
+  only.includes('check-draw') && !only.includes('river-bluff-with-blocker'),
+);
+let refused = '';
+try {
+  leaks(FIXTURES, '--label', 'no-such-label');
+} catch (e) {
+  refused = String((e as { stderr?: string }).stderr ?? '');
+}
+check('label: an unknown label is refused with the vocabulary', refused.includes('known labels:'));
+
 // Hands now reach the report because they carry a label, not because of what
 // they returned, so the label section is the selector and has to survive the
 // CLI end to end. TM5 checks a flush draw on the flop and again on the turn —

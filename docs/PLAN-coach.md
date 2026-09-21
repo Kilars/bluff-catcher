@@ -162,9 +162,12 @@ npm run leaks -- [paths]  --mode leaks|pots      # leaks is the default
 
 ---
 
-## 3. Phase 2 — labels, when there are hands to count
+## 3. Labels — built
 
-Not built now. Specified so it can be built without redesign.
+This was "phase 2, when there are hands to count". It is built, and the
+counting is gone: what follows records what exists and why, not what to do
+next. Three of its claims turned out to be wrong and are corrected in place,
+marked **[corrected]**.
 
 ### Labels describe, they do not accuse
 
@@ -174,10 +177,15 @@ on plays that are correct. Betting 33% with air on a board that fits your range
 is range betting. Checking a nut flush draw on a monotone flop is standard.
 A 150% river overbet with nut advantage is the recommended line.
 
-So a label states a fact — `overbet-with-nuts`, `check-draw`,
-`river-bluff-blocks-folds` — and **the agent decides which instances were
-wrong**. Counts are frequencies, not error rates. A decision carries a *set*
-of labels, not one.
+So a label states a fact — `check-draw`, `overbet-strong`,
+`river-bluff-with-blocker` — and **the agent decides which instances were
+wrong**. A decision carries a *set* of labels, not one.
+
+**[corrected]** This paragraph named `overbet-with-nuts` and
+`river-bluff-blocks-folds`. Neither shipped. `strong` admits an overpair and
+top pair with a Q kicker, which are not the nuts, and a label may not assert
+something nothing computed. `blocks-folds` is a claim about which of their
+hands would fold — a range claim, which the rule immediately below forbids.
 
 ### Axes
 
@@ -214,8 +222,14 @@ highest board card          → holding it removes top pair
 ```
 
 `removals(hole, board): Removal[]` — about forty lines, no range modelling,
-nothing new in the repo needed. This is what makes `river-bluff-blocks-calls`
-and `river-bluff-blocks-folds` sayable.
+nothing new in the repo needed. It is what lets a river bluff be split into
+`river-bluff-with-blocker` and `river-bluff-no-blocker`.
+
+**[corrected]** This claimed removals make `river-bluff-blocks-calls` and
+`river-bluff-blocks-folds` sayable. They do not: which hands call and which
+fold is a property of a range, and this design has none. What a board-derived
+removal can say is that Hero holds a card the board could have used — the
+direction is the agent's to argue.
 
 **This section used to cite §4 of the strategy notes as its worked example. It
 cannot be.** That board is Q♥-7♥-3♦-8♠-2♣ — *two* hearts, the draw bricked, so
@@ -234,7 +248,7 @@ silence reads as a decision and not as a bug.
 
 ### Grouping, not counting
 
-An earlier draft counted: rate, Wilson interval, a `spread` to separate a
+**[corrected]** An earlier draft counted: rate, Wilson interval, a `spread` to separate a
 tendency from noise. All of it is deleted. **A leak is not a sampling
 question.** Folding AJo from the cutoff once might be a misclick, the clock,
 or a read the history does not record; folding it fifteen times is a rule
@@ -267,27 +281,38 @@ does not accuse.
 No rate, no denominator, no `minN`, no `thin`. Frequencies live in `stats[]`,
 which is a commodity every tracker ships and is not what this tool is for.
 
-### Phase 2 additions
+### What exists
 
-`src/lib/read.ts` for hand class and removals, taking board context as an
-argument so `vulnerable` — which needs players-in and flop SPR — does not end
-up half-owned by two modules. `src/lib/hh/lines.ts` for the compact action
-notation. `src/lib/hh/labels.ts` for the axes, grouping instances rather than
-counting them — `stat()` is not involved and throws on an unknown key
-(`stats.ts:177`) anyway. Then `--label <name>` returning whole hands and
-`--exemplars N` selecting every ⌈n/N⌉-th in archive order with the stride
-printed.
+| | |
+|---|---|
+| `src/lib/read.ts` | hand class and removals |
+| `src/lib/hh/decisions.ts` | one record per voluntary Hero action, with sizing |
+| `src/lib/hh/labels.ts` | the six labels, and grouping by shared facets |
+| `--label <name>` | one label, un-strided — every instance, not a sample of five |
 
-`--mode blind` is **not needed and will not be built**. The main path is
-already blind: the result fields were deleted from the payload outright rather
-than filtered out by a second renderer, so there is no unblinded version left
-to guard against. `--mode pots` stays as the one place results are visible,
-for a human asking where the chips went.
+`--mode blind` was **not built and will not be.** The main path is already
+blind: the result fields were deleted from the payload outright rather than
+filtered out by a second renderer, so there is no unblinded version left to
+guard against. `--mode pots` stays as the one place results are visible, for a
+human asking where the chips went.
 
-`blind` must strip more than the obvious: `wwsf`/`wtsd`/`wsd`
-(`stats.ts`), `byRole[].netBB`, `worstPots`,
-`HeroHand.won`/`net`/`invested`, `wonPot` and `showdown` (`hero.ts:281`), and
-`board`, which is the full five cards at `hero.ts:285`.
+`--exemplars N` was **not built either.** The stride it describes is applied
+unconditionally at five per group, with `stride` and the true `instances`
+count in the payload. A flag to tune N is a knob nobody has needed, and
+`--label` covers the case that motivated it.
+
+### Still open
+
+- **`src/lib/hh/lines.ts`**, the compact action notation. Deferred rather than
+  dropped: the payload already hands the agent structured decisions with
+  sizing, SPR, texture and board, so a notation string would be a second and
+  lossier view of the same facts. Build it only if the agent turns out to
+  reason better from `x/b33/c` than from the fields.
+- **The vocabulary is a guess.** Six labels chosen against fixtures. Which of
+  them fire, and which spots go unnamed, is the first thing a real archive
+  will say.
+- **`vulnerable`** stays deferred (§4) — it needs opponents-in and SPR to be
+  trustworthy and it feeds only labels.
 
 ---
 
