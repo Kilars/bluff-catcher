@@ -11,7 +11,8 @@
  */
 
 import type { Street } from './parse.ts';
-import type { HeroHand, PreflopRole } from './hero.ts';
+import { BLINDS, type HeroHand, type PreflopRole } from './hero.ts';
+import { boardType, type BoardType } from './board.ts';
 
 /** Which side of the ledger a reading falls on. */
 export type Flag = 'bleed' | 'missed' | null;
@@ -207,6 +208,45 @@ function stat(key: string, made: number, opp: number): Stat {
 
 const POSTFLOP: readonly Street[] = ['flop', 'turn', 'river'];
 
+/** A stat cut by flop texture. Always thin — see `SPLIT_CAVEAT`. */
+export interface BoardSplit {
+  key: 'cbetFlop' | 'cbetTurn' | 'foldToCbetFlop';
+  board: BoardType;
+  made: number;
+  opp: number;
+  pct: number;
+}
+
+/**
+ * Printed next to every split, because the sample will be too small for a long
+ * time and the honest thing is to say so rather than to withhold the cut. The
+ * aggregate is not a safer number — it is a wrong one that looks safe.
+ */
+export const SPLIT_CAVEAT =
+  'split by flop texture and never banded: one session is ~7 c-bets spread over five buckets. ' +
+  'Read the direction, not the percentage. The turn cut is keyed off the flop texture, not the turn card.';
+
+function splitByBoard(
+  key: BoardSplit['key'],
+  opps: HeroHand[],
+  made: (h: HeroHand) => boolean,
+): BoardSplit[] {
+  const buckets = new Map<BoardType, { made: number; opp: number }>();
+
+  for (const h of opps) {
+    const board = boardType(h.board);
+    if (!board) continue;
+    const bucket = buckets.get(board) ?? { made: 0, opp: 0 };
+    bucket.opp += 1;
+    if (made(h)) bucket.made += 1;
+    buckets.set(board, bucket);
+  }
+
+  return [...buckets]
+    .map(([board, b]) => ({ key, board, made: b.made, opp: b.opp, pct: (b.made / b.opp) * 100 }))
+    .sort((a, b) => b.opp - a.opp);
+}
+
 export interface RoleLine {
   role: PreflopRole;
   hands: number;
@@ -226,9 +266,10 @@ export interface Summary {
   nonShowdownBB: number;
   investedBB: number;
   stats: Stat[];
+  /** cbetFlop / cbetTurn / foldToCbetFlop, cut by flop texture. */
+  byBoard: BoardSplit[];
   byRole: RoleLine[];
   worstPots: HeroHand[];
-  bestPots: HeroHand[];
   /** Hands where Hero called off the most, ranked — the drill-down list. */
   biggestCalls: { hand: HeroHand; street: Street; toCall: number; potOdds: number }[];
 }
@@ -238,9 +279,9 @@ export function summarise(hs: HeroHand[]): Summary {
   const sawFlop = hs.filter((h) => h.sawFlop);
 
   // ── Preflop, excluding open-raise selection ───────────────────────────────
-  const firstIn = hs.filter((h) => h.firstInOpp);
+  const firstIn = hs.filter((h) => h.firstInOpp && h.limpersAhead === 0);
   const threeBetOpps = hs.filter((h) => h.threeBetOpp);
-  const coldCallOpps = threeBetOpps.filter((h) => h.position !== 'SB' && h.position !== 'BB');
+  const coldCallOpps = threeBetOpps.filter((h) => !BLINDS.has(h.position));
   const faced3 = hs.filter((h) => h.faced3Bet);
   const steals = hs.filter((h) => h.stealDefenceOpp);
 
@@ -263,13 +304,23 @@ export function summarise(hs: HeroHand[]): Summary {
   });
   const barrels = barrelOpps.filter((h) => turnOf(h)?.bet);
 
+  // facedBetEver, not facedBet: checking first from the blinds and folding to
+  // the c-bet is the commonest version of this spot, and facedBet excludes it
+  // from the numerator and the denominator both.
+  //
+  // `!f.bet` because facedBetEver is also true when Hero bets first and folds
+  // to a raise. That is a donk bet getting blown off, not a c-bet faced, and
+  // it is always a fold — so counting it could only push the stat up.
   const faceCbetOpps = sawFlop.filter((h) => {
     const f = flopOf(h);
-    return !h.pfa && f && f.facedBet;
+    return !h.pfa && f && f.facedBetEver && !f.bet;
   });
   const foldedToCbet = faceCbetOpps.filter((h) => flopOf(h)?.folded);
 
-  const xrOpps = sawFlop.filter((h) => flopOf(h)?.checked);
+  const xrOpps = sawFlop.filter((h) => {
+    const f = flopOf(h);
+    return f?.checked && f.facedBetEver;
+  });
   const xrs = xrOpps.filter((h) => flopOf(h)?.checkRaised);
 
   let aggressive = 0;
@@ -305,6 +356,12 @@ export function summarise(hs: HeroHand[]): Summary {
     stat('wsd', showdowns.filter((h) => h.wonPot).length, showdowns.length),
   ];
 
+  const byBoard: BoardSplit[] = [
+    ...splitByBoard('cbetFlop', cbetOpps, (h) => Boolean(flopOf(h)?.bet)),
+    ...splitByBoard('cbetTurn', barrelOpps, (h) => Boolean(turnOf(h)?.bet)),
+    ...splitByBoard('foldToCbetFlop', faceCbetOpps, (h) => Boolean(flopOf(h)?.folded)),
+  ];
+
   // ── Money ─────────────────────────────────────────────────────────────────
   const netBB = hs.reduce((t, h) => t + h.netBB, 0);
   const showdownBB = hs.filter((h) => h.showdown).reduce((t, h) => t + h.netBB, 0);
@@ -330,24 +387,28 @@ export function summarise(hs: HeroHand[]): Summary {
           potOdds: a.toCall / (a.potBefore + a.toCall),
         })),
     )
-    .sort((a, b) => b.toCall / b.hand.bb - a.toCall / a.hand.bb)
+    .sort(
+      (a, b) =>
+        (b.hand.bb > 0 ? b.toCall / b.hand.bb : 0) - (a.hand.bb > 0 ? a.toCall / a.hand.bb : 0),
+    )
     .slice(0, 8);
 
   const levels = hs.map((h) => h.level);
+  const levelSpan: [number, number] = n ? [Math.min(...levels), Math.max(...levels)] : [0, 0];
 
   return {
     hands: n,
     tournaments: new Set(hs.map((h) => h.tournamentId)).size,
-    levels: [Math.min(...levels), Math.max(...levels)],
+    levels: levelSpan,
     netChips: hs.reduce((t, h) => t + h.net, 0),
     netBB,
     showdownBB,
     nonShowdownBB: netBB - showdownBB,
-    investedBB: hs.reduce((t, h) => t + h.invested / h.bb, 0),
+    investedBB: hs.reduce((t, h) => t + (h.bb > 0 ? h.invested / h.bb : 0), 0),
     stats,
+    byBoard,
     byRole: [...roles.values()].sort((a, b) => a.netBB - b.netBB),
     worstPots: byNet.slice(0, 5),
-    bestPots: byNet.slice(-3).reverse(),
     biggestCalls,
   };
 }

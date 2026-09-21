@@ -20,7 +20,7 @@ import {
   type Card,
   RANKS,
   hasStraight,
-} from './odds';
+} from './odds.ts';
 
 // ─── Public types ───────────────────────────────────────────────────────────
 

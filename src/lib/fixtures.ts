@@ -10,7 +10,7 @@ import {
   hasFlush,
   hasStraight,
   pairsUp,
-} from './odds';
+} from './odds.ts';
 
 export interface Fixture {
   id: string;

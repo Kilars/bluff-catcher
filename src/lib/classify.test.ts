@@ -250,37 +250,21 @@ describe('classify()', () => {
 
   // ─── Naming sanity checks ────────────────────────────────────────────────
 
+  // The name is composed from the components, not looked up per category, so
+  // the composition is the behaviour — the strings are the contract it builds.
   describe('name composition', () => {
-    it('flush-only has name "A flush draw"', () => {
-      const read = classify(['7s', '5s'] as Card[], ['Ks', '4s', '9d'] as Card[]);
-      expect(read!.name).toBe('A flush draw');
-    });
-
-    it('flush + overcard has name "A flush draw with an overcard"', () => {
-      const read = classify(['As', '7s'] as Card[], ['Ks', '4s', '9d'] as Card[]);
-      expect(read!.name).toBe('A flush draw with an overcard');
-    });
-
-    it('overcards hand has name "Two overcards"', () => {
-      const read = classify(['Ah', 'Kc'] as Card[], ['9d', '7s', '2h'] as Card[]);
-      expect(read!.name).toBe('Two overcards');
-    });
-
-    it('pairImproving has name "A pair looking to improve"', () => {
-      const read = classify(['Ah', '9c'] as Card[], ['9d', '5s', '2h'] as Card[]);
-      expect(read!.name).toBe('A pair looking to improve');
-    });
-
-    it('no hand is ever named a backdoor flush draw', () => {
-      // The name is gone with the category: an otherwise-air 3-flush is a
-      // reject now, so nothing can carry it. See DECISIONS.md.
-      expect(classify(['8h', '6d'] as Card[], ['Ah', 'Kh', '2c'] as Card[])).toBeNull();
-    });
-
-    it('combo (flush + openEnder) has name "A flush draw and an open-ended straight draw"', () => {
-      const read = classify(['Jd', 'Td'] as Card[], ['9d', '8c', '2d'] as Card[]);
-      expect(read!.name).toContain('flush draw');
-      expect(read!.name).toContain('open-ended');
+    it.each([
+      [['7s', '5s'], ['Ks', '4s', '9d'], 'A flush draw'],
+      [['As', '7s'], ['Ks', '4s', '9d'], 'A flush draw with an overcard'],
+      [['Ah', 'Kc'], ['9d', '7s', '2h'], 'Two overcards'],
+      [['Ah', '9c'], ['9d', '5s', '2h'], 'A pair looking to improve'],
+      [
+        ['Jd', 'Td'],
+        ['9d', '8c', '2d'],
+        'A flush draw and an open-ended straight draw with two overcards',
+      ],
+    ] as [Card[], Card[], string][])('%s on %s → "%s"', (hero, board, name) => {
+      expect(classify(hero, board)!.name).toBe(name);
     });
   });
 

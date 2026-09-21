@@ -30,8 +30,35 @@ export interface StreetPlay {
   /** Stack-to-pot ratio Hero was playing. */
   spr: number | null;
   actions: Action[];
-  /** Someone had bet before Hero's first action on this street. */
+  /**
+   * The street exactly as printed, villains included.
+   *
+   * `actions` is Hero's alone, which leaves villain sizing unrecoverable. The
+   * only trace a villain bet leaves in Hero's own actions is `toCall`, and
+   * that is lossy the moment more than one opponent is in: a bet, a call and
+   * a raise ahead of Hero all arrive as one number, so what Hero *faced*
+   * cannot be read back out of what Hero *owed*. Keep the whole street and
+   * let callers read the bet itself.
+   */
+  allActions: Action[];
+  /** Someone had bet before Hero's *first* action on this street. */
   facedBet: boolean;
+  /**
+   * Hero had to put chips in at some point on this street.
+   *
+   * Not the same question as `facedBet`, and the difference is a whole
+   * population: checking first out of position and then folding to the bet is
+   * the commonest way there is to face a c-bet, and `facedBet` says false for
+   * all of it. Postflop, use this one to ask "did Hero face a bet" and
+   * `facedBet` to ask "was Hero first to act into one".
+   *
+   * Preflop it means neither: everyone but a big blind who gets a walk has
+   * chips to put in, so it is true for the opener too. Read it on a postflop
+   * street or not at all. It also says nothing about *who* bet first — Hero
+   * betting and being raised sets it, so a caller that means "Hero faced a
+   * c-bet" must exclude `bet` as well.
+   */
+  facedBetEver: boolean;
   bettor: string | null;
   bet: boolean;
   raised: boolean;
@@ -45,6 +72,8 @@ export interface HeroHand {
   id: string;
   tournamentId: string;
   timestamp: string;
+  /** Calendar date, YYYY-MM-DD, off the export's own clock — the window key. */
+  handDate: string;
   level: number;
   bb: number;
   position: string;
@@ -55,6 +84,12 @@ export interface HeroHand {
   playersDealt: number;
 
   invested: number;
+  /**
+   * Chips Hero put in before an uncalled bet came back, in big blinds. What it
+   * cost to contest the pot: a river bluff that got through is the same size
+   * whether or not it was called, and `invested` alone would rank it lower.
+   */
+  grossBB: number;
   won: number;
   net: number;
   netBB: number;
@@ -92,16 +127,46 @@ export interface HeroHand {
 }
 
 const STEAL_POSITIONS = new Set(['CO', 'BTN', 'SB']);
-const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
+/**
+ * Every label that is a blind, including the heads-up button — which posts the
+ * small blind and is therefore in one. Exported because `stats.ts` asks the
+ * same question and was answering it with two literals, so `SB/BTN` walked
+ * into the cold-call denominator: a heads-up blind defence counted as a
+ * cold-call opportunity it could never satisfy.
+ */
+export const BLINDS = new Set(['SB', 'BB', 'SB/BTN']);
+
+/**
+ * The hand's calendar date. GGPoker prints `2026/09/08 20:03:09` with no zone,
+ * so this is the export's local day — good enough to slice sessions by, and the
+ * only date the file gives us.
+ */
+function handDate(timestamp: string): string {
+  return timestamp.slice(0, 10).replaceAll('/', '-');
+}
+
+/**
+ * Did Hero reach a showdown?
+ *
+ * Not "did Hero show": a losing call-down prints `Hero: mucks hand` and no
+ * shows line, so reading Hero's own cards counted a showdown only when Hero
+ * won one — biasing WTSD down and WSD up every time, and booking the loss to
+ * the red line.
+ *
+ * But "anyone showed" is the same error inverted. An opponent who folds may
+ * still flash a hand, which would book an uncontested c-bet win to the blue
+ * line. So: Hero did not fold, and either Hero's cards are face up, or someone
+ * else's are and Hero's last bet was called — an uncalled bet coming back to
+ * Hero is the signature of a pot that ended before anyone had to show.
+ */
+function sawShowdown(hand: Hand, hero: string): boolean {
+  if (hand.actions.some((a) => a.player === hero && a.kind === 'fold')) return false;
+  if (hand.shows.some((s) => s.player === hero)) return true;
+  return hand.shows.length > 0 && hand.uncalled?.player !== hero;
+}
 
 function isVoluntary(a: Action): boolean {
   return a.kind !== 'ante' && a.kind !== 'sb' && a.kind !== 'bb';
-}
-
-/** Pot odds Hero was laid on a call: the share of the final pot they put in. */
-export function potOdds(a: Action): number | null {
-  if (a.toCall <= 0) return null;
-  return a.toCall / (a.potBefore + a.toCall);
 }
 
 function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | null {
@@ -125,7 +190,9 @@ function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | nul
     stackAtStart: first.stackBefore,
     spr: potAtStart > 0 ? first.stackBefore / potAtStart : null,
     actions: mine,
+    allActions: all,
     facedBet: street === 'preflop' ? first.toCall > 0 : Boolean(aggressor),
+    facedBetEver: mine.some((a) => a.toCall > 0),
     bettor: aggressor?.player ?? null,
     bet: kinds.includes('bet'),
     raised: kinds.includes('raise'),
@@ -241,6 +308,7 @@ export function heroHand(hand: Hand): HeroHand | null {
 
   const invested = hand.invested[hero] ?? 0;
   const won = hand.won[hero] ?? 0;
+  const returned = hand.uncalled?.player === hero ? hand.uncalled.amount : 0;
 
   const pre = classifyPreflop(hand, hero);
   const streets = (['preflop', 'flop', 'turn', 'river'] as const)
@@ -258,6 +326,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     id: hand.id,
     tournamentId: hand.tournamentId,
     timestamp: hand.timestamp,
+    handDate: handDate(hand.timestamp),
     level: hand.level,
     bb: hand.bb,
     position: hand.position[hero] ?? '?',
@@ -267,6 +336,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     playersDealt: hand.order.length,
 
     invested,
+    grossBB: hand.bb > 0 ? (invested + returned) / hand.bb : 0,
     won,
     net: won - invested,
     netBB: hand.bb > 0 ? (won - invested) / hand.bb : 0,
@@ -278,7 +348,7 @@ export function heroHand(hand: Hand): HeroHand | null {
     pfa: lastPreflopRaiser === hero,
     sawFlop: streets.some((s) => s.street === 'flop'),
     streetReached,
-    showdown: hand.shows.some((s) => s.player === hero),
+    showdown: sawShowdown(hand, hero),
     wonPot: won > 0,
     streets,
     decisions: hand.actions.filter((a) => a.player === hero && isVoluntary(a)),
@@ -286,6 +356,3 @@ export function heroHand(hand: Hand): HeroHand | null {
   };
 }
 
-export function heroHands(hands: Hand[]): HeroHand[] {
-  return hands.map(heroHand).filter((h): h is HeroHand => h !== null);
-}

@@ -28,10 +28,15 @@ function oddsSpotOf(s: ReturnType<typeof dealSpot>): OddsSpot {
 afterEach(() => vi.restoreAllMocks());
 
 describe('dealSpot', () => {
-  it('every dealt spot is a valid keeper (never null read)', () => {
+  // One sweep, every invariant. These used to be three 500-deal loops asking
+  // three questions of the same hands.
+  it('deals nothing but valid, playable keepers', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const rng = seeded(1);
+
     for (let i = 0; i < 500; i++) {
       const spot = dealSpot({ rng });
+
       expect(spot.read).toBeTruthy();
       expect(ALL_CATEGORIES).toContain(spot.read.primaryCategory);
       expect(spot.hero).toHaveLength(2);
@@ -39,7 +44,17 @@ describe('dealSpot', () => {
       // hero and board never overlap
       const all = new Set([...spot.hero, ...spot.board]);
       expect(all.size).toBe(spot.hero.length + spot.board.length);
+
+      // Every keeper has at least one one-card out. The old taxonomy's
+      // zero-out 'backdoor' category is gone (DECISIONS.md), so this is now
+      // unconditional — and the dealer must never bring it back.
+      expect(analyse(oddsSpotOf(spot)).outs).toBeGreaterThan(0);
+      expect(spot.read.primaryCategory).not.toBe('backdoor');
+      expect(spot.read.name).not.toContain('backdoor');
     }
+
+    // analyse() logs on a mis-specified spot; nothing dealt should trip it.
+    expect(errSpy).not.toHaveBeenCalled();
   });
 
   it('honours a forced target category', () => {
@@ -74,29 +89,6 @@ describe('dealSpot', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('never hands analyse a spot with 0 outs', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const rng = seeded(2024);
-    for (let i = 0; i < 500; i++) {
-      const spot = dealSpot({ rng });
-      const a = analyse(oddsSpotOf(spot));
-      expect(a.outs).toBeGreaterThan(0);
-    }
-    expect(errSpy).not.toHaveBeenCalled();
-  });
-
-  it('never deals a backdoor: every spot has at least one one-card out', () => {
-    // The old taxonomy had a zero-out 'backdoor' category. It is gone, so the
-    // invariant above is now unconditional — this asserts the category itself
-    // never comes back through the dealer.
-    const rng = seeded(7);
-    for (let i = 0; i < 500; i++) {
-      const spot = dealSpot({ rng });
-      expect(spot.read.primaryCategory).not.toBe('backdoor');
-      expect(spot.read.name).not.toContain('backdoor');
-    }
-  });
-
   it('covers every category over many default-weighted deals', () => {
     const rng = seeded(13);
     const counts: Record<string, number> = {};
@@ -105,7 +97,7 @@ describe('dealSpot', () => {
       counts[spot.read.primaryCategory] = (counts[spot.read.primaryCategory] ?? 0) + 1;
     }
     for (const cat of ALL_CATEGORIES) {
-      expect(counts[cat] ?? 0).toBeGreaterThan(0);
+      expect(counts[cat] ?? 0, cat).toBeGreaterThan(0);
     }
     // Weighted: the weight-3 categories should out-appear the weight-1 ones overall.
     const heavy = (counts.flushDraw ?? 0) + (counts.openEnder ?? 0);

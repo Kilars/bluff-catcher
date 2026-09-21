@@ -3,8 +3,8 @@
  * from a classified DrawRead + its Analysis. Pure, no UI imports.
  */
 
-import type { Card, Analysis } from './odds';
-import { type DrawRead, rankName, suitName } from './classify';
+import type { Card, Analysis } from './odds.ts';
+import { type DrawRead, rankName, suitName } from './classify.ts';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 

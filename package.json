@@ -8,10 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "leaks": "node --experimental-strip-types scripts/leaks.ts",
+    "smoke": "node --experimental-strip-types scripts/smoke.ts",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
+  },
+  "engines": {
+    "node": ">=22.6"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.0",

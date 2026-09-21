@@ -70,7 +70,7 @@ The compounding asset, and where four verified bugs live.
   merely warn. In an accumulating archive that garbage is permanent.
 
 Types, introduced here rather than later because `lines.ts` and every renderer
-need the `Hand` that `heroHands()` (`hero.ts:289`) currently discards:
+need the `Hand` that `heroHand()` (`hero.ts`) discards:
 
 ```ts
 interface HandRecord { hand: Hand; hero: HeroHand; file: string; handDate: string }
@@ -215,43 +215,77 @@ highest board card          → holding it removes top pair
 
 `removals(hole, board): Removal[]` — about forty lines, no range modelling,
 nothing new in the repo needed. This is what makes `river-bluff-blocks-calls`
-and `river-bluff-blocks-folds` sayable, and §4 of the strategy notes is the
-worked example: A♥K♥ on a bricked heart board removes the hands you wanted to
-fold, A♦K♦ removes nothing. Same strength, opposite value.
+and `river-bluff-blocks-folds` sayable.
 
-### Counting
+**This section used to cite §4 of the strategy notes as its worked example. It
+cannot be.** That board is Q♥-7♥-3♦-8♠-2♣ — *two* hearts, the draw bricked, so
+no flush is makeable and not one of the four rules above fires. A♥K♥ and A♦K♦
+both return `[]`, correctly. The asymmetry §4 describes comes from villain
+holding busted heart draws, which is range modelling, which this design
+forbids outright.
 
-`minN` and `thin` are leftovers from when a label meant an error. A frequency
-needs a denominator, not a floor. Each label is an axis predicate crossed with
-an action predicate, so its denominator is every decision matching the axis
-predicate under any action.
+That is a limit to state plainly rather than paper over: **board-derived
+removals go quiet exactly where §4 says blockers matter most** — a bricked
+draw on the river, where the call/fold boundary is sharp. Give the same board
+a third heart and the machinery works as intended: A♥K♥ yields two removals,
+A♦K♦ none, same strength and opposite meaning, with the direction left to the
+agent. `read.test.ts` pins both the working case and the silence, so the
+silence reads as a decision and not as a bug.
+
+### Grouping, not counting
+
+An earlier draft counted: rate, Wilson interval, a `spread` to separate a
+tendency from noise. All of it is deleted. **A leak is not a sampling
+question.** Folding AJo from the cutoff once might be a misclick, the clock,
+or a read the history does not record; folding it fifteen times is a rule
+being carried around. Neither reading comes from a confidence interval, and
+waiting for one means waiting for thousands of hands to say something the
+third instance already said.
+
+What separates a misunderstanding from an accident is not how many times it
+happened but **whether the instances look alike**. AJo from the CO at 50bb,
+ATo from the CO at 47bb and AJo from the HJ at 52bb are one misunderstanding
+with three instances — too tight with offsuit aces in late position at mid
+stack. A chart fold and a river overbet are two unrelated events, and calling
+them "2 mistakes" says nothing.
+
+So a label carries its instances and what they share:
 
 ```ts
-interface LabelStat {
+interface LabelGroup {
   label: string;
-  decisions: number; hands: number; opportunities: number;
-  rate: number | null; ci95: [number, number] | null;   // Wilson
-  spread: { tournaments: number; days: number; byPosition: Record<string, number> };
+  decisions: Decision[];          // every instance, not a count of them
+  shared: Partial<Record<'position' | 'depth' | 'handClass' | 'boardType', string>>;
 }
 ```
 
-`ci95` width plus `spread.tournaments` is what separates a tendency from noise.
-"Nine times, all in one tournament" is the thing the agent needs to know, and
-no threshold says it.
+`shared` holds only the facets on which every instance agrees — that is the
+finding, and it is sayable at n=2. The agent reads the instances and decides
+which were wrong; the code never decides that, because a label describes and
+does not accuse.
+
+No rate, no denominator, no `minN`, no `thin`. Frequencies live in `stats[]`,
+which is a commodity every tracker ships and is not what this tool is for.
 
 ### Phase 2 additions
 
 `src/lib/read.ts` for hand class and removals, taking board context as an
 argument so `vulnerable` — which needs players-in and flop SPR — does not end
 up half-owned by two modules. `src/lib/hh/lines.ts` for the compact action
-notation. `src/lib/hh/labels.ts` for the axes. `labelStat()`, not `stat()`,
-which throws on an unknown key (`stats.ts:177`). Then `--mode blind` as an
-**allow-list** renderer, `--label <name>` returning whole hands, and
+notation. `src/lib/hh/labels.ts` for the axes, grouping instances rather than
+counting them — `stat()` is not involved and throws on an unknown key
+(`stats.ts:177`) anyway. Then `--label <name>` returning whole hands and
 `--exemplars N` selecting every ⌈n/N⌉-th in archive order with the stride
 printed.
 
+`--mode blind` is **not needed and will not be built**. The main path is
+already blind: the result fields were deleted from the payload outright rather
+than filtered out by a second renderer, so there is no unblinded version left
+to guard against. `--mode pots` stays as the one place results are visible,
+for a human asking where the chips went.
+
 `blind` must strip more than the obvious: `wwsf`/`wtsd`/`wsd`
-(`stats.ts:303`), `byRole[].netBB`, `worstPots` and `bestPots`,
+(`stats.ts`), `byRole[].netBB`, `worstPots`,
 `HeroHand.won`/`net`/`invested`, `wonPot` and `showdown` (`hero.ts:281`), and
 `board`, which is the full five cards at `hero.ts:285`.
 

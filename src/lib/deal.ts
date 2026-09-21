@@ -3,8 +3,8 @@
  * Pure, no UI imports. All randomness is injectable via opts.rng for deterministic tests.
  */
 
-import { type Card, fullDeck } from './odds';
-import { classify, type Category, type DrawRead } from './classify';
+import { type Card, fullDeck } from './odds.ts';
+import { classify, type Category, type DrawRead } from './classify.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
