@@ -20,6 +20,32 @@ reported on — say so.
 Read `docs/leak-coaching.md` before writing anything; it holds the bands, the
 finding catalogue and the output contract.
 
+## Lead with the labelled hands
+
+`labels[]` is why hands are in the payload at all. Each entry is one label,
+the facets **every** instance of it shares, and a stride-sampled set of the
+decisions themselves — street, seat, stack depth, SPR, sizing, hand class,
+flop texture, removals and the hand id.
+
+Work it in this order:
+
+1. Take the groups whose `shared` is non-empty. That is the finding: "four
+   flop checks as the raiser, all from the blind, all on dry high-card boards"
+   is a rule being carried. An empty `shared` means these instances have
+   nothing to do with each other — leave them.
+2. Open one decision from `decisions[]` and argue it from its own board, hand
+   class, SPR and sizing. Name the hand id so the user can pull it up.
+3. Only then look at `rfiFolds[]`, and only then at the percentages.
+
+**A label is not a mistake.** `overbet-strong` is the recommended line with
+nut advantage and a readable one without it; `check-draw` on a monotone flop
+is standard. The code says what happened; deciding what was wrong is your
+whole job. If you cannot say why one named instance was wrong, drop it.
+
+**Never turn `instances` into a rate.** There is no denominator in the payload
+and inventing one is the counting this tool was built without. `stride` above
+1 means `decisions[]` is a sample of the group, not all of it.
+
 **Never run `--mode pots`.** It ranks hands by what they returned, and it
 exists for a human asking where the chips went. Reading it would tell you which
 hands lost, and the hands that lost are not the hands played worst.
@@ -38,9 +64,10 @@ hands lost, and the hands that lost are not the hands played worst.
   per-hand facts and sound at n=1.
 - **Never quote a `byBoard.splits` percentage.** Direction only, with the
   caveat attached.
-- **Two of the same mistake beat one of each.** When `rfiFolds[]` has more than
-  one entry, say what they share — seat, depth, hand family. The shared thing
-  is the finding; the count is not.
+- **Two of the same mistake beat one of each.** When a `labels[]` group has a
+  non-empty `shared`, or `rfiFolds[]` has more than one entry, say what they
+  share — seat, depth, texture, hand family. The shared thing is the finding;
+  the count is not.
 - **At most three findings. Fewer than three is a correct output.** Say nothing
   rather than reach for a third.
 

@@ -70,3 +70,49 @@ Hero collected 1,450 from pot
 *** SUMMARY ***
 Total pot 1,450 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 Board [Ad 7c 2h]
+
+Poker Hand #TM5: Tournament #310299999, Bounty Hunter $5 Hold'em No Limit - Level3(100/200(25)) - 2026/09/09 21:30:00
+Table '5' 8-max Seat #6 is the button
+Seat 1: p1 (10,000 in chips)
+Seat 2: Hero (10,000 in chips)
+Seat 3: p3 (10,000 in chips)
+Seat 4: Villain (10,000 in chips)
+Seat 5: p5 (10,000 in chips)
+Seat 6: p6 (10,000 in chips)
+p1: posts the ante 25
+Hero: posts the ante 25
+p3: posts the ante 25
+Villain: posts the ante 25
+p5: posts the ante 25
+p6: posts the ante 25
+p1: posts small blind 100
+Hero: posts big blind 200
+*** HOLE CARDS ***
+Dealt to p1 
+Dealt to Hero [Ah 7h]
+Dealt to p3 
+Dealt to Villain 
+Dealt to p5 
+Dealt to p6 
+p3: folds
+Villain: raises 300 to 500
+p5: folds
+p6: folds
+p1: folds
+Hero: calls 300
+*** FLOP *** [Kh 9h 2c]
+Hero: checks
+Villain: bets 400
+Hero: calls 400
+*** TURN *** [Kh 9h 2c] [3d]
+Hero: checks
+Villain: checks
+*** RIVER *** [Kh 9h 2c 3d] [5s]
+Hero: bets 900
+Villain: folds
+Uncalled bet (900) returned to Hero
+*** SHOWDOWN ***
+Hero collected 2,050 from pot
+*** SUMMARY ***
+Total pot 2,050 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Kh 9h 2c 3d 5s]

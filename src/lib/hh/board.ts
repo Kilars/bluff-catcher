@@ -12,6 +12,17 @@
  */
 
 import { RANKS } from '../odds.ts';
+import type { Street } from './parse.ts';
+
+/**
+ * How much of the board had been dealt when Hero acted on a given street.
+ *
+ * `Hand.board` is always the full runout, including cards dealt after Hero
+ * folded, so every consumer that shows a board to a reader has to cut it here
+ * first. Two of them do — the payload and the labels — and two copies of this
+ * map is one copy too many to keep honest.
+ */
+export const BOARD_SEEN: Record<Street, number> = { preflop: 0, flop: 3, turn: 4, river: 5 };
 
 export type BoardType =
   | 'dry-high-mine'

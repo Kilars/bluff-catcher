@@ -15,8 +15,9 @@
  */
 
 import type { ArchiveMeta, WindowMeta } from './archive.ts';
+import { BOARD_SEEN } from './board.ts';
 import type { HeroHand } from './hero.ts';
-import type { Street } from './parse.ts';
+import type { LabelGroup, LabelledDecision } from './labels.ts';
 import type { RfiFold } from './rfi.ts';
 import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 
@@ -29,9 +30,6 @@ const MARK: Record<string, string> = {
   bleed: 'BLEED',
   missed: 'MISSED',
 };
-
-/** How much of the board Hero had actually seen when they last acted. */
-const BOARD_SEEN: Record<Street, number> = { preflop: 0, flop: 3, turn: 4, river: 5 };
 
 function boardSeen(h: HeroHand): string[] {
   return h.board.slice(0, BOARD_SEEN[h.streetReached]);
@@ -91,7 +89,12 @@ function headerLines(m: ReportMeta): string[] {
   ];
 }
 
-export function renderText(s: Summary, meta: ReportMeta, folds: RfiFold[]): string {
+export function renderText(
+  s: Summary,
+  meta: ReportMeta,
+  folds: RfiFold[],
+  groups: LabelGroup[],
+): string {
   const out: string[] = [];
   const flags = s.stats.filter((x) => x.flag);
   const bleeds = flags.filter((x) => x.flag === 'bleed');
@@ -153,6 +156,17 @@ export function renderText(s: Summary, meta: ReportMeta, folds: RfiFold[]): stri
   }
   out.push('');
 
+  out.push('LABELLED DECISIONS  (what happened, not whether it was right)');
+  if (!groups.length) out.push('  no postflop decision in this window carried a label.');
+  for (const g of groups) {
+    const shared = Object.entries(g.shared).map(([k, v]) => `${k}=${v}`).join(' · ');
+    out.push(`  ${pad(g.label, 26)}${padLeft(String(g.decisions.length), 4)}   ${shared || 'nothing in common'}`);
+    for (const d of everyNth(g.decisions, strideFor(g.decisions))) {
+      out.push(`  ${' '.repeat(15)}${pad(d.id, 15)}${pad(d.street, 7)}${d.cards.join(' ')} on ${d.board.join(' ')}`);
+    }
+  }
+  out.push('');
+
   out.push('WHERE IT GOES / WHAT IS MISSING');
   if (!flags.length) out.push('  nothing outside its band on this sample.');
   for (const f of bleeds) out.push(`  BLEED   ${f.label} at ${pct(f.pct)} (band ${f.band?.[0]}–${f.band?.[1]}%)`);
@@ -199,11 +213,21 @@ const RESULT_STATS = new Set(['wwsf', 'wtsd', 'wsd']);
  *
  * This is why there is no `--mode blind`: the main path *is* blind, and
  * `--mode pots` is the one place results are deliberately visible, for a human
- * asking where the chips went. Nothing selects hands by money any more, which
- * leaves `rfiFolds` as the only hand-level finding — the honest state of the
- * harness until labelling lands.
+ * asking where the chips went.
+ *
+ * **Hands reach the agent because they carry a label.** That is the selector,
+ * and it is the reason the money could be deleted rather than filtered: every
+ * other hand-picker here ranked by chips, so a payload without them had nothing
+ * per-hand but `rfiFolds`. A label is a fact about a decision — what the hand
+ * was, what the board was, what Hero did and how big — and it is knowable
+ * before the next card comes, which is exactly what "blind to results" means.
  */
-export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
+export function renderJson(
+  s: Summary,
+  meta: ReportMeta,
+  folds: RfiFold[],
+  groups: LabelGroup[],
+) {
   return {
     meta: { ...meta, levels: s.levels, tournaments: s.tournaments },
     stats: s.stats
@@ -229,9 +253,77 @@ export function renderJson(s: Summary, meta: ReportMeta, folds: RfiFold[]) {
       })),
     },
     rfiFolds: folds,
+    labels: groups.map((g) => {
+      const stride = strideFor(g.decisions);
+      return {
+        label: g.label,
+        shared: g.shared,
+        // The count is here so a sampled group is not mistaken for a whole one.
+        // It is not a rate and there is no denominator to make it one: `shared`
+        // is the finding, per docs/leak-coaching.md §2.
+        instances: g.decisions.length,
+        stride,
+        decisions: everyNth(g.decisions, stride).map(decisionDetail),
+      };
+    }),
     // How Hero entered, without what it returned: the distribution is a fact
     // about play, the net is a fact about luck.
     byRole: s.byRole.map((r) => ({ role: r.role, hands: r.hands })),
+  };
+}
+
+/**
+ * At ~500 hands a label can easily carry a hundred instances, and dumping all
+ * of them would make the payload mostly repetition of one spot.
+ *
+ * So a group ships at most `PER_LABEL` of them, chosen by **stride in archive
+ * order** — every ⌈n/N⌉-th, with the stride in the payload so the agent knows
+ * it is reading a sample. Archive order and nothing else: any interesting
+ * ranking would be a ranking by money, which is the thing this payload exists
+ * to not have, and "the biggest" or "the worst" are the same trap wearing a
+ * different name. A stride also spreads the sample across the whole window
+ * rather than stacking it on one session, which the first N would not.
+ *
+ * `shared` is computed over *every* instance in labels.ts, not over the sample,
+ * so truncation can never invent agreement that the full group does not have.
+ */
+const PER_LABEL = 5;
+
+function strideFor(ds: unknown[]): number {
+  return Math.ceil(ds.length / PER_LABEL);
+}
+
+function everyNth<T>(xs: T[], stride: number): T[] {
+  return xs.filter((_, i) => i % stride === 0);
+}
+
+/**
+ * One labelled decision, with enough context for a model to argue about it:
+ * where Hero sat, how deep, what the pot was worth relative to the stack, what
+ * the hand and the board were, and what it cost as a fraction of the pot.
+ *
+ * `sizing` is null for a fold, a check, a call and an all-in — nothing was
+ * chosen — and `allIn` tells the last of those apart from the rest.
+ */
+function decisionDetail(d: LabelledDecision) {
+  return {
+    id: d.id,
+    street: d.street,
+    action: d.kind,
+    position: d.position,
+    stackBB: Number(d.stackBB.toFixed(1)),
+    depth: d.depth,
+    spr: d.spr === null ? null : Number(d.spr.toFixed(1)),
+    sizing: d.sizing === null ? null : Number(d.sizing.toFixed(2)),
+    allIn: d.allIn,
+    pfa: d.pfa,
+    facedBet: d.facedBet,
+    cards: d.cards,
+    board: d.board,
+    handClass: d.handClass,
+    boardType: d.boardType,
+    removals: d.removals,
+    labels: d.labels,
   };
 }
 

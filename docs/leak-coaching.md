@@ -22,6 +22,7 @@ meta.levels, meta.tournaments — of the window
 stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
 byBoard      {caveat, splits[]}
 rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
+labels[]     {label, shared, instances, stride, decisions[]}
 byRole[]     {role, hands}
 ```
 
@@ -31,6 +32,35 @@ that lost are not hands that were played badly — a cooler played perfectly
 loses a stack, and a bad fold costs nothing and leaves no trace — so an agent
 given the money coaches the wrong hands. `--mode pots` is the one place results
 are visible, and it is for a human asking where the chips went, not for you.
+
+**Hands reach you because they carry a label, never because of what they
+returned.** `labels[]` is the selector, and `rfiFolds[]` is the preflop one.
+Everything in a labelled decision was knowable before the next card came.
+
+`labels[].decisions[]` = `{id, street, action, position, stackBB, depth, spr,
+sizing, allIn, pfa, facedBet, cards, board, handClass, boardType, removals,
+labels}`.
+
+- `handClass` ∈ `strong | marginal-made | draw | air`, read against the board
+  as it stood at that decision. `strong` = two pair or better using a hole
+  card, an overpair, or top pair with a Q+ kicker. `draw` = eight or more outs.
+- `boardType` is the **flop's** texture on every street — the same five
+  buckets `byBoard` uses.
+- `sizing` is the bet or raise as a fraction of the pot, and is `null` for a
+  fold, a check, a call and an all-in. `allIn` tells the last of those apart: a
+  shove is not a chosen size, so it carries no fraction rather than a made-up
+  one.
+- `removals` = `{card, removes}[]` — what a card in Hero's hand takes out of
+  the hands *the board can make*. It is board-derived and says nothing about
+  what villain held. It goes quiet on a bricked draw, which is exactly where
+  blockers matter most; that silence is a known limit, not a finding.
+- `shared` holds only the facets — `position`, `depth`, `handClass`,
+  `boardType` — on which **every** instance of the label agrees, and is empty
+  below two instances. It is the finding. There is no rate and no denominator
+  attached to any of it, by design.
+- `instances` is how many there were; `stride` is the sampling interval, so
+  `decisions[]` is every `stride`-th instance in archive order, never a ranked
+  pick. A stride above 1 means you are reading a sample.
 
 `splits[]` = `{key, board, made, opportunities, pct}`, where `key` is one of
 `cbetFlop | cbetTurn | foldToCbetFlop` and `board` is one of
@@ -73,6 +103,12 @@ full runout. Villain hole cards are not in the payload at any point.
    never call the window "your session" unless the dates say it is one.
 9. **`byBoard.splits` are never banded.** Read the direction between buckets,
    never the percentage, and repeat `byBoard.caveat` if you cite one at all.
+10. **A label is not a mistake.** `labels[]` says what happened; whether it was
+   wrong is your call, made from the decision's own board, hand class, sizing
+   and SPR. Several of these fire on lines `docs/strategy-notes.md` recommends
+   outright, so a report that treats the list as a list of errors is wrong on
+   its face. Never turn `instances` into a rate — there is no denominator, and
+   inventing one is the counting this payload was built to avoid.
 
 ---
 
@@ -82,9 +118,11 @@ Rank candidate findings by, in order:
 
 1. Named hands. A `rfiFolds[]` entry is a fact about one decision and is sound
    at n=1 — it outranks every frequency, however large the sample.
-2. The same mistake more than once. Two chart folds from the same seat at the
-   same depth is a rule Hero is carrying, not two accidents. Say which they
-   share; that is the finding, not the count.
+2. The same thing more than once, with something in common. A `labels[]` group
+   whose `shared` is non-empty, or two chart folds from the same seat at the
+   same depth, is a rule Hero is carrying rather than two accidents. Say what
+   they share; that is the finding, not the count. An empty `shared` is a real
+   answer too — it says these instances have nothing to do with each other.
 3. `flag` present and `verdict` ∈ {`low`, `high`} — a real band violation.
 
 Ranking used to lead with money, which meant coaching whichever hands lost.
@@ -210,6 +248,62 @@ depth or it does not.
 **fix** Name the seat and the hand, and send them to the preflop trainer's
 matching position and depth. One fold is a slip; the same seat twice is a
 habit.
+
+---
+
+### `LABEL-GROUP` — the same spot, played the same way
+
+Not a `LEAK-`, and the prefix is the point: a label says what happened, and
+three of the six below fire on lines `docs/strategy-notes.md` recommends. The
+finding is never the label. It is the group agreeing on something, plus your
+own read of the instances it hands you.
+
+**trigger**
+```
+labels[] has an entry whose `shared` is non-empty
+```
+**cite** the label, every key in its `shared`, and at least one decision's
+`id`, `cards`, `board`, `handClass`, `sizing` and `spr`. Never cite
+`instances` as a rate and never describe a group whose `shared` is empty as a
+pattern.
+
+**the vocabulary**
+
+- **`pfa-check-flop`** — Hero raised preflop and checked the flop (a
+  check-raise is excluded; that is a different line). §2's c-bet frequency runs
+  from ~90% on A-7-2r to ~25% on T-9-7, so `shared.boardType` decides this one:
+  all on `middling-theirs` is discipline, all on `dry-high-mine` is giving back
+  what the raise bought.
+- **`check-draw`** — Hero checked holding eight or more outs. A fold is great
+  for a draw, so the default is to bet — but checking a nut flush draw on a
+  monotone flop is standard, and `shared.boardType` is again what separates
+  them.
+- **`overbet-strong`** — a bet or raise larger than the pot with `strong`. The
+  gate for a size above the pot is nut advantage; with it this is the
+  recommended river line, and without it the overbet is pure value that a
+  competent opponent reads instantly. Check the board and the street, not the
+  size alone.
+- **`river-bluff-with-blocker`** — a river bet with no showdown value, holding
+  a card the board's possible hands need. Whether that helps or hurts depends
+  on whether those hands were going to call or fold, and the payload cannot
+  tell you: read `removals` against the board yourself.
+- **`river-bluff-no-blocker`** — the same bet, removing nothing. This is not
+  automatically the worse one. On a board where the draw bricked, the hand
+  blocking nothing is the *better* bluff, because the blocker would have been
+  blocking folds.
+- **`river-call-marginal`** — Hero called a river bet with a pair that is not
+  top pair with a good kicker. The bluff-catch, and the one decision where
+  blockers reliably matter: ranges are narrow and the call/fold boundary is
+  sharp.
+
+**why it costs** Nothing here costs anything on its own. What costs is a rule
+applied where it does not fit — the same check on the same texture from the
+same seat, repeated — and `shared` is the only evidence that a rule is what
+this is.
+
+**fix** Name the shared facets, pick one decision from `decisions[]` and argue
+it out loud from its own board, hand class, SPR and sizing. If you cannot say
+why a particular instance was wrong, the group is not a finding.
 
 ---
 

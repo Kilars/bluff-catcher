@@ -26,6 +26,7 @@ import {
   type ArchiveFile,
   type Excluded,
 } from '../src/lib/hh/archive.ts';
+import { labelGroups } from '../src/lib/hh/labels.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -158,9 +159,10 @@ if (mode === 'pots') {
 } else {
   const summary = summarise(hands);
   const folds = rfiFolds(hands);
+  const groups = labelGroups(hands);
   output = asJson
-    ? JSON.stringify(renderJson(summary, meta, folds), null, 2)
-    : renderText(summary, meta, folds);
+    ? JSON.stringify(renderJson(summary, meta, folds, groups), null, 2)
+    : renderText(summary, meta, folds, groups);
 }
 
 const outFile = flags['--out'] ?? null;

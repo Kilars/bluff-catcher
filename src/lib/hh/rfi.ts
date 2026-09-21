@@ -42,8 +42,13 @@ function chartPosition(label: string): Position | null {
   return (POSITIONS as readonly string[]).includes(label) ? (label as Position) : null;
 }
 
-/** Which chart a stack reads. The charts are 60bb+ / 20bb / 10bb. */
-function depthFor(stackBB: number): Depth {
+/**
+ * Which chart a stack reads. The charts are 60bb+ / 20bb / 10bb.
+ *
+ * Exported because `labels.ts` buckets stack depth for its groups and a second
+ * scheme would mean two answers to "how deep was this" in one payload.
+ */
+export function depthFor(stackBB: number): Depth {
   if (stackBB >= 40) return 'deep';
   if (stackBB >= 15) return 'mid';
   return 'short';

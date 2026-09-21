@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
+import { labelGroups } from './labels.ts';
 import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
 import { renderJson } from './report.ts';
@@ -45,7 +46,8 @@ function sampleReport() {
   const files = FIXTURES.map((path): ArchiveFile => ({ path, text: readFileSync(path, 'utf8') }));
   const archive = readArchive(files);
   const { hands, window } = selectWindow(archive.hands);
-  return renderJson(summarise(hands), { archive: archive.meta, window }, rfiFolds(hands));
+  const meta = { archive: archive.meta, window };
+  return renderJson(summarise(hands), meta, rfiFolds(hands), labelGroups(hands));
 }
 
 describe('docs/leak-coaching.md', () => {
@@ -53,6 +55,7 @@ describe('docs/leak-coaching.md', () => {
 
   it('builds a report with every documented section populated', () => {
     expect(report.rfiFolds.length).toBeGreaterThan(0);
+    expect(report.labels.length).toBeGreaterThan(0);
     expect(report.byBoard.splits.length).toBeGreaterThan(0);
     expect(report.byRole.length).toBeGreaterThan(0);
   });
@@ -90,7 +93,7 @@ describe('docs/leak-coaching.md', () => {
   });
 
   it('describes the input contract with keys that exist', () => {
-    for (const key of ['meta', 'stats', 'byBoard', 'rfiFolds', 'byRole']) {
+    for (const key of ['meta', 'stats', 'byBoard', 'rfiFolds', 'labels', 'byRole']) {
       expect(report, key).toHaveProperty(key);
     }
 
@@ -131,6 +134,46 @@ describe('docs/leak-coaching.md', () => {
       'position',
       'stackBB',
     ]);
+    expect(Object.keys(report.labels[0]).sort()).toEqual([
+      'decisions',
+      'instances',
+      'label',
+      'shared',
+      'stride',
+    ]);
+    expect(Object.keys(report.labels[0].decisions[0]).sort()).toEqual([
+      'action',
+      'allIn',
+      'board',
+      'boardType',
+      'cards',
+      'depth',
+      'facedBet',
+      'handClass',
+      'id',
+      'labels',
+      'pfa',
+      'position',
+      'removals',
+      'sizing',
+      'spr',
+      'stackBB',
+      'street',
+    ]);
+  });
+
+  /**
+   * §4 names labels the agent is told to coach from. A label the code cannot
+   * emit is an instruction to look for something that will never arrive, and
+   * the agent would then either invent it or say nothing — so the two lists
+   * are pinned to each other in both directions.
+   */
+  it('names exactly the labels the code can emit', () => {
+    const emitted = new Set(['pfa-check-flop', 'check-draw', 'overbet-strong',
+      'river-bluff-with-blocker', 'river-bluff-no-blocker', 'river-call-marginal']);
+    const documented = new Set([...DOC.matchAll(/^- \*\*`([a-z-]+)`\*\* —/gm)].map((m) => m[1]));
+    expect([...documented].sort()).toEqual([...emitted].sort());
+    for (const g of report.labels) expect(emitted, `label ${g.label}`).toContain(g.label);
   });
 
   it('only names roles the classifier can produce', () => {

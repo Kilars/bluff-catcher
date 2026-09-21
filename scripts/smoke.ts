@@ -45,7 +45,7 @@ console.log('smoke: leaks CLI');
 // just shape — an empty `pots` array would satisfy Array.isArray while the
 // window quietly matched nothing.
 const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-09', '--json'));
-check('argv: --mode and --from consume their values', pots.pots?.length === 2);
+check('argv: --mode and --from consume their values', pots.pots?.length === 3);
 
 // ── the window filters, in both directions ───────────────────────────────────
 // Against the slash-formatted timestamp these silently returned everything
@@ -58,10 +58,10 @@ const earlier = JSON.parse(
   leaks(FIXTURES, '--mode', 'pots', '--to', '2026-09-08', '--json'),
 ).pots as { id: string }[];
 
-check('window: the fixture spans two days', all.length === 4, `${all.length} hands`);
+check('window: the fixture spans two days', all.length === 5, `${all.length} hands`);
 check(
   'window: --from keeps only the later day',
-  later.length === 2 && later.every((h) => ['TM3', 'TM4'].includes(h.id)),
+  later.length === 3 && later.every((h) => ['TM3', 'TM4', 'TM5'].includes(h.id)),
   later.map((h) => h.id).join(','),
 );
 check(
@@ -90,6 +90,15 @@ check('raise: an uncalled 3-bet still ranks by what went in', tm2?.grossBB.toFix
 // the chart-fold line is the one finding that is sound at n=1.
 const text = leaks(FIXTURES);
 check('leaks: the text report names the CO fold of AJo', text.includes('TM3') && text.includes('(AJo)'));
+
+// Hands now reach the report because they carry a label, not because of what
+// they returned, so the label section is the selector and has to survive the
+// CLI end to end. TM5 checks a flush draw on the flop and again on the turn —
+// two instances that agree on all four facets.
+check(
+  'leaks: the text report groups the two checked draws',
+  text.includes('check-draw') && text.includes('boardType=wet-high-mine'),
+);
 
 // ── the same export read twice is still one archive ──────────────────────────
 const day1Text = readFileSync(DAY1, 'utf8');
