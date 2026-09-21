@@ -113,6 +113,30 @@ export function renderText(
   out.push(`levels ${s.levels[0]}–${s.levels[1]} · ${s.tournaments} tournament(s) in window`);
   out.push('');
 
+  // Labels and chart folds lead. They name what Hero did. Everything below
+  // is how often or how much, which is context rather than the point --
+  // leading with the percentages taught the reader to start there.
+  out.push('LABELLED DECISIONS  (what happened, not whether it was right)');
+  if (!groups.length) out.push('  no postflop decision in this window carried a label.');
+  for (const g of groups) {
+    const shared = Object.entries(g.shared).map(([k, v]) => `${k}=${v}`).join(' · ');
+    out.push(`  ${pad(g.label, 26)}${padLeft(String(g.decisions.length), 4)}   ${shared || 'nothing in common'}`);
+    for (const d of everyNth(g.decisions, strideFor(g.decisions))) {
+      out.push(`  ${' '.repeat(15)}${pad(d.id, 15)}${pad(d.street, 7)}${d.cards.join(' ')} on ${d.board.join(' ')}`);
+    }
+  }
+  out.push('');
+
+  out.push('CHART FOLDS  (first in, and the chart plays it)');
+  if (!folds.length) out.push('  none: every first-in fold was outside the chart, or too close to call.');
+  for (const f of folds) {
+    out.push(
+      `  ${pad(f.id, 15)}${pad(f.position, 5)}${pad(f.cards.join(' '), 7)}${pad(`(${f.hand})`, 6)}${padLeft(`${f.stackBB}bb`, 7)}   the ${f.depth} chart makes this ${f.action}`,
+    );
+    if (f.caveat) out.push(`  ${' '.repeat(15)}↳ ${f.caveat}`);
+  }
+  out.push('');
+
   out.push('CHIP FLOW');
   out.push(`  ${pad('Net', 24)}${padLeft(chips(s.netChips), 12)}${padLeft(bb(s.netBB), 10)} bb`);
   out.push(`  ${pad('  at showdown', 24)}${padLeft('', 12)}${padLeft(bb(s.showdownBB), 10)} bb`);
@@ -143,27 +167,6 @@ export function renderText(
     out.push(
       `  ${pad(b.key, 18)}${pad(b.board, 18)}${padLeft(`${b.made}/${b.opp}`, 7)}${padLeft(`${b.pct.toFixed(1)}%`, 9)}`,
     );
-  }
-  out.push('');
-
-  out.push('CHART FOLDS  (first in, and the chart plays it)');
-  if (!folds.length) out.push('  none: every first-in fold was outside the chart, or too close to call.');
-  for (const f of folds) {
-    out.push(
-      `  ${pad(f.id, 15)}${pad(f.position, 5)}${pad(f.cards.join(' '), 7)}${pad(`(${f.hand})`, 6)}${padLeft(`${f.stackBB}bb`, 7)}   the ${f.depth} chart makes this ${f.action}`,
-    );
-    if (f.caveat) out.push(`  ${' '.repeat(15)}↳ ${f.caveat}`);
-  }
-  out.push('');
-
-  out.push('LABELLED DECISIONS  (what happened, not whether it was right)');
-  if (!groups.length) out.push('  no postflop decision in this window carried a label.');
-  for (const g of groups) {
-    const shared = Object.entries(g.shared).map(([k, v]) => `${k}=${v}`).join(' · ');
-    out.push(`  ${pad(g.label, 26)}${padLeft(String(g.decisions.length), 4)}   ${shared || 'nothing in common'}`);
-    for (const d of everyNth(g.decisions, strideFor(g.decisions))) {
-      out.push(`  ${' '.repeat(15)}${pad(d.id, 15)}${pad(d.street, 7)}${d.cards.join(' ')} on ${d.board.join(' ')}`);
-    }
   }
   out.push('');
 
@@ -229,30 +232,10 @@ export function renderJson(
   groups: LabelGroup[],
 ) {
   return {
+    // Ordered as it should be read. `labels` is why any hand is in the
+    // payload; `stats` is context and goes last so it is not mistaken for
+    // the finding.
     meta: { ...meta, levels: s.levels, tournaments: s.tournaments },
-    stats: s.stats
-      .filter((x) => !RESULT_STATS.has(x.key))
-      .map((x) => ({
-        key: x.key,
-        label: x.label,
-        made: x.made,
-        opportunities: x.opp,
-        pct: x.pct === null ? null : Number(x.pct.toFixed(1)),
-        band: x.band,
-        verdict: x.verdict,
-        flag: x.flag as Flag,
-      })),
-    byBoard: {
-      caveat: SPLIT_CAVEAT,
-      splits: s.byBoard.map((b) => ({
-        key: b.key,
-        board: b.board,
-        made: b.made,
-        opportunities: b.opp,
-        pct: Number(b.pct.toFixed(1)),
-      })),
-    },
-    rfiFolds: folds,
     labels: groups.map((g) => {
       const stride = strideFor(g.decisions);
       return {
@@ -268,7 +251,30 @@ export function renderJson(
     }),
     // How Hero entered, without what it returned: the distribution is a fact
     // about play, the net is a fact about luck.
+    rfiFolds: folds,
+    byBoard: {
+      caveat: SPLIT_CAVEAT,
+      splits: s.byBoard.map((b) => ({
+        key: b.key,
+        board: b.board,
+        made: b.made,
+        opportunities: b.opp,
+        pct: Number(b.pct.toFixed(1)),
+      })),
+    },
     byRole: s.byRole.map((r) => ({ role: r.role, hands: r.hands })),
+    stats: s.stats
+      .filter((x) => !RESULT_STATS.has(x.key))
+      .map((x) => ({
+        key: x.key,
+        label: x.label,
+        made: x.made,
+        opportunities: x.opp,
+        pct: x.pct === null ? null : Number(x.pct.toFixed(1)),
+        band: x.band,
+        verdict: x.verdict,
+        flag: x.flag as Flag,
+      })),
   };
 }
 

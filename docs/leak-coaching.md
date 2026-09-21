@@ -19,12 +19,16 @@ meta.window  {requestedFrom, requestedTo, first, last, hands, decisions}
 meta.archive {files, hands, excluded, skipped, first, last, tournaments,
               games, timezone}
 meta.levels, meta.tournaments — of the window
-stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
-byBoard      {caveat, splits[]}
-rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
 labels[]     {label, shared, instances, stride, decisions[]}
+rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
+byBoard      {caveat, splits[]}
 byRole[]     {role, hands}
+stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
 ```
+
+Listed in reading order. `labels[]` and `rfiFolds[]` name what Hero did and are
+the reason a hand is here at all; `stats[]` is last because it is context, not
+a finding — every tracker computes it and none of it is specific to a hand.
 
 **The payload is blind to results, deliberately.** There is no chip flow, no
 net by role, no loss-ranked pot list and no won-when/won-at-showdown. Hands
@@ -387,6 +391,10 @@ hundred hands with it as the only focus, then re-run.
   percentages are not yet reliable. If `meta.archive.hands` is much larger, say
   the window is a slice of a bigger archive — do not quietly imply otherwise.
 - Do not restate the whole stat table. The user can read the report.
+- **Never lead with a percentage.** `stats[]` may support a finding that a
+  label or a chart fold already established; it may not be the finding. If the
+  only thing you have is a banded number, you have nothing worth three
+  paragraphs — say less.
 
 ---
 
