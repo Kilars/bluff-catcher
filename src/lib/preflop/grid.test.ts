@@ -12,11 +12,7 @@ import { RANK_LABELS, cellClass } from './grid';
 import { ALL_169 } from './hands';
 
 describe('RANK_LABELS', () => {
-  it('has thirteen ranks', () => {
-    expect(RANK_LABELS).toHaveLength(13);
-  });
-
-  it('runs A down to 2, ace first', () => {
+  it('runs all thirteen ranks, ace first down to deuce', () => {
     expect([...RANK_LABELS]).toEqual([
       'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2',
     ]);
@@ -24,19 +20,15 @@ describe('RANK_LABELS', () => {
 });
 
 describe('cellClass()', () => {
-  it('puts pairs on the diagonal', () => {
+  it('puts pairs on the diagonal, suited above it, offsuit below it', () => {
     expect(cellClass(0, 0)).toBe('AA');
     expect(cellClass(1, 1)).toBe('KK');
     expect(cellClass(12, 12)).toBe('22');
-  });
 
-  it('puts suited hands in the upper-right triangle', () => {
     expect(cellClass(0, 1)).toBe('AKs');
     expect(cellClass(0, 12)).toBe('A2s');
     expect(cellClass(1, 2)).toBe('KQs');
-  });
 
-  it('puts offsuit hands in the lower-left triangle', () => {
     expect(cellClass(1, 0)).toBe('AKo');
     expect(cellClass(12, 0)).toBe('A2o');
     expect(cellClass(2, 1)).toBe('KQo');
@@ -55,15 +47,8 @@ describe('the full 13×13 sweep', () => {
     for (let col = 0; col < 13; col += 1) all.push(cellClass(row, col));
   }
 
-  it('emits 169 cells', () => {
+  it('covers exactly the 169 canonical hand classes, once each', () => {
     expect(all).toHaveLength(169);
-  });
-
-  it('emits every cell exactly once', () => {
-    expect(new Set(all).size).toBe(169);
-  });
-
-  it('covers exactly the 169 canonical hand classes', () => {
     expect([...all].sort()).toEqual([...ALL_169].sort());
   });
 
@@ -73,7 +58,7 @@ describe('the full 13×13 sweep', () => {
     expect(all.filter((h) => h.endsWith('o'))).toHaveLength(78);
   });
 
-  it('is suited above the diagonal and offsuit below it', () => {
+  it('is suited above the diagonal and offsuit below it, at every cell', () => {
     for (let row = 0; row < 13; row += 1) {
       for (let col = 0; col < 13; col += 1) {
         const hc = cellClass(row, col);

@@ -2,6 +2,10 @@
  * Tests for the preflop spot dealer.
  *
  * Uses seeded RNG for determinism.
+ *
+ * The distribution checks are the expensive part, so each pool is sampled once
+ * and every property is read off that one pass. Splitting them into a test per
+ * property re-deals tens of thousands of hands to learn the same thing.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,295 +25,147 @@ function makeRng(seed: number): () => number {
 
 const N_DEALS = 5000; // enough for statistical tests without being slow
 
-describe('dealPreflopSpot() — basic validity', () => {
-  it('returns a valid position', () => {
-    const rng = makeRng(42);
-    const spot = dealPreflopSpot({ rng });
-    expect(POSITIONS).toContain(spot.position as Position);
-  });
+/** Combos per class — pairs 6, suited 4, offsuit 12. */
+function combos(hc: string): number {
+  return hc.length === 2 ? 6 : hc[2] === 's' ? 4 : 12;
+}
 
-  it('returns exactly 2 cards', () => {
+describe('dealPreflopSpot() — what every spot must be', () => {
+  it('is a well-formed, correctly graded spot on every deal', () => {
     const rng = makeRng(42);
-    const spot = dealPreflopSpot({ rng });
-    expect(spot.cards.length).toBe(2);
-  });
+    const ranks = new Set('23456789TJQKA');
+    const suits = new Set(['s', 'h', 'd', 'c']);
 
-  it('two cards are distinct', () => {
-    const rng = makeRng(42);
-    const spot = dealPreflopSpot({ rng });
-    expect(spot.cards[0]).not.toBe(spot.cards[1]);
-  });
-
-  it('handClass matches cards', () => {
-    const rng = makeRng(42);
-    for (let i = 0; i < 100; i++) {
-      const spot = dealPreflopSpot({ rng });
-      const expected = computeHandClass(spot.cards[0], spot.cards[1]);
-      expect(spot.handClass).toBe(expected);
-    }
-  });
-
-  it('correct always matches isOpen(position, handClass)', () => {
-    const rng = makeRng(99);
     for (let i = 0; i < 500; i++) {
       const spot = dealPreflopSpot({ rng });
-      const expected = isOpen(spot.position, spot.handClass) ? 'open' : 'fold';
-      expect(spot.correct).toBe(expected);
-    }
-  });
 
-  it('correct is either "open" or "fold"', () => {
-    const rng = makeRng(77);
-    for (let i = 0; i < 100; i++) {
-      const spot = dealPreflopSpot({ rng });
-      expect(['open', 'fold']).toContain(spot.correct);
+      expect(POSITIONS).toContain(spot.position as Position);
+      expect(spot.cards).toHaveLength(2);
+      expect(spot.cards[0]).not.toBe(spot.cards[1]);
+      for (const card of spot.cards) {
+        expect(card).toHaveLength(2);
+        expect(ranks.has(card[0])).toBe(true);
+        expect(suits.has(card[1])).toBe(true);
+      }
+
+      // The two derived fields are the whole answer key: a spot graded against
+      // the wrong hand class teaches the player the wrong chart.
+      expect(spot.handClass).toBe(computeHandClass(spot.cards[0], spot.cards[1]));
+      expect(spot.correct).toBe(isOpen(spot.position, spot.handClass) ? 'open' : 'fold');
     }
   });
 });
 
 describe('dealPreflopSpot() — position distribution', () => {
-  it('all 7 positions appear over N deals', () => {
-    const rng = makeRng(123);
-    const seen = new Set<Position>();
-    for (let i = 0; i < N_DEALS; i++) {
-      const spot = dealPreflopSpot({ rng });
-      seen.add(spot.position);
-    }
-    for (const pos of POSITIONS) {
-      expect(seen.has(pos)).toBe(true);
-    }
-  });
-
-  it('positions are approximately uniformly distributed (within 3% of 1/7)', () => {
+  it('deals all seven seats, within 10% of uniform', () => {
     const rng = makeRng(456);
     const counts: Record<string, number> = {};
     for (const pos of POSITIONS) counts[pos] = 0;
 
-    for (let i = 0; i < N_DEALS; i++) {
-      counts[dealPreflopSpot({ rng }).position]++;
-    }
+    for (let i = 0; i < N_DEALS; i++) counts[dealPreflopSpot({ rng }).position]++;
 
     const expected = N_DEALS / 7;
     for (const pos of POSITIONS) {
-      const pct = Math.abs(counts[pos] - expected) / expected;
-      expect(pct).toBeLessThan(0.10); // within 10% of expected (generous for seeded rng)
-    }
-  });
-});
-
-describe('dealPreflopSpot() — card validity', () => {
-  it('cards are well-formed (rank + suit format)', () => {
-    const rng = makeRng(1);
-    const ranks = new Set('23456789TJQKA');
-    const suits = new Set(['s', 'h', 'd', 'c']);
-
-    for (let i = 0; i < 200; i++) {
-      const spot = dealPreflopSpot({ rng });
-      for (const card of spot.cards) {
-        expect(card.length).toBe(2);
-        expect(ranks.has(card[0])).toBe(true);
-        expect(suits.has(card[1])).toBe(true);
-      }
-    }
-  });
-
-  it('the two cards are always different', () => {
-    const rng = makeRng(2);
-    for (let i = 0; i < 500; i++) {
-      const spot = dealPreflopSpot({ rng });
-      expect(spot.cards[0]).not.toBe(spot.cards[1]);
+      expect(counts[pos], pos).toBeGreaterThan(0);
+      expect(Math.abs(counts[pos] - expected) / expected).toBeLessThan(0.1);
     }
   });
 });
 
 describe('edgeSkewPool distribution', () => {
-  it('every hand class appears at least once over N deals', () => {
-    const rng = makeRng(7777);
-    const seen = new Set<string>();
-    const LARGE_N = 20000; // need many more deals to hit all 169 classes
+  // One 20k sample, read three ways.
+  const rng = makeRng(5555);
+  const SAMPLE_N = 20000;
+  const counts: Record<string, number> = {};
+  for (const hc of ALL_169) counts[hc] = 0;
+  const utgCounts: Record<string, number> = {};
+  for (const hc of ALL_169) utgCounts[hc] = 0;
+  let utgDeals = 0;
 
-    for (let i = 0; i < LARGE_N; i++) {
-      const spot = dealPreflopSpot({ rng, pool: edgeSkewPool });
-      seen.add(spot.handClass);
+  for (let i = 0; i < SAMPLE_N; i++) {
+    const spot = dealPreflopSpot({ rng, pool: edgeSkewPool });
+    counts[spot.handClass]++;
+    if (spot.position === 'UTG') {
+      utgCounts[spot.handClass]++;
+      utgDeals++;
     }
+  }
 
-    // Every hand class should appear (no zero-weight classes)
-    for (const hc of ALL_169) {
-      expect(seen.has(hc)).toBe(true);
-    }
+  it('leaves no hand class unreachable', () => {
+    for (const hc of ALL_169) expect(counts[hc], hc).toBeGreaterThan(0);
   });
 
-  it('edge classes appear more than mid-range classes (~4x)', { timeout: 30000 }, () => {
-    // Use UTG as the test position for determinism
-    // UTG boundary is around rank 60-80 in the strength ranking
-    // Mid hand: something clearly in the middle of the ranking, not near boundary
-    // Edge hand: something just inside or just outside UTG range boundary
+  it('boosts the boundary band over a hand nowhere near it, and buries trash', () => {
+    expect(utgDeals).toBeGreaterThan(1000);
 
-    const rng = makeRng(9999);
-    const SAMPLE_N = 30000;
-
-    // Count per hand class at UTG (by fixing position)
-    const counts: Record<string, number> = {};
-    for (const hc of ALL_169) counts[hc] = 0;
-
-    let utg_deals = 0;
-    for (let i = 0; i < SAMPLE_N; i++) {
-      const spot = dealPreflopSpot({ rng, pool: edgeSkewPool });
-      if (spot.position === 'UTG') {
-        counts[spot.handClass]++;
-        utg_deals++;
-      }
-    }
-
-    // We need enough UTG deals for meaningful statistics
-    // ~1/7 of SAMPLE_N ≈ 4285 UTG deals
-    expect(utg_deals).toBeGreaterThan(1000);
-
-    // Take the example hands from the pool itself rather than naming hands from
-    // one particular chart: the charts move when the reference charts do, the
-    // weighting mechanism does not.
-    const midHand = 'AA'; // always in range, nowhere near any boundary
+    // Take the edge hand from the pool itself rather than naming one off a
+    // chart: the charts move when the reference charts do, the weighting does
+    // not.
     const edgeHand = ALL_169.find(
-      (hc) =>
-        hc.length === 3 &&
-        hc.endsWith('s') &&
-        edgeSkewPool.weight('UTG', hc, DEFAULT_DEPTH) === 4,
+      (hc) => hc.endsWith('s') && edgeSkewPool.weight('UTG', hc, DEFAULT_DEPTH) === 4
     )!;
-    const trashHand = '72o'; // not near any boundary
-
     expect(edgeHand).toBeDefined();
-    expect(edgeSkewPool.weight('UTG', midHand, DEFAULT_DEPTH)).toBe(1);
+    expect(edgeSkewPool.weight('UTG', 'AA', DEFAULT_DEPTH)).toBe(1);
 
-    // Per-combo rates (normalize by combo count since pairs have 6, suited 4, offsuit 12)
-    // AA: pair, 6 combos; the edge hand is suited, 4 combos; 72o: offsuit, 12 combos
-    // To compare per-class rates, divide count by combo weight
-    const midCount = counts[midHand];
-    const edgeCount = counts[edgeHand];
-    const trashCount = counts[trashHand];
-
-    if (midCount > 0 && trashCount > 0 && edgeCount > 0) {
-      // Per-class rate (normalize by combo count)
-      const midRate = midCount / 6;    // AA has 6 combos
-      const edgeRate = edgeCount / 4;  // a suited class has 4 combos
-      const trashRate = trashCount / 12; // 72o has 12 combos
-
-      // Edge should be ~4x mid (loose check: >1.5x to absorb sampling noise)
-      // Note: exact ratio depends on boundary band width
-      expect(edgeRate).toBeGreaterThan(midRate * 1.5); // edge clearly boosted over mid
-
-      // Trash should be clearly less than mid (~0.25x)
-      expect(trashRate).toBeLessThan(midRate * 0.8); // trash clearly less than mid
-    }
+    // Per-combo rates, so a pair's 6 combos are not read as six times the luck.
+    const rate = (hc: string) => utgCounts[hc] / combos(hc);
+    // Loose multipliers: the exact ratio depends on the boundary band width.
+    expect(rate(edgeHand)).toBeGreaterThan(rate('AA') * 1.5);
+    expect(rate('72o')).toBeLessThan(rate('AA') * 0.8);
   });
 
-  it('trash classes are suppressed relative to base hands', () => {
-    const rng = makeRng(5555);
-    const SAMPLE_N = 20000;
+  it('suppresses the bottom of the ranking against its middle', () => {
+    const rateOver = (classes: readonly string[]) => {
+      let dealt = 0;
+      let weight = 0;
+      for (const hc of classes) {
+        dealt += counts[hc];
+        weight += combos(hc);
+      }
+      return dealt / weight;
+    };
 
-    const counts: Record<string, number> = {};
-    for (const hc of ALL_169) counts[hc] = 0;
-
-    for (let i = 0; i < SAMPLE_N; i++) {
-      const spot = dealPreflopSpot({ rng, pool: edgeSkewPool });
-      counts[spot.handClass]++;
-    }
-
-    // Trash hands (rank > 135 in strength ranking, not near any boundary)
-    // should appear significantly less than average
-    const trashHands = HAND_STRENGTH_RANKING.slice(140); // bottom 29 hands
-    const normalHands = HAND_STRENGTH_RANKING.slice(40, 80); // middle range hands
-
-    let trashTotal = 0;
-    let trashComboTotal = 0;
-    for (const hc of trashHands) {
-      trashTotal += counts[hc];
-      // offsuit combos = 12, suited = 4, pair = 6
-      const comboCount = hc.length === 2 ? 6 : hc[2] === 's' ? 4 : 12;
-      trashComboTotal += comboCount;
-    }
-
-    let normalTotal = 0;
-    let normalComboTotal = 0;
-    for (const hc of normalHands) {
-      normalTotal += counts[hc];
-      const comboCount = hc.length === 2 ? 6 : hc[2] === 's' ? 4 : 12;
-      normalComboTotal += comboCount;
-    }
-
-    // Per-combo rates
-    const trashRate = trashTotal / trashComboTotal;
-    const normalRate = normalTotal / normalComboTotal;
-
-    // Trash should appear at significantly lower rate than normal hands
-    // At 0.25x base weight, trash rate should be much less than normal rate
-    expect(trashRate).toBeLessThan(normalRate * 0.7);
+    const trash = rateOver(HAND_STRENGTH_RANKING.slice(140));
+    const normal = rateOver(HAND_STRENGTH_RANKING.slice(40, 80));
+    expect(trash).toBeLessThan(normal * 0.7);
   });
 });
 
 describe('uniformPool', () => {
-  it('all hand classes appear over many deals', () => {
+  it('reaches every hand class, and grades each against the chart', () => {
     const rng = makeRng(1234);
     const seen = new Set<string>();
-    const LARGE_N = 30000;
 
-    for (let i = 0; i < LARGE_N; i++) {
+    for (let i = 0; i < 30000; i++) {
       const spot = dealPreflopSpot({ rng, pool: uniformPool });
       seen.add(spot.handClass);
+      expect(spot.correct).toBe(isOpen(spot.position, spot.handClass) ? 'open' : 'fold');
     }
 
-    for (const hc of ALL_169) {
-      expect(seen.has(hc)).toBe(true);
-    }
-  });
-
-  it('correct is always consistent with isOpen', () => {
-    const rng = makeRng(8888);
-    for (let i = 0; i < 200; i++) {
-      const spot = dealPreflopSpot({ rng, pool: uniformPool });
-      const expected = isOpen(spot.position, spot.handClass) ? 'open' : 'fold';
-      expect(spot.correct).toBe(expected);
-    }
+    for (const hc of ALL_169) expect(seen.has(hc), hc).toBe(true);
   });
 });
 
 describe('ACTIVE_POOL', () => {
-  it('is the edgeSkewPool by default', () => {
+  it('is the edgeSkewPool — the drill skews to boundaries by default', () => {
     expect(ACTIVE_POOL.name).toBe('edgeSkew');
   });
 });
 
 describe('dealPreflopSpot() — seeded determinism', () => {
-  it('same seed produces same first spot', () => {
+  it('same seed produces the same first spot', () => {
     const spot1 = dealPreflopSpot({ rng: makeRng(42) });
     const spot2 = dealPreflopSpot({ rng: makeRng(42) });
-    expect(spot1.position).toBe(spot2.position);
-    expect(spot1.cards[0]).toBe(spot2.cards[0]);
-    expect(spot1.cards[1]).toBe(spot2.cards[1]);
-    expect(spot1.handClass).toBe(spot2.handClass);
-    expect(spot1.correct).toBe(spot2.correct);
-  });
-
-  it('different seeds produce different spots (usually)', () => {
-    const spot1 = dealPreflopSpot({ rng: makeRng(1) });
-    const spot2 = dealPreflopSpot({ rng: makeRng(999999) });
-    // Not guaranteed to be different, but very unlikely with these seeds
-    // Just check it runs without error
-    expect(spot1).toBeDefined();
-    expect(spot2).toBeDefined();
+    expect(spot1).toEqual(spot2);
   });
 });
 
 describe('dealPreflopSpot() — stack depth', () => {
-  it('defaults to the deep tier when no depth is given', () => {
-    const spot = dealPreflopSpot({ rng: makeRng(7) });
-    expect(spot.depth).toBe(DEFAULT_DEPTH);
-    expect(spot.depth).toBe('deep');
-  });
-
-  it('reports back the depth it was asked for', () => {
+  it('defaults to the deep tier, and reports back any tier it is asked for', () => {
+    expect(dealPreflopSpot({ rng: makeRng(7) }).depth).toBe(DEFAULT_DEPTH);
+    expect(DEFAULT_DEPTH).toBe('deep');
     for (const depth of DEPTHS) {
-      const spot = dealPreflopSpot({ rng: makeRng(7), depth });
-      expect(spot.depth).toBe(depth);
+      expect(dealPreflopSpot({ rng: makeRng(7), depth }).depth).toBe(depth);
     }
   });
 
@@ -349,7 +205,7 @@ describe('dealPreflopSpot() — stack depth', () => {
     expect(pairsSeen).toBeGreaterThan(100);
   });
 
-  it('edgeSkewPool skews to each tier\u2019s own boundary, not the deep one', () => {
+  it('edgeSkewPool skews to each tier’s own boundary, not the deep one', () => {
     // Each tier's chart has its own weakest-included hand, so each has its own
     // edge band. Drilling 10bb must not skew toward the 60bb+ boundary.
     const edgeBand = (depth: Depth) =>

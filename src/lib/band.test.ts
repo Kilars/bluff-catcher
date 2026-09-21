@@ -16,77 +16,46 @@ import {
   type Band,
 } from './band';
 
+const BANDS: Band[] = ['green', 'amber', 'red'];
+
 describe('bandOf()', () => {
-  it('scores a perfect guess green', () => {
-    expect(bandOf(0)).toBe('green');
+  it.each([
+    [0, 'green'],
+    [1, 'green'],
+    [4.9, 'green'],
+    [GREEN_BAND, 'green'],
+    [5.1, 'amber'],
+    [6, 'amber'],
+    [AMBER_BAND, 'amber'],
+    [10.1, 'red'],
+    [50, 'red'],
+    [100, 'red'],
+  ] as const)('scores a %s-point miss %s', (delta, band) => {
+    expect(bandOf(delta)).toBe(band);
   });
 
-  it('scores inside the green band green', () => {
-    expect(bandOf(1)).toBe('green');
-    expect(bandOf(4.9)).toBe('green');
-  });
-
-  it('includes the green boundary itself', () => {
-    expect(bandOf(GREEN_BAND)).toBe('green');
-    expect(bandOf(5)).toBe('green');
-  });
-
-  it('scores just past the green boundary amber', () => {
-    expect(bandOf(5.1)).toBe('amber');
-    expect(bandOf(6)).toBe('amber');
-  });
-
-  it('includes the amber boundary itself', () => {
-    expect(bandOf(AMBER_BAND)).toBe('amber');
-    expect(bandOf(10)).toBe('amber');
-  });
-
-  it('scores past the amber boundary red', () => {
-    expect(bandOf(10.1)).toBe('red');
-    expect(bandOf(50)).toBe('red');
-    expect(bandOf(100)).toBe('red');
+  it('reaches all three bands across the 0–100 range', () => {
+    const seen = new Set<Band>();
+    for (let delta = 0; delta <= 100; delta += 1) seen.add(bandOf(delta));
+    expect([...seen].sort()).toEqual(['amber', 'green', 'red']);
   });
 });
 
 describe('thresholds', () => {
-  it('keeps green tighter than amber', () => {
-    expect(GREEN_BAND).toBeLessThan(AMBER_BAND);
-  });
-
   it('holds the documented values the designs are sized against', () => {
     expect(GREEN_BAND).toBe(5);
     expect(AMBER_BAND).toBe(10);
+    expect(GREEN_BAND).toBeLessThan(AMBER_BAND);
   });
 });
 
 describe('presentation maps', () => {
-  const BANDS: Band[] = ['green', 'amber', 'red'];
-
-  it('has a colour token for every band', () => {
-    for (const band of BANDS) {
-      expect(BAND_COLOR[band]).toBe(`var(--band-${band})`);
-    }
-  });
-
-  it('has copy for every band', () => {
-    for (const band of BANDS) {
-      expect(BAND_LABEL[band]).toBeTruthy();
-    }
-    expect(BAND_LABEL.green).toBe('On the money');
-    expect(BAND_LABEL.amber).toBe('Close');
-    expect(BAND_LABEL.red).toBe('Off');
-  });
-
-  it('covers exactly the three bands and no more', () => {
+  // The copy is asserted here on purpose: this module is the single source for
+  // it, so the views can assert against BAND_LABEL instead of their own string.
+  it('names and colours exactly the three bands', () => {
     expect(Object.keys(BAND_COLOR).sort()).toEqual(['amber', 'green', 'red']);
     expect(Object.keys(BAND_LABEL).sort()).toEqual(['amber', 'green', 'red']);
-  });
-});
-
-describe('every band is reachable from some delta', () => {
-  it('produces all three bands across the 0–100 range', () => {
-    const seen = new Set<Band>();
-    for (let delta = 0; delta <= 100; delta += 1) seen.add(bandOf(delta));
-    expect([...seen].sort()).toEqual(['amber', 'green', 'red']);
+    for (const band of BANDS) expect(BAND_COLOR[band]).toBe(`var(--band-${band})`);
+    expect(BAND_LABEL).toEqual({ green: 'On the money', amber: 'Close', red: 'Off' });
   });
 });
