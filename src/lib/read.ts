@@ -2,10 +2,10 @@
  * The two facets of PLAN-coach.md §3 that need Hero's hole cards: what the
  * hand is, and which of the board's possible hands Hero's cards take away.
  *
- * Board texture is not here — it is read before your own cards are, so it
- * lives in hh/board.ts. Both functions here take the board as an argument and
- * nothing else, so that `vulnerable`, which needs players-in and flop SPR,
- * cannot end up half-owned by two modules when it is eventually built.
+ * Board texture is not here — it is read before your own cards are, so it lives
+ * in hh/board.ts. Both functions take the board as an argument and nothing
+ * else, so `vulnerable` cannot end up half-owned by two modules when it is
+ * eventually built.
  */
 
 import { classify, suitName } from './classify.ts';
@@ -17,12 +17,9 @@ export type HandClass = 'strong' | 'marginal-made' | 'draw' | 'air';
 
 /**
  * One board-possible hand that a card in Hero's hand takes out of the deck.
- *
  * The two fields are the whole statement — "A♥ removes flushes in hearts, the
  * nut flush included" — because the consumer is a model reading a payload, not
- * code. Nothing here says whether that removal is good or bad: the direction
- * flips by street and by who is betting (strategy-notes §4), and deciding it
- * needs a villain range, which §3 forbids. Stating the fact is the job.
+ * code. Whether a removal is good or bad is not said here; see `removals`.
  */
 export interface Removal {
   /** The hole card doing the removing, e.g. 'Ah'. */
@@ -60,33 +57,21 @@ const DRAW_OUTS = 8;
 const GOOD_KICKER = RANKS.indexOf('Q');
 
 /**
- * Label a hand on the strong / marginal-made / draw / air axis.
+ * Label a hand strong / marginal-made / draw / air.
  *
- * **Precedence: made strength first, draws only after.** A set with a flush
- * draw is `strong`, not `draw`. The axis exists to be crossed with an action,
- * and what the action turns on is whether the hand wins anything unimproved: a
- * made hand can check down and still win, a draw cannot. Calling the set a
- * draw would bucket it with hands that must hit, and promoting a weak pair
- * with a flush draw to `draw` would hide the showdown value that makes
- * checking it back reasonable. So the order is strong → marginal-made → draw,
- * and a hand that is both is named by the half that survives a checkdown.
+ * Made strength is tested first, so a set with a flush draw is `strong`: the
+ * axis turns on whether the hand wins anything unimproved, and a made hand can
+ * check down where a draw cannot.
  *
- * **Outs come from classify(), the threshold does not.** classify() is the
- * drill's taxonomy and calls a four-out gutshot a draw, which is right for a
- * drill about counting outs and wrong for a coaching label. We take its
- * composite `hits` predicate — which is where the real work is, deduplicating
- * overlapping outs through analyse() — and apply §3's threshold ourselves.
+ * Outs come from classify(), the 8-out threshold does not — classify() calls a
+ * four-out gutshot a draw, right for an outs drill and wrong here. The outs
+ * branch is skipped on the river, where analyse() would still count nine outs
+ * for a four-flush with no card to come.
  *
- * Two known under-calls, both deliberate:
- *
- * - A straight sitting on the board (9-8-7-6-5) is `marginal-made` even when
- *   Hero holds a card making a higher one. Separating those needs a best-five
- *   comparison, which is a card evaluator this repo does not have and would
- *   not otherwise need. Under-calling a river nut straight as marginal is a
- *   label a coach can see through; `air` would not have been.
- * - Once the fifth card is out nothing is a draw, so the outs branch is
- *   skipped entirely on the river. Four to a flush with no card to come is
- *   air, and analyse() would happily count nine outs for it.
+ * Deliberate under-call: a straight on the board is `marginal-made` even when
+ * Hero holds a card making a higher one. Separating them needs a best-five
+ * evaluator the repo lacks, and a coach sees through `marginal` where `air`
+ * would have misled.
  */
 export function handClass(hole: Card[], board: Card[]): HandClass {
   const known = hole.concat(board);
@@ -94,8 +79,8 @@ export function handClass(hole: Card[], board: Card[]): HandClass {
   const pocketPair = hole[0][0] === hole[1][0];
 
   // Two pair or better using at least one hole card, an overpair, or top pair
-  // with a Q+ kicker. Each test below names the hole card's contribution,
-  // because "the board has two pair" is not Hero having two pair.
+  // with a Q+ kicker. Every test names the hole card's contribution, because
+  // "the board has two pair" is not Hero having two pair.
   const pairedRanks = repeats(known);
   const flush = hole.some((h) => ofSuit(known, h[1]) >= 5);
   const straight = hasStraight(known) && !hasStraight(board);
@@ -110,8 +95,7 @@ export function handClass(hole: Card[], board: Card[]): HandClass {
 
   // Playing the board. Only possible once all five are out — on a flop your
   // kickers still play — and only worth the name when the board's own hand is
-  // two pair or better, which is showdown value that owes nothing to Hero's
-  // cards. Hero's high cards playing as kickers on A-K-8-5-2 is still air.
+  // two pair or better. Hero's high cards as kickers on A-K-8-5-2 is still air.
   const boardPairs = repeats(board);
   const boardMade =
     hasStraight(board) ||
@@ -135,15 +119,10 @@ export function handClass(hole: Card[], board: Card[]): HandClass {
  * Board-derived, in the strict sense: the question is "what can the board
  * make", never "what does villain have". The four rules are §3's, verbatim.
  *
- * This is weaker than the worked example in strategy-notes §4 and the
- * difference is the point. There, A♥K♥ on Q♥-7♥-3♦-8♠-2♣ is a bad bluff
- * because it blocks the *missed heart draws* that were going to fold — but
- * that board holds only two hearts, so no flush is possible on it and nothing
- * here fires. "They are holding busted hearts" is a claim about a range, and
- * the moment we encode it we have built the range model §3 rules out. What we
- * can say is that on a board where the flush *is* possible, A♥K♥ removes it
- * and A♦K♦ removes nothing — same hand strength, opposite meaning — and which
- * of those two the agent is looking at is the agent's call.
+ * That makes this deliberately weaker than the worked example in
+ * strategy-notes §4, which turns on villain holding busted draws. §3 of the
+ * plan spells out where these rules go quiet, and why encoding the missing
+ * piece would be the range model it rules out.
  */
 export function removals(hole: Card[], board: Card[]): Removal[] {
   const found: Removal[] = [];

@@ -205,25 +205,14 @@ export function renderText(
 const RESULT_STATS = new Set(['wwsf', 'wtsd', 'wsd']);
 
 /**
- * The payload the coaching agent reads. **Blind to results by construction.**
+ * The payload the coaching agent reads. Blind to results by construction: an
+ * agent that can see what a hand returned coaches the hands that lost, and
+ * those are not the hands played badly. So no chip flow, no net by role, no
+ * loss-ranked pots, no won-at-showdown, and `board` stops where Hero stopped.
+ * Hands are here because they carry a label — see `docs/leak-coaching.md` §0.
  *
- * An agent that can see what a hand returned will coach the hands that lost,
- * and the hands that lost are not the hands that were played badly — a cooler
- * played perfectly loses a stack, and a dreadful fold costs nothing and leaves
- * no trace. So the money never reaches here: no chip flow, no net by role, no
- * loss-ranked pot list, no won-when/won-at-showdown, and `board` stops where
- * Hero stopped.
- *
- * This is why there is no `--mode blind`: the main path *is* blind, and
- * `--mode pots` is the one place results are deliberately visible, for a human
- * asking where the chips went.
- *
- * **Hands reach the agent because they carry a label.** That is the selector,
- * and it is the reason the money could be deleted rather than filtered: every
- * other hand-picker here ranked by chips, so a payload without them had nothing
- * per-hand but `rfiFolds`. A label is a fact about a decision — what the hand
- * was, what the board was, what Hero did and how big — and it is knowable
- * before the next card comes, which is exactly what "blind to results" means.
+ * The main path being blind is why there is no `--mode blind`; `--mode pots`
+ * is the one place results are visible, for a human, not for the agent.
  */
 export function renderJson(
   s: Summary,
@@ -279,19 +268,13 @@ export function renderJson(
 }
 
 /**
- * At ~500 hands a label can easily carry a hundred instances, and dumping all
- * of them would make the payload mostly repetition of one spot.
+ * A label can carry a hundred instances, so a group ships at most `PER_LABEL`,
+ * every ⌈n/N⌉-th in archive order, with the stride in the payload.
  *
- * So a group ships at most `PER_LABEL` of them, chosen by **stride in archive
- * order** — every ⌈n/N⌉-th, with the stride in the payload so the agent knows
- * it is reading a sample. Archive order and nothing else: any interesting
- * ranking would be a ranking by money, which is the thing this payload exists
- * to not have, and "the biggest" or "the worst" are the same trap wearing a
- * different name. A stride also spreads the sample across the whole window
- * rather than stacking it on one session, which the first N would not.
- *
- * `shared` is computed over *every* instance in labels.ts, not over the sample,
- * so truncation can never invent agreement that the full group does not have.
+ * Archive order and nothing else: any "interesting" ranking is a ranking by
+ * money wearing a different name, and a stride spreads the sample across the
+ * window where the first N would stack it on one session. `shared` is computed
+ * over every instance in labels.ts, so truncation cannot invent agreement.
  */
 const PER_LABEL = 5;
 

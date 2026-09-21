@@ -1,9 +1,7 @@
 /**
- * The one check that fires at n = 1: folding a hand the chart opens.
- *
- * Every other number in the report is a frequency and needs a sample. This is
- * a per-hand fact — the chart either opens AJo from the cutoff or it does not —
- * so it is the only finding that means something after one session.
+ * The one check that fires at n = 1: folding a hand the chart opens. Every
+ * other number in the report is a frequency and needs a sample; this is a
+ * per-hand fact — the chart either opens AJo from the cutoff or it does not.
  *
  * The carve-out it lives inside: `docs/leak-coaching.md` forbids coaching
  * opening *frequency*, because that is what the preflop trainer drills. A named

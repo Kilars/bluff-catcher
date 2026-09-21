@@ -1,25 +1,15 @@
 /**
  * PLAN-coach.md §3: the axes crossed into labels, and the grouping that
- * replaces counting.
+ * replaces counting. Two rules from there govern this file.
  *
- * **A label states a fact and never a verdict.** An earlier draft made a label
- * *be* a mistake — prescription versus action, tag fires on mismatch — and
- * three of the five labels it produced then fired on lines
- * `docs/strategy-notes.md` recommends outright. So nothing here decides whether
- * a decision was wrong. `overbet-strong` is true of the best bet in the game
- * and of the worst one, and telling those apart is the agent's job, with the
- * hand in front of it.
+ * **A label states a fact and never a verdict** — `overbet-strong` is true of
+ * the best bet in the game and of the worst one — and **nothing here counts**:
+ * a label carries its instances and the facets they all agree on, because what
+ * separates a rule from a misclick is whether the instances *look alike*.
  *
- * **Nothing here counts.** A leak is not a sampling question: folding AJo from
- * the cutoff once may be a misclick, fifteen times is a rule being carried
- * around, and no confidence interval separates those — what separates them is
- * whether the instances *look alike*. So a label carries its instances and the
- * facets they all agree on, and the payload hands both to the agent.
- *
- * Preflop decisions are deliberately unlabelled. `rfiFolds` already says the
- * one per-hand preflop thing this repo can say soundly, `byRole` says how Hero
- * entered, and `handClass` here is the postflop taxonomy — running it against
- * an empty board would be a category error wearing a real-looking answer.
+ * Preflop decisions are deliberately unlabelled: `handClass` is the postflop
+ * taxonomy, and running it against an empty board would be a category error
+ * wearing a real-looking answer. `rfiFolds` and `byRole` cover preflop.
  */
 
 import { handClass, removals, type HandClass, type Removal } from '../read.ts';
@@ -32,10 +22,9 @@ import { depthFor } from './rfi.ts';
 
 /**
  * A decision with everything a model needs to second-guess it, and nothing it
- * would need to grade the result instead.
- *
- * `board` is cut at the street Hero acted on, so a river card Hero never saw
- * cannot leak backwards into a read of a turn decision.
+ * would need to grade the result instead. `board` is cut at the street Hero
+ * acted on, so a river card Hero never saw cannot leak backwards into a read of
+ * a turn decision.
  */
 export interface LabelledDecision extends Decision {
   /** The hand id, so the user can find the hand in the client. */
@@ -44,10 +33,9 @@ export interface LabelledDecision extends Decision {
   board: Card[];
   handClass: HandClass;
   /**
-   * The *flop's* texture, on every street. Turn and river cards change what is
-   * possible, but they do not change which range the flop handed the initiative
-   * to, and that is what the five buckets describe — it is also the cut
-   * `byBoard` already uses, so the two agree.
+   * The *flop's* texture, on every street: later cards change what is possible
+   * but not which range the flop handed the initiative to. It is also the cut
+   * `byBoard` uses, so the two agree.
    */
   boardType: BoardType | null;
   /** The stack-depth bucket `rfi.ts` already reads charts by. */
@@ -67,17 +55,10 @@ export interface LabelGroup {
 const OVERBET = 1;
 
 /**
- * The vocabulary. Six labels, each argued for below; a label that cannot be
- * argued for is a label nobody can act on, and twenty of those are worse than
- * none. Board texture and hand class are *not* spelled into most of these
- * names, because both are grouping facets — a group whose instances share a
- * texture says so itself, and one whose instances do not has said something
- * too, namely that there is no pattern there.
- *
- * Where a name does carry a facet it is because the facet is the whole event:
- * checking is unremarkable, checking a *draw* is a decision; and splitting the
- * river bluffs by hand class up front makes two groups that can each agree on
- * a texture instead of one mixed group that agrees on nothing.
+ * The vocabulary. Board texture and hand class are *not* spelled into most of
+ * these names, because both are grouping facets — a name carries one only where
+ * the facet is the whole event: checking is unremarkable, checking a *draw* is
+ * a decision. Section numbers below are `docs/strategy-notes.md`.
  */
 function labelsFor(
   d: Decision,
@@ -87,52 +68,37 @@ function labelsFor(
 ): string[] {
   const out: string[] = [];
 
-  // §2 stage 1: the board picks the c-bet frequency, and it runs from ~90% on
-  // A-7-2r to ~25% on T-9-7. A flat percentage is correct at neither, so the
-  // interesting object is the *named* checks with their textures attached —
-  // all five on `middling-theirs` is the discipline §2 asks for, all five on
-  // `dry-high-mine` is giving back what the raise bought. The group's
-  // `shared.boardType` is that finding, and the code does not pick a side.
-  //
-  // A check that became a check-raise is excluded: that is not declining the
-  // c-bet, it is a different and, per strategy-notes §3, underused line.
+  // §2 stage 1: the board picks the c-bet frequency, from ~90% on A-7-2r to
+  // ~25% on T-9-7, so the finding is the *named* checks with their textures
+  // attached rather than a rate. A check that became a check-raise is excluded
+  // — that is not declining the c-bet, it is a different line (§3).
   if (d.pfa && d.street === 'flop' && d.kind === 'check' && !checkRaised) out.push('pfa-check-flop');
 
-  // §2 stage 2: for a draw a fold is *great* — 35% equity became 100% — so the
-  // table says bet often. It does not say always, and PLAN §3 names checking a
-  // nut flush draw on a monotone flop as standard, which is exactly why this
-  // is a label and not a flag.
+  // §2 stage 2: the table says bet a draw often, not always — checking a nut
+  // flush draw on a monotone flop is standard — so this is a label, not a flag.
   if (d.kind === 'check' && hand === 'draw') out.push('check-draw');
 
-  // §6: the gate for a size above the pot is nut advantage, and 150% with a
-  // hand that still beats most of what calls is the recommended line, the
-  // workhorse against amateurs. The same section says most players' overbets
-  // are pure value and instantly readable. One fact, two readings, and which
-  // one applies needs the hand and the board — so both live in one label.
+  // §6: a size above the pot is gated on nut advantage, and the same fact reads
+  // as the recommended line or as an instantly readable value bet depending on
+  // hand and board, so both live in one label.
   //
-  // Named `overbet-strong`, not §3's illustrative `overbet-with-nuts`, because
-  // read.ts's `strong` admits an overpair and top pair with a Q kicker. Those
-  // are not the nuts, and a label may not assert what nothing computed.
+  // Named `overbet-strong`, not PLAN §3's illustrative `overbet-with-nuts`,
+  // because read.ts's `strong` admits an overpair and top pair with a Q kicker.
+  // Those are not the nuts, and a label may not assert what nothing computed.
   if (d.sizing !== null && d.sizing > OVERBET && hand === 'strong') out.push('overbet-strong');
 
-  // §5: on the river there are no cards to come, so every bet is a pure bluff
-  // and the selection filters are, in order, no showdown value and blockers.
-  // `air` on a five-card board is filter one, literally: read.ts has already
-  // ruled out a pair and a playable board. The split is filter two.
+  // §5: on the river every bet is a pure bluff; `air` is the first selection
+  // filter, no showdown value, and the split is the second, blockers.
   //
-  // Which way a blocker points is deliberately not decided here. §4's worked
-  // example is the reason: on Q♥-7♥-3♦-8♠-2♣ the hand holding *nothing* is the
-  // good bluff and A♥K♥ is the bad one, because it blocks the folds. Reverse
-  // the board and it reverses with it. That direction needs a villain range,
-  // which §3 forbids, so the label reports the removal and stops.
+  // Which *way* a blocker points is deliberately not decided here: it reverses
+  // with the board (§4) and pinning it down needs a villain range, which PLAN
+  // §3 forbids. The label reports the removal and stops.
   if (d.street === 'river' && d.kind === 'bet' && hand === 'air') {
     out.push(rem.length ? 'river-bluff-with-blocker' : 'river-bluff-no-blocker');
   }
 
-  // §4: blockers concentrate on rivers, where ranges are narrow and the
-  // call/fold boundary is sharp — and a marginal made hand facing a river bet
-  // is that boundary. It is also the single decision this repo is named after.
-  // Hero's own removals come attached, which is the whole input to the call.
+  // §4: a marginal made hand facing a river bet is the call/fold boundary, and
+  // the decision this repo is named after. Hero's removals come attached.
   if (d.street === 'river' && d.kind === 'call' && d.facedBet && hand === 'marginal-made') {
     out.push('river-call-marginal');
   }
@@ -174,19 +140,14 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
 const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
 
 /**
- * The facets every instance agrees on — the finding itself.
+ * The facets every instance agrees on — the finding itself. "Three offsuit-ace
+ * folds, all cutoff, all 45–55bb" is a rule the player is carrying; scattered
+ * instances agree on nothing and `shared` comes back empty, which reads as "no
+ * pattern here" with no denominator, minimum sample or interval in it.
  *
- * "Three offsuit-ace folds, all cutoff, all 45–55bb" is a rule the player is
- * carrying. Two scattered instances agree on nothing, `shared` comes back
- * empty, and that reads as "no pattern here" without a denominator, a minimum
- * sample or an interval anywhere in it. It is sayable at n = 2, which is the
- * point: waiting for significance means waiting thousands of hands to say what
- * the third instance already said.
- *
- * At n = 1 it is not sayable at all, which is why one instance shares nothing:
+ * Sayable at n = 2, but not at n = 1, which is why one instance shares nothing:
  * a lone decision trivially "agrees" with itself on all four facets, and a full
- * `shared` block would hand the agent a rule built from one hand. The facets
- * are still on the decision; they are just not a pattern yet.
+ * `shared` block would hand the agent a rule built from one hand.
  */
 function sharedFacets(ds: LabelledDecision[]): LabelGroup['shared'] {
   const shared: LabelGroup['shared'] = {};
