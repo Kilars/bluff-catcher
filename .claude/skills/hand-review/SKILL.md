@@ -11,6 +11,7 @@ Coach from the report. Never from the hands.
 
 ```bash
 npm run leaks -- --json --from YYYY-MM-DD --to YYYY-MM-DD   # both optional
+npm run leaks -- --json --label check-draw                  # one label, in full
 ```
 
 No path argument: `hands/` is the default and is read recursively. Both dates
@@ -64,6 +65,10 @@ hands lost, and the hands that lost are not the hands played worst.
   per-hand facts and sound at n=1.
 - **Never quote a `byBoard.splits` percentage.** Direction only, with the
   caveat attached.
+- **A group ships five instances, not all of them.** `instances` is the true
+  count and `stride` says how the five were picked. When a group looks like a
+  real pattern and five is not enough to argue from, re-run with `--label
+  <name>` for every instance. Never read the five as the whole.
 - **Two of the same mistake beat one of each.** When a `labels[]` group has a
   non-empty `shared`, or `rfiFolds[]` has more than one entry, say what they
   share — seat, depth, texture, hand family. The shared thing is the finding;

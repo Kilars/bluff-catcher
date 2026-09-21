@@ -26,6 +26,10 @@ byRole[]     {role, hands}
 stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
 ```
 
+`--label <name>` re-runs with one label and no stride — every instance rather
+than the five sampled. Use it when a group looks like a pattern worth arguing
+and the sample is too thin to name what the instances share.
+
 Listed in reading order. `labels[]` and `rfiFolds[]` name what Hero did and are
 the reason a hand is here at all; `stats[]` is last because it is context, not
 a finding — every tracker computes it and none of it is specific to a hand.

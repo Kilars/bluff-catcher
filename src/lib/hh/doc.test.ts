@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
-import { labelGroups } from './labels.ts';
+import { LABELS, labelGroups } from './labels.ts';
 import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
 import { renderJson } from './report.ts';
@@ -169,8 +169,7 @@ describe('docs/leak-coaching.md', () => {
    * are pinned to each other in both directions.
    */
   it('names exactly the labels the code can emit', () => {
-    const emitted = new Set(['pfa-check-flop', 'check-draw', 'overbet-strong',
-      'river-bluff-with-blocker', 'river-bluff-no-blocker', 'river-call-marginal']);
+    const emitted = new Set<string>(LABELS);
     const documented = new Set([...DOC.matchAll(/^- \*\*`([a-z-]+)`\*\* —/gm)].map((m) => m[1]));
     expect([...documented].sort()).toEqual([...emitted].sort());
     for (const g of report.labels) expect(emitted, `label ${g.label}`).toContain(g.label);

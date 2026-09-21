@@ -1,6 +1,6 @@
 /**
  * npm run leaks -- [paths] [--mode leaks|pots] [--from YYYY-MM-DD] [--to …]
- *                 [--json] [--out FILE]
+ *                 [--label NAME] [--json] [--out FILE]
  *
  * Reads GGPoker hand-history exports, computes the report, and prints it.
  * `--json` emits the machine-readable version, which is what a coaching prompt
@@ -26,7 +26,7 @@ import {
   type ArchiveFile,
   type Excluded,
 } from '../src/lib/hh/archive.ts';
-import { labelGroups } from '../src/lib/hh/labels.ts';
+import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -43,7 +43,7 @@ type Mode = (typeof MODES)[number];
 const DEFAULT_TARGET = 'hands';
 
 const USAGE =
-  'usage: npm run leaks -- [paths] [--mode leaks|pots] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--json] [--out FILE]';
+  'usage: npm run leaks -- [paths] [--mode leaks|pots] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--label NAME] [--json] [--out FILE]';
 
 function die(message: string): never {
   console.error(message);
@@ -92,7 +92,7 @@ function collect(target: string, seen = new Set<string>()): string[] {
 // `targets` and gets statted as a path. Parsing positionally rather than
 // filtering is the only way that stays true when a flag is added.
 
-const VALUED = new Set(['--mode', '--from', '--to', '--out']);
+const VALUED = new Set(['--mode', '--from', '--to', '--out', '--label']);
 const args = process.argv.slice(2);
 
 const targets: string[] = [];
@@ -129,6 +129,15 @@ for (const [flag, value] of [
 }
 if (from && to && from > to) die(`--from ${from} is after --to ${to}`);
 
+// `--label` narrows to one label and drops the stride: the whole point of
+// asking for a label by name is that the five sampled instances were not
+// enough. Validated against the vocabulary rather than silently returning an
+// empty report, which reads identically to "you never did this".
+const label = flags['--label'] ?? null;
+if (label !== null && !(LABELS as readonly string[]).includes(label)) {
+  die(`unknown label: ${label}\nknown labels: ${LABELS.join(', ')}`);
+}
+
 // ── read ─────────────────────────────────────────────────────────────────────
 
 const paths = targets.length ? targets : [DEFAULT_TARGET];
@@ -159,10 +168,12 @@ if (mode === 'pots') {
 } else {
   const summary = summarise(hands);
   const folds = rfiFolds(hands);
-  const groups = labelGroups(hands);
+  const all = labelGroups(hands);
+  const groups = label ? all.filter((g) => g.label === label) : all;
+  const perLabel = label ? Infinity : undefined;
   output = asJson
-    ? JSON.stringify(renderJson(summary, meta, folds, groups), null, 2)
-    : renderText(summary, meta, folds, groups);
+    ? JSON.stringify(renderJson(summary, meta, folds, groups, perLabel), null, 2)
+    : renderText(summary, meta, folds, groups, perLabel);
 }
 
 const outFile = flags['--out'] ?? null;
