@@ -30,6 +30,17 @@ export interface StreetPlay {
   /** Stack-to-pot ratio Hero was playing. */
   spr: number | null;
   actions: Action[];
+  /**
+   * The street exactly as printed, villains included.
+   *
+   * `actions` is Hero's alone, which leaves villain sizing unrecoverable. The
+   * only trace a villain bet leaves in Hero's own actions is `toCall`, and
+   * that is lossy the moment more than one opponent is in: a bet, a call and
+   * a raise ahead of Hero all arrive as one number, so what Hero *faced*
+   * cannot be read back out of what Hero *owed*. Keep the whole street and
+   * let callers read the bet itself.
+   */
+  allActions: Action[];
   /** Someone had bet before Hero's *first* action on this street. */
   facedBet: boolean;
   /**
@@ -179,6 +190,7 @@ function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | nul
     stackAtStart: first.stackBefore,
     spr: potAtStart > 0 ? first.stackBefore / potAtStart : null,
     actions: mine,
+    allActions: all,
     facedBet: street === 'preflop' ? first.toCall > 0 : Boolean(aggressor),
     facedBetEver: mine.some((a) => a.toCall > 0),
     bettor: aggressor?.player ?? null,

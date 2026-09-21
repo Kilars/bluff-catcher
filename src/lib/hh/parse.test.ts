@@ -367,6 +367,18 @@ describe('heroHand', () => {
     expect(h.netBB).toBeCloseTo(-51.7, 1);
   });
 
+  it('keeps the whole street, not just Hero, for villain sizing', () => {
+    const h = heroHand(parseHands(HAND).hands[0])!;
+    const flop = h.streets.find((s) => s.street === 'flop')!;
+    expect(flop.actions.map((a) => a.player)).toEqual(['Hero']);
+    // Hero's toCall happens to equal the bet here only because one opponent
+    // was in; multiway it is a sum, and the bet is gone from it.
+    expect(flop.allActions.map((a) => `${a.player}:${a.kind}:${a.amount}`)).toEqual([
+      'Villain:bet:1050',
+      'Hero:call:1050',
+    ]);
+  });
+
   it('classifies a raise over a lone open as a 3-bet', () => {
     const h = heroHand(parseHands(THREEBET).hands[0])!;
     expect(h.role).toBe('3bet');
