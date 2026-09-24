@@ -22,6 +22,13 @@ export interface Decision {
   facedBet: boolean;
   /** Fraction of the pot; null when Hero chose no size. */
   sizing: number | null;
+  /**
+   * The bet Hero *faced*, as a fraction of the pot before that bet went in —
+   * the same scale `sizing` uses, so a pot-sized bet reads 1.0 from either
+   * seat. Null when Hero was not facing a bet. `potBefore` already contains the
+   * bet, so the pre-bet pot is `potBefore - toCall`.
+   */
+  facedSizing: number | null;
   allIn: boolean;
 }
 
@@ -64,6 +71,18 @@ function sizing(a: Action): number | null {
   return pot > 0 ? a.raiseBy / pot : null;
 }
 
+/**
+ * The bet Hero faced, on the same scale as `sizing`: villain's `toCall` over the
+ * pot *before* that bet, which is `potBefore - toCall` since `potBefore` already
+ * counts it. Null unless a bet is genuinely faced with a pre-bet pot to measure
+ * against — a limp-into-empty edge returns null rather than a divide-by-zero.
+ */
+function facedSizing(all: Action[], a: Action): number | null {
+  if (!facedBet(all, a)) return null;
+  const prePot = a.potBefore - a.toCall;
+  return prePot > 0 && a.toCall > 0 ? a.toCall / prePot : null;
+}
+
 export function decisionsOf(h: HeroHand): Decision[] {
   return h.streets.flatMap((s) =>
     s.actions.map((a) => ({
@@ -75,6 +94,7 @@ export function decisionsOf(h: HeroHand): Decision[] {
       pfa: h.pfa,
       facedBet: facedBet(s.allActions, a),
       sizing: shoved(a) ? null : sizing(a),
+      facedSizing: facedSizing(s.allActions, a),
       allIn: shoved(a),
     })),
   );
