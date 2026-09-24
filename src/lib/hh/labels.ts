@@ -195,7 +195,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   });
 }
 
-const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
+export const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
 
 /**
  * The facets every instance agrees on — the finding itself. "Three offsuit-ace

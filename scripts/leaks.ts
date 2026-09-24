@@ -29,8 +29,7 @@ import {
 import { batteryFor } from '../src/lib/hh/battery.ts';
 import type { AnswerSet } from '../src/lib/hh/judge.ts';
 import { stubJudge } from '../src/lib/hh/judge.ts';
-import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
-import { rankGroups } from '../src/lib/hh/priority.ts';
+import { LABELS, labelGroups, type Label } from '../src/lib/hh/labels.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -184,14 +183,16 @@ if (mode === 'pots') {
   const all = labelGroups(hands);
   const groups = label ? all.filter((g) => g.label === label) : all;
 
-  // Only the stub runs here, and only when asked. Answering every appearing
-  // label's battery once is enough — the payload keys answers by label.
+  // Only the stub runs here, and only when asked. Answering each appearing
+  // label's battery once is enough — the payload keys answers by label, so the
+  // order the groups arrive in does not matter.
   const answers: Record<string, AnswerSet> = {};
   if (judge === 'stub') {
-    for (const g of rankGroups(groups)) answers[g.label] = await stubJudge.evaluate({}, batteryFor(g.label));
+    for (const g of groups) answers[g.label] = await stubJudge.evaluate({}, batteryFor(g.label as Label));
   }
 
-  const payload = renderCoachJson(groups, meta, answers);
+  // `--label` means "all of this one", the same as it does in leaks mode.
+  const payload = renderCoachJson(groups, meta, answers, label ? Infinity : undefined);
   output = asJson ? JSON.stringify(payload, null, 2) : renderCoachText(payload);
 } else {
   const summary = summarise(hands);

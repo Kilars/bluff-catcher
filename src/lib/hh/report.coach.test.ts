@@ -121,6 +121,12 @@ describe('renderCoachJson — striding and answers', () => {
     expect(finding.decisions).toHaveLength(4); // every 3rd of 12
   });
 
+  it('ships the whole group unstrided when perLabel is Infinity (the --label case)', () => {
+    const [finding] = renderCoachJson([group], META, {}, Infinity).families[0].findings;
+    expect(finding.stride).toBe(1);
+    expect(finding.decisions).toHaveLength(12);
+  });
+
   it('splices battery answers only when a judge supplied them', async () => {
     const answered = await stubJudge.evaluate({}, batteryFor('check-draw'));
     const withJudge = renderCoachJson([group], META, { 'check-draw': answered }).families[0]

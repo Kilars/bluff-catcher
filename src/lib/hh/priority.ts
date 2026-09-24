@@ -9,7 +9,7 @@
  */
 
 import type { LabelGroup, LabelledDecision } from './labels.ts';
-import { LABELS, type Label } from './labels.ts';
+import { FACETS, LABELS, type Label } from './labels.ts';
 
 /**
  * Provisional per-label weights. Aggression is an input, not an axis: the target
@@ -55,8 +55,6 @@ export function familyOf(label: Label): Family {
   return FAMILY_OF[label];
 }
 
-const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
-
 export interface DominantCell {
   /** The most common facet combination among the instances. */
   cell: Partial<Record<(typeof FACETS)[number], string>>;
@@ -91,10 +89,14 @@ export function dominantCell(ds: LabelledDecision[]): DominantCell {
 /** A lone instance trivially agrees with itself, so it earns only this floor. */
 const LONE_EVIDENCE = 0.5;
 
+/** The dominant cell's share once there are ≥2 instances; the floor at n = 1. */
+function evidenceOf(dc: DominantCell, n: number): number {
+  return n < 2 ? LONE_EVIDENCE : dc.share;
+}
+
 /** How alike the instances look: the dominant cell's share, floored at n = 1. */
 export function evidence(ds: LabelledDecision[]): number {
-  if (ds.length < 2) return LONE_EVIDENCE;
-  return dominantCell(ds).share;
+  return evidenceOf(dominantCell(ds), ds.length);
 }
 
 export interface Ranked {
@@ -104,6 +106,7 @@ export interface Ranked {
   evidence: number;
   /** base × evidence — the sort key. */
   priority: number;
+  dominantCell: DominantCell;
   group: LabelGroup;
 }
 
@@ -114,8 +117,19 @@ export function rankGroups(groups: LabelGroup[]): Ranked[] {
     .map((g): Ranked => {
       const label = g.label as Label;
       const base = BASE_PRIORITY[label];
-      const ev = evidence(g.decisions);
-      return { label, family: familyOf(label), base, evidence: ev, priority: base * ev, group: g };
+      // Computed once here and carried on Ranked; scenarioPacket reads it back
+      // rather than scanning the group a second time.
+      const dc = dominantCell(g.decisions);
+      const ev = evidenceOf(dc, g.decisions.length);
+      return {
+        label,
+        family: familyOf(label),
+        base,
+        evidence: ev,
+        priority: base * ev,
+        dominantCell: dc,
+        group: g,
+      };
     })
     .sort((a, b) => b.priority - a.priority);
 }

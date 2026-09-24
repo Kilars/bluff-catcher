@@ -10,13 +10,7 @@ import { batteryFor } from './battery.ts';
 import { enrich, type Enriched } from './enrich.ts';
 import type { QuestionSet } from './judge.ts';
 import type { LabelledDecision } from './labels.ts';
-import {
-  dominantCell,
-  familyRelevance,
-  type DominantCell,
-  type Family,
-  type Ranked,
-} from './priority.ts';
+import { familyRelevance, type DominantCell, type Family, type Ranked } from './priority.ts';
 
 export interface EnrichedDecision {
   decision: LabelledDecision;
@@ -55,7 +49,7 @@ export function scenarioPacket(r: Ranked): Packet {
     priority: r.priority,
     instances: r.group.decisions.length,
     shared: r.group.shared,
-    dominantCell: dominantCell(r.group.decisions),
+    dominantCell: r.dominantCell,
     battery: batteryFor(r.label),
     decisions: r.group.decisions.map((decision) => ({ decision, enriched: enrich(decision) })),
   };

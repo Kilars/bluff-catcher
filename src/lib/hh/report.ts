@@ -288,6 +288,7 @@ export function renderCoachJson(
   groups: LabelGroup[],
   meta: ReportMeta,
   answers: Record<string, AnswerSet> = {},
+  perLabel?: number,
 ) {
   return {
     meta,
@@ -295,7 +296,7 @@ export function renderCoachJson(
       family: b.family,
       relevance: round1(b.relevance),
       findings: b.packets.map((p) => {
-        const stride = strideFor(p.decisions);
+        const stride = strideFor(p.decisions, perLabel);
         return {
           label: p.label,
           priority: round1(p.priority),
