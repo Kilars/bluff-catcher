@@ -151,6 +151,7 @@ const judge = flags['--judge'] ?? null;
 if (judge !== null && judge !== 'stub') {
   die(`--judge only supports "stub" until a model backend is chosen, got: ${judge}`);
 }
+if (judge !== null && mode !== 'coach') die(`--judge applies only to --mode coach`);
 
 // ── read ─────────────────────────────────────────────────────────────────────
 

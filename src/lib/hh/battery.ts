@@ -28,7 +28,7 @@ const BATTERIES: Record<Label, QuestionSet> = {
       kind: 'noul',
       instructions: 'The draw (handClass, board) is strong enough that betting is standard.',
     },
-    checkCost: {
+    checkGiveup: {
       kind: 'score',
       instructions: 'How much checking the draw gives up versus betting it.',
       levels: ['nothing', 'a little', 'a lot'],
@@ -83,7 +83,7 @@ const BATTERIES: Record<Label, QuestionSet> = {
       kind: 'noul',
       instructions: 'Bluffing is justified here despite holding no board-relevant blocker.',
     },
-    missingBlockerCost: {
+    missingBlockerPenalty: {
       kind: 'score',
       instructions: 'How much holding no blocker hurts the bluff.',
       levels: ['not at all', 'somewhat', 'a lot'],

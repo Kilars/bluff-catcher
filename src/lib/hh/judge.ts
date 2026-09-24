@@ -18,6 +18,11 @@ export type Question =
 
 export type QuestionSet = Record<string, Question>;
 
+// An adapter must return `choice` as one of the question's `criteria` keys and
+// `score` as a position within its `levels` — the legend stays on the Question,
+// so answers are index-only and a consumer keeps the QuestionSet to read them
+// back. `noul` carries no confidence on purpose: it is a probability, and the
+// probability *is* the belief (this mirrors Jev, whose noul has no confidence).
 export type Answer =
   | { kind: 'choice'; choice: string; confidence: number; probabilities: Record<string, number> }
   | { kind: 'score'; score: number; confidence: number }
