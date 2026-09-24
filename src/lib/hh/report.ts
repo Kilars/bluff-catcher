@@ -17,7 +17,10 @@
 import type { ArchiveMeta, WindowMeta } from './archive.ts';
 import { BOARD_SEEN } from './board.ts';
 import type { HeroHand } from './hero.ts';
+import type { AnswerSet } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
+import { packetsByFamily } from './packet.ts';
+import { rankGroups } from './priority.ts';
 import type { RfiFold } from './rfi.ts';
 import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 
@@ -267,6 +270,69 @@ export function renderJson(
         flag: x.flag as Flag,
       })),
   };
+}
+
+const round1 = (x: number): number => Number(x.toFixed(1));
+
+/**
+ * PLAN-coach.md §4 layer 4: the coaching payload. Ranks the label groups by
+ * `base × evidence`, bundles them by family strongest-first, and ships each
+ * finding self-contained — enriched decisions, dominant cell, and the label's
+ * verification battery. `answers` is filled only when a judge was run; before a
+ * backend is chosen the batteries ride along unanswered, which is the point.
+ *
+ * Same two rules as `renderJson`: only `meta.window` is describable, and the
+ * board is already cut at Hero's street inside `decisionDetail`.
+ */
+export function renderCoachJson(
+  groups: LabelGroup[],
+  meta: ReportMeta,
+  answers: Record<string, AnswerSet> = {},
+  perLabel?: number,
+) {
+  return {
+    meta,
+    families: packetsByFamily(rankGroups(groups)).map((b) => ({
+      family: b.family,
+      relevance: round1(b.relevance),
+      findings: b.packets.map((p) => {
+        const stride = strideFor(p.decisions, perLabel);
+        return {
+          label: p.label,
+          priority: round1(p.priority),
+          base: p.base,
+          evidence: round1(p.evidence),
+          instances: p.instances,
+          stride,
+          shared: p.shared,
+          dominantCell: p.dominantCell,
+          battery: p.battery,
+          ...(answers[p.label] ? { answers: answers[p.label] } : {}),
+          decisions: everyNth(p.decisions, stride).map((ed) => ({
+            ...decisionDetail(ed.decision),
+            enriched: ed.enriched,
+          })),
+        };
+      }),
+    })),
+  };
+}
+
+/** A terminal glance at the same findings; the JSON is the payload that matters. */
+export function renderCoachText(payload: ReturnType<typeof renderCoachJson>): string {
+  const lines: string[] = [];
+  for (const fam of payload.families) {
+    lines.push(`${fam.family}  (relevance ${fam.relevance})`);
+    for (const f of fam.findings) {
+      const shared = Object.entries(f.shared)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(' ');
+      lines.push(
+        `  ${pad(f.label, 26)} priority ${f.priority}  ${f.instances}×  ${shared || '(no shared facets)'}`,
+      );
+    }
+  }
+  return lines.join('\n') || 'no labelled decisions in this window';
 }
 
 /**

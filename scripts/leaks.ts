@@ -26,10 +26,15 @@ import {
   type ArchiveFile,
   type Excluded,
 } from '../src/lib/hh/archive.ts';
-import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
+import { batteryFor } from '../src/lib/hh/battery.ts';
+import type { AnswerSet } from '../src/lib/hh/judge.ts';
+import { stubJudge } from '../src/lib/hh/judge.ts';
+import { LABELS, labelGroups, type Label } from '../src/lib/hh/labels.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
+  renderCoachJson,
+  renderCoachText,
   renderJson,
   renderPotsJson,
   renderPotsText,
@@ -37,13 +42,13 @@ import {
   type ReportMeta,
 } from '../src/lib/hh/report.ts';
 
-const MODES = ['leaks', 'pots'] as const;
+const MODES = ['leaks', 'pots', 'coach'] as const;
 type Mode = (typeof MODES)[number];
 
 const DEFAULT_TARGET = 'hands';
 
 const USAGE =
-  'usage: npm run leaks -- [paths] [--mode leaks|pots] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--label NAME] [--json] [--out FILE]';
+  'usage: npm run leaks -- [paths] [--mode leaks|pots|coach] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--label NAME] [--judge stub] [--json] [--out FILE]';
 
 function die(message: string): never {
   console.error(message);
@@ -92,7 +97,7 @@ function collect(target: string, seen = new Set<string>()): string[] {
 // `targets` and gets statted as a path. Parsing positionally rather than
 // filtering is the only way that stays true when a flag is added.
 
-const VALUED = new Set(['--mode', '--from', '--to', '--out', '--label']);
+const VALUED = new Set(['--mode', '--from', '--to', '--out', '--label', '--judge']);
 const args = process.argv.slice(2);
 
 const targets: string[] = [];
@@ -138,6 +143,15 @@ if (label !== null && !(LABELS as readonly string[]).includes(label)) {
   die(`unknown label: ${label}\nknown labels: ${LABELS.join(', ')}`);
 }
 
+// `--judge` is deliberately limited to the stub until a model backend is chosen
+// (PLAN-coach.md §4, "the judgment seam"): it proves the batteries answer end to
+// end, offline, so swapping in Jev or an LLM is the one remaining step.
+const judge = flags['--judge'] ?? null;
+if (judge !== null && judge !== 'stub') {
+  die(`--judge only supports "stub" until a model backend is chosen, got: ${judge}`);
+}
+if (judge !== null && mode !== 'coach') die(`--judge applies only to --mode coach`);
+
 // ── read ─────────────────────────────────────────────────────────────────────
 
 const paths = targets.length ? targets : [DEFAULT_TARGET];
@@ -165,6 +179,21 @@ if (mode === 'pots') {
   output = asJson
     ? JSON.stringify(renderPotsJson(hands, meta), null, 2)
     : renderPotsText(hands, meta);
+} else if (mode === 'coach') {
+  const all = labelGroups(hands);
+  const groups = label ? all.filter((g) => g.label === label) : all;
+
+  // Only the stub runs here, and only when asked. Answering each appearing
+  // label's battery once is enough — the payload keys answers by label, so the
+  // order the groups arrive in does not matter.
+  const answers: Record<string, AnswerSet> = {};
+  if (judge === 'stub') {
+    for (const g of groups) answers[g.label] = await stubJudge.evaluate({}, batteryFor(g.label as Label));
+  }
+
+  // `--label` means "all of this one", the same as it does in leaks mode.
+  const payload = renderCoachJson(groups, meta, answers, label ? Infinity : undefined);
+  output = asJson ? JSON.stringify(payload, null, 2) : renderCoachText(payload);
 } else {
   const summary = summarise(hands);
   const folds = rfiFolds(hands);

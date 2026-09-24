@@ -70,6 +70,15 @@ describe('decisionsOf', () => {
     expect(flop.facedBet).toBe(true);
   });
 
+  it('sizes the faced bet on the same scale as the chosen one', () => {
+    // Villain bet 100 into 100 — a pot-sized bet — so it reads 1.0 from Hero's
+    // seat too, even though `potBefore` (200) already contains it. A spot with
+    // no bet faced carries null, not a zero that maths would treat as free.
+    expect(flop.facedSizing).toBe(1);
+    expect(pre.facedSizing).toBeNull();
+    expect(turn.facedSizing).toBeNull();
+  });
+
   it('never sizes a bet as NaN', () => {
     // `to` is undefined on a bet, and `undefined / n` is NaN — which compares
     // false against every bucket threshold and so vanishes without erroring.

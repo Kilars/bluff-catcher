@@ -103,6 +103,31 @@ Total pot 1,600 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 Board [Kd 9s 2c 4h 7d]`,
 );
 
+/**
+ * Hero bets flop and turn, then checks the river through with an overpair. The
+ * check goes to showdown — not a bluff-catch — so it is the value left unbet,
+ * and `river-check-value` is the only thing here.
+ */
+const CHECK_THROUGH = heads(
+  'Qc Qd',
+  `*** FLOP *** [Jh 7c 2d]
+Hero: bets 800
+Villain: calls 800
+*** TURN *** [Jh 7c 2d] [4s]
+Hero: bets 2,000
+Villain: calls 2,000
+*** RIVER *** [Jh 7c 2d 4s] [9h]
+Hero: checks
+Villain: checks
+Villain: shows [Kh Jd] (a pair of Jacks)
+Hero: shows [Qc Qd] (a pair of Queens)
+*** SHOWDOWN ***
+Hero collected 7,200 from pot
+*** SUMMARY ***
+Total pot 7,200 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s 9h]`,
+);
+
 /** The fixture the CLI and the doc guard already read — TM5 is its only draw. */
 const DAY2 = readFileSync('src/lib/hh/fixtures/t310299999/day2.txt', 'utf8');
 
@@ -128,6 +153,11 @@ const CASES = [
     name: 'check-raises the flop and overbets the turn',
     text: CHECK_RAISE,
     want: [['turn:bet', ['overbet-strong']]],
+  },
+  {
+    name: 'bets flop and turn, then checks the river through with an overpair',
+    text: CHECK_THROUGH,
+    want: [['river:check', ['river-check-value']]],
   },
   {
     name: 'gives up as the raiser, then bluffs a blank river',

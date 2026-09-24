@@ -286,11 +286,25 @@ pattern.
   for a draw, so the default is to bet — but checking a nut flush draw on a
   monotone flop is standard, and `shared.boardType` is again what separates
   them.
+- **`donk-bet`** — Hero was the caller, not the preflop raiser, and led into
+  the flop rather than checking to the aggressor. Mostly dominated — the
+  caller's range is capped and the raiser keeps the top — but correct on low
+  connected boards where the caller owns the straights and sets, so
+  `shared.boardType` decides it: a lead on `middling-theirs` (e.g. 6-5-4) can be
+  the line, a lead on `dry-high-mine` is usually the leak.
+- **`check-raise-flop`** — Hero check-raised the flop as the caller. Correct and
+  underused, but built from equity-when-called (sets, two pair, combo draws);
+  its frequency swings hard with texture, so read `shared.boardType` and the
+  instance's `handClass`, not the raise itself.
 - **`overbet-strong`** — a bet or raise larger than the pot with `strong`. The
   gate for a size above the pot is nut advantage; with it this is the
   recommended river line, and without it the overbet is pure value that a
   competent opponent reads instantly. Check the board and the street, not the
-  size alone.
+  size alone. On the **river** in particular, `strong` admits non-nut hands
+  (an overpair, top pair with a Q kicker), and an overbet with one of those for
+  thin value folds out exactly the worse hands you wanted the call from — a
+  two-thirds-pot bet gets more of them. Read whether this was polar value or a
+  thin value bet dressed as an overbet.
 - **`river-bluff-with-blocker`** — a river bet with no showdown value, holding
   a card the board's possible hands need. Whether that helps or hurts depends
   on whether those hands were going to call or fold, and the payload cannot
@@ -303,6 +317,24 @@ pattern.
   top pair with a good kicker. The bluff-catch, and the one decision where
   blockers reliably matter: ranges are narrow and the call/fold boundary is
   sharp.
+- **`river-check-value`** — Hero checked the river holding `strong` or
+  `marginal-made` and the pot **checked through** — not a check that then called
+  a bet, which is a bluff-catch (`river-call-marginal`). The value-side mirror of
+  `overbet-strong`, and the one label here that catches an *omission*: the
+  checked-back made hand is where thin value quietly goes missing, and against a
+  pool that doesn't fold a made hand taken to showdown is often a bet left
+  unmade. The label says only that Hero checked a made hand through; whether
+  value was there is your read from the board and the pool, not a claim it makes.
+
+**On the bluff-catch and the river bluffs, the correct direction is population-
+dependent, and the report cannot see it.** The same call is right against a
+field that over-bluffs and wrong against one that under-bluffs — coaches split
+exactly here, some folding marginal made hands because the pool never finds the
+triple-barrel bluff, others calling wider because small stakes over-folds and so
+must be barrelled. This is why the payload carries no villain tendency and why
+these labels do not say which way a blocker points (§ rule 3): pick the
+direction from your own read of the pool, not from the report, and say which
+read you are making.
 
 **why it costs** Nothing here costs anything on its own. What costs is a rule
 applied where it does not fit — the same check on the same texture from the

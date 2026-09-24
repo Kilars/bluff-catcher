@@ -63,10 +63,13 @@ const OVERBET = 1;
 export const LABELS = [
   'pfa-check-flop',
   'check-draw',
+  'donk-bet',
+  'check-raise-flop',
   'overbet-strong',
   'river-bluff-with-blocker',
   'river-bluff-no-blocker',
   'river-call-marginal',
+  'river-check-value',
 ] as const;
 
 export type Label = (typeof LABELS)[number];
@@ -82,6 +85,7 @@ function labelsFor(
   hand: HandClass,
   rem: Removal[],
   checkRaised: boolean,
+  checkedThrough: boolean,
 ): string[] {
   const out: string[] = [];
 
@@ -94,6 +98,19 @@ function labelsFor(
   // §2 stage 2: the table says bet a draw often, not always — checking a nut
   // flush draw on a monotone flop is standard — so this is a label, not a flag.
   if (d.kind === 'check' && hand === 'draw') out.push('check-draw');
+
+  // §3: leading into the preflop aggressor as the caller. Mostly dominated —
+  // the caller's range is capped and the PFR keeps the top — but correct on low
+  // connected boards (6-5-4), where the caller owns the straights and sets. A
+  // fact either way; `shared.boardType` is what tells a good lead from a leak.
+  if (d.street === 'flop' && !d.pfa && d.kind === 'bet' && !d.facedBet) out.push('donk-bet');
+
+  // §3: check-raising the flop as the caller — "correct and underused". Built
+  // from equity-when-called (sets, two pair, combo draws), and its frequency
+  // swings hard with texture, so the board it happened on is the read, not the
+  // raise. Gated on the check-then-raise flag so an IP raise-over-a-lead — which
+  // is not a check-raise — does not borrow the name.
+  if (d.street === 'flop' && !d.pfa && d.kind === 'raise' && checkRaised) out.push('check-raise-flop');
 
   // §6: a size above the pot is gated on nut advantage, and the same fact reads
   // as the recommended line or as an instantly readable value bet depending on
@@ -120,6 +137,22 @@ function labelsFor(
     out.push('river-call-marginal');
   }
 
+  // §6: the value-side mirror of `overbet-strong`. Only when the river checked
+  // *through* — a check that then called or raised a bet is a bluff-catch
+  // (`river-call-marginal`), not a bet declined — so this is the checked-back
+  // made hand, the one place value quietly goes missing. §6's amateur adjustment
+  // is to value-bet thinner against pools that don't fold, which is exactly what
+  // a check here forgoes. States only that Hero checked a made hand to showdown;
+  // whether value was there is the reader's call from the board and the pool.
+  if (
+    d.street === 'river' &&
+    d.kind === 'check' &&
+    checkedThrough &&
+    (hand === 'strong' || hand === 'marginal-made')
+  ) {
+    out.push('river-check-value');
+  }
+
   return out;
 }
 
@@ -130,13 +163,21 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
 
   const texture = boardType(h.board);
   const checkRaised = new Set(h.streets.filter((s) => s.checkRaised).map((s) => s.street));
+  // Hero checked and the street ended there — no later call, raise or fold to a
+  // bet. This is the checked-through line `river-check-value` wants, kept apart
+  // from a check that became a bluff-catch or a check-raise.
+  const checkedThrough = new Set(
+    h.streets
+      .filter((s) => s.checked && !s.called && !s.raised && !s.folded)
+      .map((s) => s.street),
+  );
 
   return decisionsOf(h).flatMap((d) => {
     if (d.street === 'preflop') return [];
     const board = h.board.slice(0, BOARD_SEEN[d.street]);
     const hand = handClass(cards, board);
     const rem = removals(cards, board);
-    const labels = labelsFor(d, hand, rem, checkRaised.has(d.street));
+    const labels = labelsFor(d, hand, rem, checkRaised.has(d.street), checkedThrough.has(d.street));
     if (!labels.length) return [];
     return [
       {
@@ -154,7 +195,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   });
 }
 
-const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
+export const FACETS = ['position', 'depth', 'handClass', 'boardType'] as const;
 
 /**
  * The facets every instance agrees on — the finding itself. "Three offsuit-ace
