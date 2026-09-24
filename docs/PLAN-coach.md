@@ -316,7 +316,137 @@ count in the payload. A flag to tune N is a knob nobody has needed, and
 
 ---
 
-## 4. Deferred indefinitely
+## 4. Coaching harness — locked decisions (next build)
+
+Settled in design review. Rationale, the 8-agent exploration and the unanimous
+5-judge carving panel live in `research/coaching-harness-design.md`,
+`research/coaching-transcripts/synthesis.md` and the transcript notes. Nothing
+here is implemented yet. Where this conflicts with earlier text in this file,
+this section wins — flagged inline.
+
+### Label set — nine facts, no new label
+
+Section 3 shipped six; three more were mined from the coaching corpus, one
+proposed label was rejected:
+
+| Label | Fact |
+|---|---|
+| `pfa-check-flop` | PFR checked the flop (not a check-raise) |
+| `check-draw` | checked holding 8+ outs |
+| `donk-bet` | caller led into the PFR on the flop |
+| `check-raise-flop` | caller check-raised the flop |
+| `overbet-strong` | bet/raise larger than the pot with `strong` |
+| `river-bluff-with-blocker` | river bet, air, holds a board-relevant card |
+| `river-bluff-no-blocker` | river bet, air, holds none |
+| `river-call-marginal` | called a river bet with a marginal made hand |
+| `river-check-value` | checked the river through with a made hand (missed value) |
+
+**No `missed-ip-stab`.** "Missed" is a verdict needing a range read — the agent's
+job, not the parser's. IP passivity as the PFR is already carried by
+`pfa-check-flop` + the `position` facet. The caller stab-back (villain checks to
+you in position, you check behind, `pfa==false`) is the one uncovered spot;
+**parked** as a future fact label (`check-back-flop-ip`) only if a real archive
+shows it earns one.
+
+### Families — four, spot-based (unanimous 5-judge panel)
+
+Families are the **teaching container** — one corpus-synthesised brief each — not
+the unit of priority.
+
+| Family | Labels |
+|---|---|
+| PFR flop passivity | `pfa-check-flop`, `check-draw` |
+| Caller aggression | `donk-bet`, `check-raise-flop` |
+| River bluffing | `river-bluff-with-blocker`, `river-bluff-no-blocker` |
+| River value / bluff-catch | `river-call-marginal`, `river-check-value`, `overbet-strong` |
+
+Carved by decision-type/spot, not by coaching lens: `focus_order` is a checklist
+every spot runs (range advantage → sizing → SPR → texture → blockers), so the
+lenses cross-cut and cannot partition; coaches cluster their teaching by
+role + street.
+
+### Priority — per-label, base × evidence
+
+**Labels are the first-class unit.** A session ranks what to coach by
+`base-priority × evidence`, computed by the harness (never the model); empty
+labels drop out.
+
+- **base-priority** is a per-label number. Aggression is *one input*, not an axis:
+  the target player is an amateur who skews passive, so the missed-aggression
+  labels (`pfa-check-flop`, `check-draw`, `river-check-value`) score higher than
+  the defensive `river-call-marginal`. No position multiplier — position is a
+  facet `shared`/`dominantCell` already surface. Numbers drawn from the two
+  small-stakes videos (`lSvyX-Ryi0M`, `4wGRlpNxDBs`), **not** from corpus-
+  prominence (which over-weights high-stakes river precision).
+- **evidence** is pattern strength in the player's own data (`dominantCell`,
+  `shared`), never a rate.
+- A family's session-relevance = max over its labels of (base × evidence); it
+  surfaces on its strongest label and the brief foregrounds it.
+- Aggression *detection* stays deterministic: `stats[]` bands already flag
+  `cbetFlop`/`cbetTurn`/`aggFreq`/`threeBet` as `missed` with no model. That layer
+  says "too passive"; the family and brief say where and how to fix it.
+
+### Harness layers
+
+1. **L0 — per-family coaching briefs synthesised from the corpus.** Reorganise
+   the transcript notes by label/family (not by video), each claim cited
+   `{video, ts}` + strategy-notes. Loaded on demand — the skill reads only the
+   briefs for labels that appeared. Subsumes the "reference-line" idea.
+2. **Enrichment (deterministic).** Attach `requiredEquity`/`alpha`/`mdf`/
+   `sprCommitment`/`boardFavoursPfa` per decision, plus `dominantCell`. The model
+   reads numbers; it never does the arithmetic a weak model botches.
+3. **Verification batteries.** Per-label closed questions answered from named
+   fields; the argument stays free prose — do not template the reasoning.
+4. **Scenario packets — group-level, family-bundled, built later.** One packet
+   per finding carrying the whole label group, baseline + texture-split inlined,
+   pre-ranked. Sequenced after enrichment exists.
+5. **Docs reframe.** Rewrite `leak-coaching.md` positively; **cut "at most three
+   findings" → a quality gate** (argue what you can; fewer or more is fine), cut
+   "always close MINDSET-ONELEAK" → conditional, cut MINDSET-PROCESS; add a
+   conditional drill loop ("play ~200 hands on the one thing, re-run with
+   `--label`, did it move?"). Keep the load-bearing invariants as positives
+   (results-blind, label-is-a-fact, no villain cards, thin-stat, window-not-archive).
+
+**Supersedes in this file:** step 5's "at most three findings / fewer than three
+is a correct output" is replaced by the quality gate above.
+
+### The judgment seam — one port, swappable
+
+The model is a dependency, not the design. Everything it touches sits behind a
+single thin port, so Jev, an LLM, a solver, or a stub are interchangeable and the
+harness never knows which answered. This is what "model-agnostic" above actually
+costs, spelled out. Three rules keep the seam small:
+
+- **The primitives are ours, not a vendor's.** `choice` / `score` / `noul` are
+  repo types. Jev speaks them natively; an LLM adapter renders them to a JSON
+  schema; a solver could answer some deterministically. The primitive is the
+  abstraction, and any one backend is just an implementation of it.
+- **The port is one call** — `evaluate(state, questions) → answers`, `state`
+  derived from a `LabelledDecision` and nothing else, `answers` carrying
+  `choice|score|noul` + `confidence`. Layer 3's verification batteries are its
+  only caller. Selection is config (`JUDGE=jev|llm|none`), never a code change.
+- **Nothing checkable crosses it.** Enrichment arithmetic stays in Layer 2,
+  priority stays `base × evidence` in the harness, labels stay facts. The model
+  produces verdicts on already-true facts and nothing else — which is what makes
+  it both swappable *and removable*: pull the judge and the deterministic spine
+  still stands.
+
+`scripts/probe-typesafe.ts` is the throwaway that proved two adapters (Jev,
+Gemini) satisfy one seam against the real archive; the signatures live there
+until they earn a place in `src`.
+
+### Still open
+
+- The per-label base-priority numbers — a small hand-set table drawn from the two
+  small-stakes videos.
+- Build order across the five layers.
+- The `Judge` port's exact type signatures — sketched in the probe, not yet
+  lifted into `src`.
+- `check-back-flop-ip` — parked; add only on evidence from a real archive.
+
+---
+
+## 5. Deferred indefinitely
 
 - A large end-to-end test — its own follow-up plan.
 - Blind defense, 3-bet and cold-call charts. `ranges.ts` is RFI-only.

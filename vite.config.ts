@@ -41,6 +41,11 @@ const vitestConfig = {
   test: {
     globals: true,
     css: false,
+    // The heaviest logic tests deal tens of thousands of spots; the 5s default
+    // trips them under parallel load on a slow box, and which one loses the
+    // race varies per run. Raised suite-wide rather than per-test to stop the
+    // whack-a-mole.
+    testTimeout: 20000,
     projects: [
       {
         extends: true,
