@@ -1,72 +1,84 @@
 /**
- * PLAN-coach.md §4, layer 4: scenario packets. One packet per finding, carrying
- * the whole label group — every instance enriched, the shared facets, the
- * dominant cell, the priority, and the label's verification battery — bundled by
- * family and pre-ranked. It is the self-contained unit a coach (or a judge)
- * reads; nothing here answers the battery, that is the model's job later.
+ * Builds the blind FamilyBrief the judge reads — one per family, each carrying
+ * its spots, their coaching rubric, and the enriched instances to judge. This is
+ * the model's INPUT; the FamilyVerdict is its output (judge.ts). Nothing here
+ * answers anything — that is the model's job.
+ *
+ * A label can carry a hundred instances, so a spot ships at most `PER_SPOT`,
+ * every ⌈n/N⌉-th in archive order. `--label` passes Infinity to send them all.
+ * The enriched math rides along mandatory: strip it and the model recomputes pot
+ * odds it should only ever read.
  */
 
-import { batteryFor } from './battery.ts';
-import { enrich, type Enriched } from './enrich.ts';
-import type { QuestionSet } from './judge.ts';
+import { enrich } from './enrich.ts';
+import type { FamilyBrief, HandFacts, SpotBrief } from './judge.ts';
 import type { LabelledDecision } from './labels.ts';
-import { familyRelevance, type DominantCell, type Family, type Ranked } from './priority.ts';
+import { familyRelevance, type Family, type Ranked } from './priority.ts';
+import { HYPOTHESIS, rubricFor } from './rubric.ts';
 
-export interface EnrichedDecision {
-  decision: LabelledDecision;
-  enriched: Enriched;
+const PER_SPOT = 5;
+
+const r1 = (x: number): number => Number(x.toFixed(1));
+const r2 = (x: number): number => Number(x.toFixed(2));
+
+function strideFor(n: number, perSpot = PER_SPOT): number {
+  return Math.max(1, Math.ceil(n / perSpot));
 }
 
-export interface Packet {
-  label: string;
-  family: Family;
-  base: number;
-  evidence: number;
-  priority: number;
-  instances: number;
-  shared: Ranked['group']['shared'];
-  dominantCell: DominantCell;
-  /** The closed questions, left unanswered — a backend fills these, not us. */
-  battery: QuestionSet;
-  /** Every instance, enriched. The renderer strides these for output. */
-  decisions: EnrichedDecision[];
+function everyNth<T>(xs: T[], stride: number): T[] {
+  return xs.filter((_, i) => i % stride === 0);
 }
 
-export interface FamilyBundle {
-  family: Family;
-  /** The family's strongest packet priority — what it surfaces on. */
-  relevance: number;
-  packets: Packet[];
+/** One decision reduced to its blind facts, enriched math attached. */
+export function handFacts(d: LabelledDecision): HandFacts {
+  return {
+    id: d.id,
+    street: d.street,
+    action: d.kind,
+    position: d.position,
+    depth: d.depth,
+    spr: d.spr === null ? null : r1(d.spr),
+    sizing: d.sizing === null ? null : r2(d.sizing),
+    facedSizing: d.facedSizing === null ? null : r2(d.facedSizing),
+    allIn: d.allIn,
+    pfa: d.pfa,
+    cards: d.cards,
+    board: d.board,
+    handClass: d.handClass,
+    boardType: d.boardType,
+    removals: d.removals,
+    line: d.line ?? '',
+    enriched: enrich(d),
+  };
 }
 
-/** Turn one ranked label group into its self-contained packet. */
-export function scenarioPacket(r: Ranked): Packet {
+export function spotBrief(r: Ranked, perSpot = PER_SPOT): SpotBrief {
+  const rubric = rubricFor(r.label);
+  const stride = strideFor(r.group.decisions.length, perSpot);
   return {
     label: r.label,
-    family: r.family,
-    base: r.base,
-    evidence: r.evidence,
-    priority: r.priority,
-    instances: r.group.decisions.length,
-    shared: r.group.shared,
-    dominantCell: r.dominantCell,
-    battery: batteryFor(r.label),
-    decisions: r.group.decisions.map((decision) => ({ decision, enriched: enrich(decision) })),
+    cues: rubric.cues,
+    unless: rubric.unless,
+    count: r.group.decisions.length,
+    instances: everyNth(r.group.decisions, stride).map(handFacts),
   };
 }
 
 /**
- * Bundle packets by family, each family ordered by priority and the families
- * themselves ordered by their strongest finding — so the most coachable family
- * leads and its most coachable label leads it.
+ * Bundle spots by family, families ordered by their strongest candidate — this
+ * is only the order the model receives them in; the coaching payload is re-ranked
+ * by what the model *found* (report.ts). Each family carries its hypothesis, a
+ * claim the model tests rather than restates.
  */
-export function packetsByFamily(ranked: Ranked[]): FamilyBundle[] {
+export function familyBriefs(ranked: Ranked[], perSpot = PER_SPOT): FamilyBrief[] {
   const relevance = familyRelevance(ranked);
-  const byFamily = new Map<Family, Packet[]>();
-  for (const r of ranked) {
-    byFamily.set(r.family, [...(byFamily.get(r.family) ?? []), scenarioPacket(r)]);
-  }
+  const byFamily = new Map<Family, Ranked[]>();
+  for (const r of ranked) byFamily.set(r.family, [...(byFamily.get(r.family) ?? []), r]);
   return [...byFamily.entries()]
-    .map(([family, packets]) => ({ family, relevance: relevance[family] ?? 0, packets }))
-    .sort((a, b) => b.relevance - a.relevance);
+    .sort((a, b) => (relevance[b[0]] ?? 0) - (relevance[a[0]] ?? 0))
+    .map(([family, rs]) => ({
+      family,
+      hypothesis: HYPOTHESIS[family],
+      spots: rs.map((r) => spotBrief(r, perSpot)),
+    }));
 }

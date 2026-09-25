@@ -1,18 +1,19 @@
 /**
  * Guards the coach payload — the deliverable of --mode coach. Two things it must
  * never lose: the results-blindness every other payload here enforces, and the
- * shape (enriched decisions, strided instances, spliced battery answers) a coach
- * reads. Built from the same on-disk fixtures doc.test.ts uses, plus synthetic
- * groups where a controlled instance count is needed.
+ * brief→verdict join (each shown instance carries its judgment; families and
+ * spots ranked by wrongness). Built from the same on-disk fixtures doc.test.ts
+ * uses, plus synthetic briefs where a controlled shape is needed.
  */
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
-import { batteryFor } from './battery.ts';
-import { stubJudge } from './judge.ts';
-import { labelGroups, type LabelGroup, type LabelledDecision } from './labels.ts';
+import { stubJudge, validateFamilyVerdict, type FamilyBrief, type FamilyVerdict } from './judge.ts';
+import { labelGroups } from './labels.ts';
+import { familyBriefs } from './packet.ts';
+import { rankGroups } from './priority.ts';
 import { renderCoachJson, renderCoachText, type ReportMeta } from './report.ts';
 
 const FIXTURES = [
@@ -20,71 +21,52 @@ const FIXTURES = [
   'src/lib/hh/fixtures/t310299999/day2.txt',
 ];
 
-function fixtureCoach() {
+async function fixtureCoach() {
   const files = FIXTURES.map((path): ArchiveFile => ({ path, text: readFileSync(path, 'utf8') }));
   const archive = readArchive(files);
   const { hands, window } = selectWindow(archive.hands);
   const meta: ReportMeta = { archive: archive.meta, window };
-  return renderCoachJson(labelGroups(hands), meta);
-}
-
-function d(over: Partial<LabelledDecision>): LabelledDecision {
-  return {
-    id: 'h1',
-    street: 'flop',
-    kind: 'check',
-    position: 'CO',
-    depth: 'deep',
-    handClass: 'draw',
-    boardType: 'wet-high-mine',
-    stackBB: 50,
-    spr: 4,
-    sizing: 0.5,
-    facedSizing: null,
-    allIn: false,
-    pfa: true,
-    facedBet: false,
-    cards: ['Ah', 'Kh'],
-    board: ['9h', '8c', '2d'],
-    removals: [],
-    labels: ['check-draw'],
-    ...over,
-  } as LabelledDecision;
+  const briefs = familyBriefs(rankGroups(labelGroups(hands)));
+  const verdicts: FamilyVerdict[] = [];
+  for (const b of briefs) verdicts.push(validateFamilyVerdict(b, await stubJudge.evaluate(b)));
+  return renderCoachJson(briefs, verdicts, meta);
 }
 
 const META = { archive: {}, window: {} } as unknown as ReportMeta;
 
 describe('renderCoachJson — blindness', () => {
-  const payload = fixtureCoach();
-  const findings = payload.families.flatMap((f) => f.findings);
-
-  it('produces findings from the fixtures', () => {
+  it('produces findings from the fixtures', async () => {
+    const payload = await fixtureCoach();
+    const findings = payload.families.flatMap((f) => f.findings);
     expect(findings.length).toBeGreaterThan(0);
     expect(findings[0].decisions.length).toBeGreaterThan(0);
   });
 
-  it('hands the coach no way to tell what anything returned', () => {
+  it('hands the coach no way to tell what anything returned — across the whole payload', async () => {
+    const payload = await fixtureCoach();
     const money = /net|won|invested|cost|chips|BB\b/i;
+    // The prior checkCost leak entered at the aggregation level, not the decision
+    // level, so this scans the entire serialised payload, not just decisions[0].
     const leaked = JSON.stringify(payload).match(/"(\w*(?:net|won|invested|cost|BB))"\s*:/gi) ?? [];
     expect(leaked.filter((k) => !/stackBB/i.test(k) && money.test(k))).toEqual([]);
   });
 
-  it('pins the finding and enriched-decision shape', () => {
-    expect(Object.keys(findings[0]).sort()).toEqual([
-      'base',
-      'battery',
+  it('pins the family, finding and decision shapes', async () => {
+    const payload = await fixtureCoach();
+    const fam = payload.families[0];
+    expect(Object.keys(fam).sort()).toEqual(['family', 'findings', 'leaks', 'throughline', 'weight']);
+
+    const finding = fam.findings[0];
+    expect(Object.keys(finding).sort()).toEqual([
       'decisions',
-      'dominantCell',
-      'evidence',
       'instances',
       'label',
-      'priority',
-      'shared',
-      'stride',
+      'leaks',
+      'shown',
+      'weight',
     ]);
-    // The blind decision keys from doc.test.ts, plus the enriched block — and
-    // nothing result-bearing riding in through the spread.
-    expect(Object.keys(findings[0].decisions[0]).sort()).toEqual([
+
+    expect(Object.keys(finding.decisions[0]).sort()).toEqual([
       'action',
       'allIn',
       'board',
@@ -92,55 +74,103 @@ describe('renderCoachJson — blindness', () => {
       'cards',
       'depth',
       'enriched',
-      'facedBet',
+      'facedSizing',
       'handClass',
       'id',
-      'labels',
+      'line',
+      'note',
       'pfa',
       'position',
       'removals',
+      'severity',
       'sizing',
       'spr',
-      'stackBB',
       'street',
+      'verdict',
     ]);
   });
 });
 
-describe('renderCoachJson — striding and answers', () => {
-  const group: LabelGroup = {
-    label: 'check-draw',
-    decisions: Array.from({ length: 12 }, () => d({})),
-    shared: {},
-  } as LabelGroup;
+describe('renderCoachJson — join and ranking', () => {
+  // Two families, one with a real leak, one clean, so ranking is observable.
+  const brief: FamilyBrief = familyBriefs(
+    rankGroups([
+      { label: 'pfa-check-flop', decisions: [dec('a1'), dec('a2')], shared: {} },
+      { label: 'check-draw', decisions: [dec('b1')], shared: {} },
+      { label: 'donk-bet', decisions: [dec('c1')], shared: {} },
+    ] as never),
+  ) as never;
 
-  it('strides a large group but reports every instance', () => {
-    const [finding] = renderCoachJson([group], META).families[0].findings;
-    expect(finding.instances).toBe(12); // the whole group is counted
-    expect(finding.stride).toBe(3); // ceil(12 / 5)
-    expect(finding.decisions).toHaveLength(4); // every 3rd of 12
+  function dec(id: string) {
+    return {
+      id,
+      kind: 'check',
+      position: 'CO',
+      depth: 'deep',
+      handClass: 'draw',
+      boardType: 'wet-high-mine',
+      sizing: 0.5,
+      facedSizing: null,
+      spr: 4,
+      allIn: false,
+      pfa: true,
+      cards: ['Ah', 'Kh'],
+      board: ['9h', '8c', '2d'],
+      removals: [],
+      line: 'R / X',
+    };
+  }
+
+  it('attaches each verdict to its cited hand and ranks leaks first', () => {
+    const briefs = brief as unknown as FamilyBrief[];
+    const verdicts: FamilyVerdict[] = briefs.map((b) => ({
+      family: b.family,
+      throughline:
+        b.family === 'PFR flop passivity' ? { thesis: 'passive', body: '…' } : null,
+      verdicts: b.spots.flatMap((s) =>
+        s.instances.map((h) => ({
+          label: s.label,
+          id: h.id,
+          verdict: s.label === 'pfa-check-flop' ? ('leak' as const) : ('fine' as const),
+          severity: s.label === 'pfa-check-flop' ? 4 : 0,
+          note: 'n',
+        })),
+      ),
+    }));
+
+    const payload = renderCoachJson(briefs, verdicts, META);
+    // The family with a leak sorts to the front.
+    expect(payload.families[0].family).toBe('PFR flop passivity');
+    expect(payload.families[0].leaks).toBe(2);
+    const leaky = payload.families[0].findings.find((f) => f.label === 'pfa-check-flop');
+    expect(leaky?.decisions.every((d) => d.verdict === 'leak' && d.severity === 4)).toBe(true);
   });
 
-  it('ships the whole group unstrided when perLabel is Infinity (the --label case)', () => {
-    const [finding] = renderCoachJson([group], META, {}, Infinity).families[0].findings;
-    expect(finding.stride).toBe(1);
-    expect(finding.decisions).toHaveLength(12);
-  });
-
-  it('splices battery answers only when a judge supplied them', async () => {
-    const answered = await stubJudge.evaluate({}, batteryFor('check-draw'));
-    const withJudge = renderCoachJson([group], META, { 'check-draw': answered }).families[0]
-      .findings[0];
-    expect(Object.keys(withJudge.answers ?? {})).toEqual(Object.keys(withJudge.battery));
-
-    const without = renderCoachJson([group], META).families[0].findings[0];
-    expect(without).not.toHaveProperty('answers');
+  it('keeps the throughline only when two or more spots leak', () => {
+    const briefs = brief as unknown as FamilyBrief[];
+    // Only pfa-check-flop leaks → one spot → throughline dropped even though supplied.
+    const verdicts: FamilyVerdict[] = briefs.map((b) => ({
+      family: b.family,
+      throughline: { thesis: 'x', body: 'y' },
+      verdicts: b.spots.flatMap((s) =>
+        s.instances.map((h) => ({
+          label: s.label,
+          id: h.id,
+          verdict: s.label === 'pfa-check-flop' ? ('leak' as const) : ('fine' as const),
+          severity: s.label === 'pfa-check-flop' ? 3 : 0,
+          note: 'n',
+        })),
+      ),
+    }));
+    const payload = renderCoachJson(briefs, verdicts, META);
+    const pfr = payload.families.find((f) => f.family === 'PFR flop passivity');
+    expect(pfr?.throughline).toBeNull();
   });
 });
 
 describe('renderCoachText', () => {
   it('summarises the empty window without inventing a finding', () => {
-    expect(renderCoachText(renderCoachJson([], META))).toBe(
+    expect(renderCoachText(renderCoachJson([], [], META))).toBe(
       'no labelled decisions in this window',
     );
   });

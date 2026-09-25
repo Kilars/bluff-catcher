@@ -17,10 +17,9 @@
 import type { ArchiveMeta, WindowMeta } from './archive.ts';
 import { BOARD_SEEN } from './board.ts';
 import type { HeroHand } from './hero.ts';
-import type { AnswerSet } from './judge.ts';
+import type { FamilyBrief, FamilyVerdict } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
-import { packetsByFamily } from './packet.ts';
-import { rankGroups } from './priority.ts';
+import { spotWrongness, throughlineHolds } from './priority.ts';
 import type { RfiFold } from './rfi.ts';
 import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 
@@ -272,64 +271,79 @@ export function renderJson(
   };
 }
 
-const round1 = (x: number): number => Number(x.toFixed(1));
-
 /**
- * PLAN-coach.md §4 layer 4: the coaching payload. Ranks the label groups by
- * `base × evidence`, bundles them by family strongest-first, and ships each
- * finding self-contained — enriched decisions, dominant cell, and the label's
- * verification battery. `answers` is filled only when a judge was run; before a
- * backend is chosen the batteries ride along unanswered, which is the point.
+ * The coaching payload — `--mode coach`. Joins each family's blind brief (the
+ * model's input) with its FamilyVerdict (the model's output) and ranks by what
+ * the model *found*, not by how patterned the spot looked going in: a consistent
+ * but correct tendency ranks high on evidence and is not a leak. Families and
+ * spots both sort by wrongness (leak count weighted by severity), and the family
+ * throughline is kept only when the pattern spans two or more spots.
  *
- * Same two rules as `renderJson`: only `meta.window` is describable, and the
- * board is already cut at Hero's street inside `decisionDetail`.
+ * Blind by construction: HandFacts and the enriched block carry no outcome, and
+ * the verdict's note is the model's own judgment, not a result. The whole payload
+ * is pinned against result-bearing keys in report.coach.test.ts.
  */
 export function renderCoachJson(
-  groups: LabelGroup[],
+  briefs: FamilyBrief[],
+  verdicts: FamilyVerdict[],
   meta: ReportMeta,
-  answers: Record<string, AnswerSet> = {},
-  perLabel?: number,
 ) {
-  return {
-    meta,
-    families: packetsByFamily(rankGroups(groups)).map((b) => ({
-      family: b.family,
-      relevance: round1(b.relevance),
-      findings: b.packets.map((p) => {
-        const stride = strideFor(p.decisions, perLabel);
-        return {
-          label: p.label,
-          priority: round1(p.priority),
-          base: p.base,
-          evidence: round1(p.evidence),
-          instances: p.instances,
-          stride,
-          shared: p.shared,
-          dominantCell: p.dominantCell,
-          battery: p.battery,
-          ...(answers[p.label] ? { answers: answers[p.label] } : {}),
-          decisions: everyNth(p.decisions, stride).map((ed) => ({
-            ...decisionDetail(ed.decision),
-            enriched: ed.enriched,
-          })),
-        };
-      }),
-    })),
-  };
+  const byFamily = new Map(verdicts.map((v) => [v.family, v]));
+
+  const families = briefs.map((brief) => {
+    const fv = byFamily.get(brief.family);
+    const all = fv?.verdicts ?? [];
+    const byKey = new Map(all.map((iv) => [`${iv.label}|${iv.id}`, iv]));
+
+    const findings = brief.spots.map((spot) => {
+      const { leaks, weight } = spotWrongness(all.filter((iv) => iv.label === spot.label));
+      return {
+        label: spot.label,
+        instances: spot.count,
+        shown: spot.instances.length,
+        leaks,
+        weight,
+        decisions: spot.instances.map((h) => {
+          const iv = byKey.get(`${spot.label}|${h.id}`);
+          return {
+            ...h,
+            verdict: iv?.verdict ?? null,
+            severity: iv?.severity ?? null,
+            note: iv?.note ?? null,
+          };
+        }),
+      };
+    });
+    findings.sort((a, b) => b.weight - a.weight || b.leaks - a.leaks);
+
+    return {
+      family: brief.family,
+      leaks: findings.reduce((s, f) => s + f.leaks, 0),
+      weight: findings.reduce((s, f) => s + f.weight, 0),
+      throughline: fv && throughlineHolds(all) ? fv.throughline : null,
+      findings,
+    };
+  });
+  families.sort((a, b) => b.weight - a.weight || b.leaks - a.leaks);
+
+  return { meta, families };
 }
 
 /** A terminal glance at the same findings; the JSON is the payload that matters. */
 export function renderCoachText(payload: ReturnType<typeof renderCoachJson>): string {
   const lines: string[] = [];
   for (const fam of payload.families) {
-    lines.push(`${fam.family}  (relevance ${fam.relevance})`);
+    const tag = fam.leaks ? `${fam.leaks} leak${fam.leaks === 1 ? '' : 's'}` : 'clean';
+    lines.push(`${fam.family}  (${tag})`);
+    if (fam.throughline) lines.push(`  ↳ ${fam.throughline.thesis}`);
     for (const f of fam.findings) {
-      const shared = Object.entries(f.shared)
-        .map(([k, v]) => `${k}=${v}`)
-        .join(' ');
-      lines.push(
-        `  ${pad(f.label, 26)} priority ${f.priority}  ${f.instances}×  ${shared || '(no shared facets)'}`,
-      );
+      const shown = f.shown < f.instances ? `${f.shown}/${f.instances}` : `${f.instances}`;
+      lines.push(`  ${pad(f.label, 26)} ${shown}×  ${f.leaks} leak(s)`);
+      for (const d of f.decisions) {
+        if (d.verdict === 'leak' || d.verdict === 'mixed') {
+          lines.push(`  ${' '.repeat(6)}${pad(d.id, 14)} sev ${d.severity}  ${d.note ?? ''}`);
+        }
+      }
     }
   }
   return lines.join('\n') || 'no labelled decisions in this window';

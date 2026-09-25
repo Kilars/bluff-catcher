@@ -18,6 +18,7 @@ import type { Depth } from '../preflop/ranges.ts';
 import { BOARD_SEEN, boardType, type BoardType } from './board.ts';
 import { decisionsOf, type Decision } from './decisions.ts';
 import type { HeroHand } from './hero.ts';
+import { actionLine } from './lines.ts';
 import { depthFor } from './rfi.ts';
 
 /**
@@ -41,6 +42,8 @@ export interface LabelledDecision extends Decision {
   /** The stack-depth bucket `rfi.ts` already reads charts by. */
   depth: Depth;
   removals: Removal[];
+  /** Compact blind action line up to Hero's street — see lines.ts. */
+  line: string;
   labels: string[];
 }
 
@@ -189,6 +192,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
         boardType: texture,
         depth: depthFor(d.stackBB),
         removals: rem,
+        line: actionLine(h, d.street),
         labels,
       },
     ];

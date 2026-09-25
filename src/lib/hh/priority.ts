@@ -8,6 +8,7 @@
  * drop out.
  */
 
+import type { InstanceVerdict } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { FACETS, LABELS, type Label } from './labels.ts';
 
@@ -117,7 +118,7 @@ export function rankGroups(groups: LabelGroup[]): Ranked[] {
     .map((g): Ranked => {
       const label = g.label as Label;
       const base = BASE_PRIORITY[label];
-      // Computed once here and carried on Ranked; scenarioPacket reads it back
+      // Computed once here and carried on Ranked; the brief builder reads it back
       // rather than scanning the group a second time.
       const dc = dominantCell(g.decisions);
       const ev = evidenceOf(dc, g.decisions.length);
@@ -139,4 +140,31 @@ export function familyRelevance(ranked: Ranked[]): Partial<Record<Family, number
   const out: Partial<Record<Family, number>> = {};
   for (const r of ranked) out[r.family] = Math.max(out[r.family] ?? 0, r.priority);
   return out;
+}
+
+/**
+ * `base × evidence` orders what the model *sees* — a first pass over candidates.
+ * But real holes are ranked by what the model *found*, not by how patterned the
+ * spot looked: a consistent-but-correct tendency scores high on evidence and is
+ * not a leak. So the payload is ranked after judgment, by wrongness.
+ *
+ * A spot's wrongness is how many instances came back a leak, weighted by how
+ * much each costs. `mixed` counts as a leak — part of the group is wrong.
+ */
+export function spotWrongness(verdicts: InstanceVerdict[]): { leaks: number; weight: number } {
+  const bad = verdicts.filter((v) => v.verdict === 'leak' || v.verdict === 'mixed');
+  return { leaks: bad.length, weight: bad.reduce((s, v) => s + v.severity, 0) };
+}
+
+/**
+ * The family throughline is a claim about a *pattern*, so it may only fire when
+ * the pattern spans more than one spot: at least two distinct labels in the
+ * family each hold a real leak. One leaky spot is coached as itself, not as a
+ * family-wide lesson.
+ */
+export function throughlineHolds(verdicts: InstanceVerdict[]): boolean {
+  const leaky = new Set(
+    verdicts.filter((v) => v.verdict === 'leak' || v.verdict === 'mixed').map((v) => v.label),
+  );
+  return leaky.size >= 2;
 }

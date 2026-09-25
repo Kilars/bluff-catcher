@@ -26,10 +26,11 @@ import {
   type ArchiveFile,
   type Excluded,
 } from '../src/lib/hh/archive.ts';
-import { batteryFor } from '../src/lib/hh/battery.ts';
-import type { AnswerSet } from '../src/lib/hh/judge.ts';
-import { stubJudge } from '../src/lib/hh/judge.ts';
-import { LABELS, labelGroups, type Label } from '../src/lib/hh/labels.ts';
+import type { FamilyVerdict } from '../src/lib/hh/judge.ts';
+import { stubJudge, validateFamilyVerdict } from '../src/lib/hh/judge.ts';
+import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
+import { familyBriefs } from '../src/lib/hh/packet.ts';
+import { rankGroups } from '../src/lib/hh/priority.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -183,16 +184,20 @@ if (mode === 'pots') {
   const all = labelGroups(hands);
   const groups = label ? all.filter((g) => g.label === label) : all;
 
-  // Only the stub runs here, and only when asked. Answering each appearing
-  // label's battery once is enough — the payload keys answers by label, so the
-  // order the groups arrive in does not matter.
-  const answers: Record<string, AnswerSet> = {};
+  // `--label` means "all of this one" — Infinity sends every instance, not a sample.
+  const briefs = familyBriefs(rankGroups(groups), label ? Infinity : undefined);
+
+  // One judge call per family. Only the stub runs until an LLM backend is wired,
+  // and the seam is validated not trusted: a malformed verdict throws here rather
+  // than reaching the payload.
+  const verdicts: FamilyVerdict[] = [];
   if (judge === 'stub') {
-    for (const g of groups) answers[g.label] = await stubJudge.evaluate({}, batteryFor(g.label as Label));
+    for (const brief of briefs) {
+      verdicts.push(validateFamilyVerdict(brief, await stubJudge.evaluate(brief)));
+    }
   }
 
-  // `--label` means "all of this one", the same as it does in leaks mode.
-  const payload = renderCoachJson(groups, meta, answers, label ? Infinity : undefined);
+  const payload = renderCoachJson(briefs, verdicts, meta);
   output = asJson ? JSON.stringify(payload, null, 2) : renderCoachText(payload);
 } else {
   const summary = summarise(hands);

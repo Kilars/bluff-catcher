@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { LABELS } from './labels.ts';
+import type { InstanceVerdict } from './judge.ts';
 import {
   BASE_PRIORITY,
   FAMILIES,
@@ -10,6 +11,8 @@ import {
   familyOf,
   familyRelevance,
   rankGroups,
+  spotWrongness,
+  throughlineHolds,
 } from './priority.ts';
 
 function d(over: Partial<LabelledDecision>): LabelledDecision {
@@ -74,5 +77,30 @@ describe('rankGroups', () => {
       group('check-draw', [d({})]), // 7×0.5 = 3.5, same family
     ]);
     expect(familyRelevance(ranked)['PFR flop passivity']).toBe(8);
+  });
+});
+
+function v(label: string, verdict: InstanceVerdict['verdict'], severity: number): InstanceVerdict {
+  return { label, id: 'h', verdict, severity, note: '' } as InstanceVerdict;
+}
+
+describe('spotWrongness', () => {
+  it('counts leaks and mixed, weighted by severity, ignoring fine', () => {
+    const w = spotWrongness([
+      v('pfa-check-flop', 'leak', 4),
+      v('pfa-check-flop', 'mixed', 2),
+      v('pfa-check-flop', 'fine', 0),
+    ]);
+    expect(w.leaks).toBe(2);
+    expect(w.weight).toBe(6);
+  });
+});
+
+describe('throughlineHolds', () => {
+  it('needs two distinct leaking labels — one is not a pattern', () => {
+    const oneSpot = [v('pfa-check-flop', 'leak', 4), v('pfa-check-flop', 'leak', 3)];
+    const twoSpots = [v('pfa-check-flop', 'leak', 4), v('check-draw', 'leak', 2)];
+    expect(throughlineHolds(oneSpot)).toBe(false);
+    expect(throughlineHolds(twoSpots)).toBe(true);
   });
 });
