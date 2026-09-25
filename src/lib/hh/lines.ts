@@ -45,9 +45,11 @@ function token(a: Action, isHero: boolean): string | null {
 }
 
 /**
- * The line for streets up to and including `upTo`. Within `upTo` the whole
- * street is rendered, so the bet Hero *faced after* a check is visible — that is
- * the missing context, not a leak of the future.
+ * The line for streets up to and including `upTo`. On the decision street the
+ * render stops at Hero's LAST action: a villain bet *before* it is the faced-bet
+ * context we want, but a villain response *after* it is the result — a fold means
+ * Hero won the pot, and coaching may never see that. Earlier streets render whole,
+ * because the hand continued past them, so they carry no terminal response.
  */
 export function actionLine(h: HeroHand, upTo: Street): string {
   // `StreetPlay.actions` is Hero's alone, so its players name Hero's seat(s).
@@ -56,9 +58,13 @@ export function actionLine(h: HeroHand, upTo: Street): string {
   const segments: string[] = [];
   for (const play of h.streets) {
     if (SEQ.indexOf(play.street) > limit) break;
-    const toks = play.allActions
-      .map((a) => token(a, hero.has(a.player)))
-      .filter((t): t is string => t !== null);
+    let acts = play.allActions;
+    if (play.street === upTo) {
+      let last = -1;
+      for (let i = 0; i < acts.length; i++) if (hero.has(acts[i].player)) last = i;
+      if (last >= 0) acts = acts.slice(0, last + 1);
+    }
+    const toks = acts.map((a) => token(a, hero.has(a.player))).filter((t): t is string => t !== null);
     if (toks.length) segments.push(toks.join(''));
   }
   return segments.join(' / ');

@@ -149,11 +149,21 @@ export function familyRelevance(ranked: Ranked[]): Partial<Record<Family, number
  * not a leak. So the payload is ranked after judgment, by wrongness.
  *
  * A spot's wrongness is how many instances came back a leak, weighted by how
- * much each costs. `mixed` counts as a leak — part of the group is wrong.
+ * much each costs. `mixed` counts as a leak — part of the group is wrong. `top`
+ * is the single worst instance's severity: a lone severe leak should lead over
+ * many mild ones, so ranking sorts on `top` before the summed `weight`.
  */
-export function spotWrongness(verdicts: InstanceVerdict[]): { leaks: number; weight: number } {
+export function spotWrongness(verdicts: InstanceVerdict[]): {
+  leaks: number;
+  weight: number;
+  top: number;
+} {
   const bad = verdicts.filter((v) => v.verdict === 'leak' || v.verdict === 'mixed');
-  return { leaks: bad.length, weight: bad.reduce((s, v) => s + v.severity, 0) };
+  return {
+    leaks: bad.length,
+    weight: bad.reduce((s, v) => s + v.severity, 0),
+    top: bad.reduce((m, v) => Math.max(m, v.severity), 0),
+  };
 }
 
 /**

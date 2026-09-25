@@ -42,6 +42,8 @@ export interface LabelledDecision extends Decision {
   /** The stack-depth bucket `rfi.ts` already reads charts by. */
   depth: Depth;
   removals: Removal[];
+  /** Players who saw the flop — heads-up vs multiway changes every threshold. */
+  playersToFlop: number;
   /** Compact blind action line up to Hero's street — see lines.ts. */
   line: string;
   labels: string[];
@@ -165,6 +167,8 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   if (!cards) return [];
 
   const texture = boardType(h.board);
+  const flop = h.streets.find((s) => s.street === 'flop');
+  const playersToFlop = flop ? new Set(flop.allActions.map((a) => a.player)).size : 0;
   const checkRaised = new Set(h.streets.filter((s) => s.checkRaised).map((s) => s.street));
   // Hero checked and the street ended there — no later call, raise or fold to a
   // bet. This is the checked-through line `river-check-value` wants, kept apart
@@ -192,6 +196,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
         boardType: texture,
         depth: depthFor(d.stackBB),
         removals: rem,
+        playersToFlop,
         line: actionLine(h, d.street),
         labels,
       },

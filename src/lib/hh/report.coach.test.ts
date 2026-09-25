@@ -51,10 +51,34 @@ describe('renderCoachJson — blindness', () => {
     expect(leaked.filter((k) => !/stackBB/i.test(k) && money.test(k))).toEqual([]);
   });
 
+  it('does not leak the result through the action line on a bet decision', async () => {
+    // A bet/raise decision's line must end at Hero's own action; a trailing
+    // villain fold (lower-case) would say Hero won the pot. Guarding the string
+    // value, not just the key, since the leak lived inside `line`.
+    const payload = await fixtureCoach();
+    for (const fam of payload.families) {
+      for (const f of fam.findings) {
+        for (const d of f.decisions) {
+          if (d.action !== 'bet' && d.action !== 'raise') continue;
+          const letters = d.line.replace(/[^a-zA-Z]/g, '');
+          const lastLetter = letters.at(-1) ?? '';
+          expect(lastLetter, `${d.id}: ${d.line}`).toBe(lastLetter.toUpperCase());
+        }
+      }
+    }
+  });
+
   it('pins the family, finding and decision shapes', async () => {
     const payload = await fixtureCoach();
     const fam = payload.families[0];
-    expect(Object.keys(fam).sort()).toEqual(['family', 'findings', 'leaks', 'throughline', 'weight']);
+    expect(Object.keys(fam).sort()).toEqual([
+      'family',
+      'findings',
+      'leaks',
+      'throughline',
+      'top',
+      'weight',
+    ]);
 
     const finding = fam.findings[0];
     expect(Object.keys(finding).sort()).toEqual([
@@ -63,6 +87,7 @@ describe('renderCoachJson — blindness', () => {
       'label',
       'leaks',
       'shown',
+      'top',
       'weight',
     ]);
 
@@ -80,7 +105,9 @@ describe('renderCoachJson — blindness', () => {
       'line',
       'note',
       'pfa',
+      'playersToFlop',
       'position',
+      'ref',
       'removals',
       'severity',
       'sizing',
@@ -126,11 +153,13 @@ describe('renderCoachJson — join and ranking', () => {
     const verdicts: FamilyVerdict[] = briefs.map((b) => ({
       family: b.family,
       throughline:
-        b.family === 'PFR flop passivity' ? { thesis: 'passive', body: '…' } : null,
+        b.family === 'PFR flop passivity'
+          ? { thesis: 'passive', body: '…', evidenceRefs: ['a1', 'a2'] }
+          : null,
       verdicts: b.spots.flatMap((s) =>
         s.instances.map((h) => ({
           label: s.label,
-          id: h.id,
+          ref: h.ref,
           verdict: s.label === 'pfa-check-flop' ? ('leak' as const) : ('fine' as const),
           severity: s.label === 'pfa-check-flop' ? 4 : 0,
           note: 'n',
@@ -151,11 +180,11 @@ describe('renderCoachJson — join and ranking', () => {
     // Only pfa-check-flop leaks → one spot → throughline dropped even though supplied.
     const verdicts: FamilyVerdict[] = briefs.map((b) => ({
       family: b.family,
-      throughline: { thesis: 'x', body: 'y' },
+      throughline: { thesis: 'x', body: 'y', evidenceRefs: [] },
       verdicts: b.spots.flatMap((s) =>
         s.instances.map((h) => ({
           label: s.label,
-          id: h.id,
+          ref: h.ref,
           verdict: s.label === 'pfa-check-flop' ? ('leak' as const) : ('fine' as const),
           severity: s.label === 'pfa-check-flop' ? 3 : 0,
           note: 'n',

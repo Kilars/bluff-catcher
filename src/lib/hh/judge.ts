@@ -27,7 +27,11 @@ import type { Family } from './priority.ts';
  * No outcome, no villain cards, ever.
  */
 export interface HandFacts {
+  /** The hand id, so the user can find it in the client — may repeat across a
+   * label's instances when one hand checks a draw on two streets. */
   id: string;
+  /** Unique instance handle within the brief — what a verdict cites. */
+  ref: string;
   street: string;
   action: string;
   position: string;
@@ -43,6 +47,8 @@ export interface HandFacts {
   handClass: string;
   boardType: string | null;
   removals: string[];
+  /** Players who saw the flop — heads-up vs multiway changes every threshold. */
+  playersToFlop: number;
   /** Compact blind action line up to Hero's street — see lines.ts. */
   line: string;
   enriched: Enriched;
@@ -70,24 +76,39 @@ export interface FamilyBrief {
 
 export type Verdict = 'leak' | 'fine' | 'mixed';
 
+export type Severity = 0 | 1 | 2 | 3 | 4 | 5;
+
 /**
- * One judged hand. `id` must be an id supplied in the brief — the verdict is
- * forced to cite a specific hand, which is what keeps the coaching off generic
- * platitudes. `severity` is 0 when fine, 1..5 for how much a leak costs.
+ * One judged instance. `ref` must be a handle supplied in the brief — the verdict
+ * is forced to cite a specific instance, which is what keeps the coaching off
+ * generic platitudes. `severity` is 0 when `fine`, 1..5 for how much a leak
+ * costs; `validateFamilyVerdict` enforces that pairing, so a leak can't hide at 0.
  */
 export interface InstanceVerdict {
   label: Label;
-  id: string;
+  ref: string;
   verdict: Verdict;
-  severity: number;
+  severity: Severity;
   note: string;
+}
+
+/**
+ * The cross-spot lesson. `evidenceIds` are the leak hands it generalises from —
+ * required and non-empty, so the family prose is forced to name the instances it
+ * is built on rather than deliver a free-floating lecture.
+ */
+export interface Throughline {
+  thesis: string;
+  body: string;
+  /** Instance refs this generalises from — each must be a leak in this family. */
+  evidenceRefs: string[];
 }
 
 export interface FamilyVerdict {
   family: Family;
   verdicts: InstanceVerdict[];
-  /** The cross-spot lesson. Fires only when the family holds a real pattern; null otherwise. */
-  throughline: { thesis: string; body: string } | null;
+  /** Fires only when the family holds a real pattern; null otherwise. */
+  throughline: Throughline | null;
 }
 
 export interface Judge {
@@ -105,15 +126,45 @@ const VERDICTS = new Set<Verdict>(['leak', 'fine', 'mixed']);
  */
 export function validateFamilyVerdict(brief: FamilyBrief, v: FamilyVerdict): FamilyVerdict {
   if (v.family !== brief.family) throw new Error(`verdict family ${v.family} ≠ brief ${brief.family}`);
-  const ids = new Map<Label, Set<string>>();
-  for (const s of brief.spots) ids.set(s.label, new Set(s.instances.map((h) => h.id)));
+  const refs = new Map<Label, Set<string>>();
+  for (const s of brief.spots) refs.set(s.label, new Set(s.instances.map((h) => h.ref)));
+
+  const seen = new Set<string>();
+  const leakRefs = new Set<string>();
   for (const iv of v.verdicts) {
-    const known = ids.get(iv.label);
+    const known = refs.get(iv.label);
     if (!known) throw new Error(`verdict for label ${iv.label} not in brief`);
-    if (!known.has(iv.id)) throw new Error(`verdict cites hand ${iv.id} not in ${iv.label}`);
-    if (!VERDICTS.has(iv.verdict)) throw new Error(`bad verdict ${iv.verdict} on ${iv.id}`);
+    if (!known.has(iv.ref)) throw new Error(`verdict cites ${iv.ref} not in ${iv.label}`);
+    const key = `${iv.label}|${iv.ref}`;
+    if (seen.has(key)) throw new Error(`duplicate verdict for ${key}`);
+    seen.add(key);
+    if (!VERDICTS.has(iv.verdict)) throw new Error(`bad verdict ${iv.verdict} on ${iv.ref}`);
     if (!Number.isInteger(iv.severity) || iv.severity < 0 || iv.severity > 5) {
-      throw new Error(`severity ${iv.severity} out of 0..5 on ${iv.id}`);
+      throw new Error(`severity ${iv.severity} out of 0..5 on ${iv.ref}`);
+    }
+    // A verdict and its severity must agree, or a real leak hides at 0 (invisible
+    // to ranking) and a fine spot inflates the weight.
+    if (iv.verdict === 'fine' && iv.severity !== 0) throw new Error(`fine at severity ${iv.severity} on ${iv.ref}`);
+    if (iv.verdict !== 'fine' && iv.severity < 1) throw new Error(`${iv.verdict} at severity 0 on ${iv.ref}`);
+    if (typeof iv.note !== 'string' || iv.note.trim() === '') throw new Error(`empty note on ${iv.ref}`);
+    if (iv.verdict !== 'fine') leakRefs.add(iv.ref);
+  }
+
+  // Every instance the model was handed must come back judged — a silent drop
+  // reads as a clean spot when the model simply said nothing.
+  for (const s of brief.spots) {
+    for (const h of s.instances) {
+      if (!seen.has(`${s.label}|${h.ref}`)) throw new Error(`no verdict for ${s.label}/${h.ref}`);
+    }
+  }
+
+  const t = v.throughline;
+  if (t !== null) {
+    if (typeof t.thesis !== 'string' || t.thesis.trim() === '') throw new Error('empty throughline thesis');
+    if (typeof t.body !== 'string' || t.body.trim() === '') throw new Error('empty throughline body');
+    if (!t.evidenceRefs.length) throw new Error('throughline cites no evidence');
+    for (const ref of t.evidenceRefs) {
+      if (!leakRefs.has(ref)) throw new Error(`throughline cites ${ref}, not a leak in this family`);
     }
   }
   return v;
@@ -130,7 +181,7 @@ export const stubJudge: Judge = {
       s.instances.map(
         (h): InstanceVerdict => ({
           label: s.label,
-          id: h.id,
+          ref: h.ref,
           verdict: 'fine',
           severity: 0,
           note: 'stub: no model plugged in',

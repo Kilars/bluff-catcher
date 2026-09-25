@@ -293,18 +293,19 @@ export function renderCoachJson(
   const families = briefs.map((brief) => {
     const fv = byFamily.get(brief.family);
     const all = fv?.verdicts ?? [];
-    const byKey = new Map(all.map((iv) => [`${iv.label}|${iv.id}`, iv]));
+    const byKey = new Map(all.map((iv) => [`${iv.label}|${iv.ref}`, iv]));
 
     const findings = brief.spots.map((spot) => {
-      const { leaks, weight } = spotWrongness(all.filter((iv) => iv.label === spot.label));
+      const { leaks, weight, top } = spotWrongness(all.filter((iv) => iv.label === spot.label));
       return {
         label: spot.label,
         instances: spot.count,
         shown: spot.instances.length,
         leaks,
         weight,
+        top,
         decisions: spot.instances.map((h) => {
-          const iv = byKey.get(`${spot.label}|${h.id}`);
+          const iv = byKey.get(`${spot.label}|${h.ref}`);
           return {
             ...h,
             verdict: iv?.verdict ?? null,
@@ -314,17 +315,19 @@ export function renderCoachJson(
         }),
       };
     });
-    findings.sort((a, b) => b.weight - a.weight || b.leaks - a.leaks);
+    // Worst single leak first, then breadth, then total weight.
+    findings.sort((a, b) => b.top - a.top || b.leaks - a.leaks || b.weight - a.weight);
 
     return {
       family: brief.family,
       leaks: findings.reduce((s, f) => s + f.leaks, 0),
       weight: findings.reduce((s, f) => s + f.weight, 0),
+      top: findings.reduce((m, f) => Math.max(m, f.top), 0),
       throughline: fv && throughlineHolds(all) ? fv.throughline : null,
       findings,
     };
   });
-  families.sort((a, b) => b.weight - a.weight || b.leaks - a.leaks);
+  families.sort((a, b) => b.top - a.top || b.leaks - a.leaks || b.weight - a.weight);
 
   return { meta, families };
 }

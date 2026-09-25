@@ -29,10 +29,13 @@ function everyNth<T>(xs: T[], stride: number): T[] {
   return xs.filter((_, i) => i % stride === 0);
 }
 
-/** One decision reduced to its blind facts, enriched math attached. */
+/** One decision reduced to its blind facts, enriched math attached. `ref` is the
+ * unique instance handle — one hand can check a draw on two streets, so the hand
+ * id alone does not identify the instance. */
 export function handFacts(d: LabelledDecision): HandFacts {
   return {
     id: d.id,
+    ref: `${d.id}#${d.street}`,
     street: d.street,
     action: d.kind,
     position: d.position,
@@ -47,6 +50,7 @@ export function handFacts(d: LabelledDecision): HandFacts {
     handClass: d.handClass,
     boardType: d.boardType,
     removals: d.removals,
+    playersToFlop: d.playersToFlop ?? 0,
     line: d.line ?? '',
     enriched: enrich(d),
   };

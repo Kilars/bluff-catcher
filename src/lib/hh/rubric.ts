@@ -45,25 +45,27 @@ export const RUBRIC: Record<Label, Rubric> = {
       'Read the actual draw from cards and board, not just handClass.',
     ],
     unless:
-      'Checking is often right with a weak draw (gutshot, non-nut flush draw), out of position into a range-ahead raiser where fold equity is thin, or on a monotone board with the nut flush draw where a check keeps the range protected.',
+      'A weak draw (gutshot, non-nut flush draw) is a fine check on its own, in or out of position. Out of position into a range-ahead raiser is a further brake even on a moderate draw. Checking the nut flush draw on a monotone board keeps the range protected. And on the turn, with low SPR and fold equity collapsed, checking a draw can be right where betting the flop was not.',
   },
   'donk-bet': {
     cues: [
-      'On a board that hits the caller’s range harder than the raiser’s (boardType middling-theirs), an out-of-position lead is legitimate and underused — it denies the free check-back.',
+      'Position is the first filter: an in-position "lead" is almost always a leak regardless of texture.',
+      'An out-of-position lead on a caller-favoured board (boardFavoursPfa false — the flop hit the caller’s range, not the raiser’s) is legitimate and underused: it denies the free check-back.',
     ],
     unless:
-      'An in-position "lead" is almost always a leak regardless of texture. So is leading a vulnerable made hand at committed SPR, where it denies nothing and turns the hand face-up.',
+      'Leading a vulnerable made hand at committed SPR is a leak even out of position — it denies nothing and turns the hand face-up.',
   },
   'check-raise-flop': {
     cues: [
-      'The caller’s main aggressive weapon, and rarely used. With real equity-when-called (sets, two pair, combo draws) it punishes auto-c-bets and protects the check-call range.',
+      'The caller’s main aggressive weapon, and rarely used. It punishes auto-c-bets and protects the check-call range.',
+      'Read handClass: "strong" (sets, two pair) and "draw" (combo draws) are the qualifying classes; a "marginal-made" check-raise is the leak class.',
     ],
     unless:
       'Check-raising a merged, linear range (middle pair, weak top pair with no draw) is a leak, not aggression — the equity-when-called bar is a filter, not a formality.',
   },
   'overbet-strong': {
     cues: [
-      'With a genuine nut advantage on a polarising runout, a size above the pot extracts more and applies maximum pressure.',
+      'With a genuine nut advantage on a polarising board, a size above the pot extracts more and applies maximum pressure.',
       NOT_THE_NUTS,
     ],
     unless:
@@ -72,13 +74,15 @@ export const RUBRIC: Record<Label, Rubric> = {
   'river-bluff-with-blocker': {
     cues: [
       'A blocker helps only when it removes hands they would CALL with. Check whether this blocker (removals) sits in their value/calling range.',
+      'If the direction cannot be read from board and removals, say so rather than assume the blocker helps.',
     ],
     unless:
-      'The blocker hurts when it removes hands they would FOLD — e.g. a card of the flush suit on a flushed board blocks their folding flushes, making the bluff worse. If the direction cannot be read from board and removals, say so rather than assume the blocker helps.',
+      'The blocker hurts when it removes hands they would FOLD — e.g. a card of the flush suit on a flushed board blocks their folding flushes, making the bluff worse.',
   },
   'river-bluff-no-blocker': {
     cues: [
-      'Not a licence to check every river. With missed draws in the range and a credible line, a hand that cannot win at showdown should sometimes fire.',
+      'First check the line: does the check-then-bet represent a credible value hand? Only if it does is a no-blocker bluff a candidate.',
+      'Where the line is credible, this is not a licence to check every river — a hand that cannot win at showdown should sometimes fire.',
     ],
     unless:
       'Weight the bluff down when the hand unblocks their folds or the line has no credible value to represent.',
