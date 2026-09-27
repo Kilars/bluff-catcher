@@ -31,9 +31,12 @@
  *   cellAction  — optional 4-colour mode, forwarded to RangeGrid as-is (PLAN-3bet F3).
  *   legend      — forwarded to RangeGrid; only meaningful with `cellAction`.
  *   footnote    — optional one-line note forwarded to RangeGrid, rendered under the chart.
- *   fixedChart  — optional: show one fixed chart under this header instead of the
- *                 seat/depth navigator (the facing drill's bucket chart). The
- *                 tabs, arrows and swipe paging go away; `highlight` is always marked.
+ *   pages       — optional: page through these charts instead of the RFI
+ *                 seats (the facing drills: one page per opener group, or per
+ *                 opener in BB defend). Same arrows, tabs, keys and swipe; no
+ *                 depth strip. Each page brings its own colouring and copy.
+ *   startPage   — the page to open on (hero's chart); `highlight` is marked
+ *                 there only. Default 0.
  *   onClose     — called when the sheet should close.
  */
 
@@ -51,6 +54,7 @@ import {
   type Seat,
 } from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
+import type { ChartPage } from '../lib/preflop/grid';
 import styles from './ExplainSheet.module.css';
 import nav from './RangeSheet.module.css';
 
@@ -74,15 +78,9 @@ interface RangeSheetProps {
   cellAction?: (hc: HandClass) => CellAction;
   legend?: boolean;
   footnote?: string;
-  fixedChart?: FixedChart;
+  pages?: readonly ChartPage[];
+  startPage?: number;
   onClose: () => void;
-}
-
-/** Header for a single, non-navigable chart. */
-export interface FixedChart {
-  kicker: string;
-  title: string;
-  subline?: string;
 }
 
 export default function RangeSheet({
@@ -93,10 +91,10 @@ export default function RangeSheet({
   cellAction,
   legend,
   footnote,
-  fixedChart,
+  pages,
+  startPage = 0,
   onClose,
 }: RangeSheetProps) {
-  const navigable = fixedChart === undefined;
   // The chart currently on screen. Seeded from `position`, then owned here so
   // the user can browse away from the seat the sheet opened on. The sheet is
   // mounted only while open, so the seed is re-read on every open; callers that
@@ -113,14 +111,23 @@ export default function RangeSheet({
   // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
   const viewPos = seatOnChart(pickedPos, viewDepth);
 
-  const idx = seats.indexOf(viewPos);
-  const canPrev = idx > 0;
-  const canNext = idx < seats.length - 1;
+  // Paged mode (facing drills): the same navigator over a list of charts.
+  const [pageIdx, setPageIdx] = useState(startPage);
+  const page = pages?.[pageIdx];
 
-  const step = useCallback((delta: number) => {
-    if (!navigable) return;
-    setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
-  }, [navigable, viewDepth]);
+  const idx = pages ? pageIdx : seats.indexOf(viewPos);
+  const count = pages ? pages.length : seats.length;
+  const canPrev = idx > 0;
+  const canNext = idx < count - 1;
+
+  const pageCount = pages?.length ?? 0;
+  const step = useCallback(
+    (delta: number) => {
+      if (pageCount > 0) setPageIdx((cur) => Math.min(pageCount - 1, Math.max(0, cur + delta)));
+      else setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
+    },
+    [pageCount, viewDepth, setPageIdx]
+  );
 
   // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
   useEffect(() => {
@@ -188,7 +195,33 @@ export default function RangeSheet({
 
   // Only mark the hand on the chart it was actually dealt in.
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
-  const gridHighlight = !navigable || viewPos === heroSeat ? highlight : undefined;
+  const onHeroChart = pages ? pageIdx === startPage : viewPos === heroSeat;
+  const gridHighlight = onHeroChart ? highlight : undefined;
+  const noun = pages ? 'chart' : 'position';
+
+  const arrows = (title: string) => (
+    <div className={nav.titleRow}>
+      <button
+        type="button"
+        className={nav.arrow}
+        onClick={() => step(-1)}
+        disabled={!canPrev}
+        aria-label={`Previous ${noun}`}
+      >
+        ‹
+      </button>
+      <h1 className={styles.headerTitle}>{title}</h1>
+      <button
+        type="button"
+        className={nav.arrow}
+        onClick={() => step(1)}
+        disabled={!canNext}
+        aria-label={`Next ${noun}`}
+      >
+        ›
+      </button>
+    </div>
+  );
 
   const combos = rangeComboCount(viewPos, viewDepth);
   const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
@@ -211,13 +244,13 @@ export default function RangeSheet({
         >
           {/* Header */}
           <div className={styles.sheetHeader}>
-            {fixedChart ? (
+            {page ? (
             <div className={styles.headerLeft}>
-              <span className={styles.headerKicker}>{fixedChart.kicker}</span>
-              <h1 className={styles.headerTitle}>{fixedChart.title}</h1>
+              <span className={styles.headerKicker}>{page.kicker}</span>
+              {arrows(page.title)}
               <p className={styles.headerSubline}>
-                {fixedChart.subline}
-                {fixedChart.subline && gridHighlight ? ' · ' : ''}
+                {page.subline}
+                {page.subline && gridHighlight ? ' · ' : ''}
                 {gridHighlight ? `Your hand: ${gridHighlight}` : ''}
               </p>
             </div>
@@ -226,27 +259,7 @@ export default function RangeSheet({
               <span className={styles.headerKicker}>
                 {meta.rangeKicker} · {meta.label}
               </span>
-              <div className={nav.titleRow}>
-                <button
-                  type="button"
-                  className={nav.arrow}
-                  onClick={() => step(-1)}
-                  disabled={!canPrev}
-                  aria-label="Previous position"
-                >
-                  ‹
-                </button>
-                <h1 className={styles.headerTitle}>{SEAT_META[viewPos].title}</h1>
-                <button
-                  type="button"
-                  className={nav.arrow}
-                  onClick={() => step(1)}
-                  disabled={!canNext}
-                  aria-label="Next position"
-                >
-                  ›
-                </button>
-              </div>
+              {arrows(SEAT_META[viewPos].title)}
               <p className={styles.headerSubline}>
                 {combos} combos · {pct}% · green = {meta.action}, dark = fold
                 {gridHighlight ? ` · Your hand: ${gridHighlight}` : ''}
@@ -264,7 +277,7 @@ export default function RangeSheet({
           </div>
 
           {/* Stack-depth strip — the same seat, three tiers */}
-          {navigable && (
+          {!pages && (
           <div className={nav.depths} role="tablist" aria-label="Chart">
             {CHART_KEYS.map((d) => (
               <button
@@ -282,8 +295,27 @@ export default function RangeSheet({
           </div>
           )}
 
+          {/* Chart tab strip (paged mode) */}
+          {pages && (
+          <div className={nav.tabs} role="tablist" aria-label="Chart">
+            {pages.map((p, i) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={i === pageIdx}
+                className={`${nav.tab} ${i === pageIdx ? nav.tabActive : ''}`}
+                onClick={() => setPageIdx(i)}
+              >
+                {p.tab}
+                {i === startPage && <span className={nav.heroDot} aria-label="(your chart)" />}
+              </button>
+            ))}
+          </div>
+          )}
+
           {/* Position tab strip */}
-          {navigable && (
+          {!pages && (
           <div className={nav.tabs} role="tablist" aria-label="Position">
             {seats.map((p) => (
               <button
@@ -317,9 +349,9 @@ export default function RangeSheet({
               position={viewPos}
               depth={viewDepth}
               highlight={gridHighlight}
-              cellAction={cellAction}
+              cellAction={page?.cellAction ?? cellAction}
               legend={legend}
-              footnote={footnote}
+              footnote={page ? page.footnote : footnote}
             />
           </div>
 
@@ -332,11 +364,11 @@ export default function RangeSheet({
             >
               Close
             </button>
-            {navigable && (
-              <span className={nav.navHint}>
-                ← / → arrows, tabs or swipe to change position · {meta.tagline}
-              </span>
-            )}
+            <span className={nav.navHint}>
+              {pages
+                ? '← / → arrows, tabs or swipe to change chart'
+                : `← / → arrows, tabs or swipe to change position · ${meta.tagline}`}
+            </span>
           </div>
         </div>
       </div>

@@ -16,7 +16,7 @@
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import PreflopTable from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
@@ -25,13 +25,11 @@ import PhoneRangeView from '../components/phone/range/PhoneRangeView';
 import type { usePreflopStats } from '../hooks/usePreflopStats';
 import { useLayoutMode } from '../hooks/useLayoutMode';
 import {
-  facingCellAction,
-  facingChartTitle,
+  facingChartPages,
   useFacingDrill,
 } from '../hooks/useFacingDrill';
 import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import { DRILL_HERO, type Drill } from '../lib/preflop/facing';
-import type { HandClass } from '../lib/preflop/hands';
 import type { Format } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
 import { BB_BRIEFING, FACING_BRIEFING } from './facingBriefing';
@@ -95,9 +93,12 @@ export function FacingTrainer({
     closeRange,
   } = drill;
 
-  // Stable per chart, so the grids can memoise their legend on it.
-  const cellAction = useCallback((hc: HandClass) => facingCellAction(spot.bucket, hc), [spot.bucket]);
-  const chartTitle = facingChartTitle(spot.bucket);
+  // Every chart of this drill, so the range sheet can step between them;
+  // it opens on the one hero was graded on. Stable per drill and format, so
+  // the grids can memoise their legends on each page's colouring.
+  const kicker = `${view.kicker} · ${contextLabel}`;
+  const pages = useMemo(() => facingChartPages(format, drillKind, kicker), [format, drillKind, kicker]);
+  const startPage = Math.max(0, pages.findIndex((p) => p.id === spot.bucket));
   const info = <PreflopInfoSheet content={view.briefing[format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
@@ -105,15 +106,14 @@ export function FacingTrainer({
       <PhoneFacingTrainer
         {...drill}
         renderRange={() => (
-          <PhoneSheet title={chartTitle} subtitle={contextLabel} onClose={closeRange}>
+          <PhoneSheet title={view.kicker} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
               key={spot.bucket}
               position={spot.opener}
               highlight={spot.handClass}
-              cellAction={cellAction}
               legend
-              footnote={bucketMeta.footnote}
-              fixedChart={bucketMeta.label}
+              pages={pages}
+              startPage={startPage}
             />
           </PhoneSheet>
         )}
@@ -215,14 +215,9 @@ export function FacingTrainer({
           key={spot.bucket}
           position={spot.opener}
           highlight={spot.handClass}
-          cellAction={cellAction}
           legend
-          footnote={bucketMeta.footnote}
-          fixedChart={{
-            kicker: `${view.kicker} · ${contextLabel}`,
-            title: chartTitle,
-            subline: `Graded on the ${bucketMeta.chartName} chart`,
-          }}
+          pages={pages}
+          startPage={startPage}
           onClose={closeRange}
         />
       )}

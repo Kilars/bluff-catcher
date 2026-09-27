@@ -30,11 +30,12 @@ import {
   BUCKET_META,
   DRILL_HERO,
   bucketChartAction,
+  bucketsFor,
   type Bucket,
   type Drill,
   type FacingAction,
 } from '../lib/preflop/facing';
-import { CELL_ACTION_LABELS, type CellAction } from '../lib/preflop/grid';
+import { CELL_ACTION_LABELS, type CellAction, type ChartPage } from '../lib/preflop/grid';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { HandClass } from '../lib/preflop/hands';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
@@ -68,6 +69,27 @@ export function facingChartTitle(bucket: Bucket): string {
   const hero = DRILL_HERO[meta.drill];
   if (meta.drill === 'bb' || meta.format === 'cash') return `${hero} ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
+}
+
+/**
+ * Every chart of a drill in a format, as range-sheet pages in seat order —
+ * the BTN drill's opener groups, or one page per opener in BB defend — so
+ * the sheet can step between them like the RFI seats. `kicker` heads each page.
+ */
+export function facingChartPages(format: Format, drill: Drill, kicker: string): ChartPage[] {
+  return bucketsFor(format, drill).map((b) => {
+    const meta = BUCKET_META[b];
+    return {
+      id: b,
+      tab: meta.openerTag ?? positionLabel(meta.chartSeat),
+      kicker,
+      title: facingChartTitle(b),
+      subline: `Graded on the ${meta.chartName} chart`,
+      name: meta.label,
+      cellAction: (hc: HandClass) => facingCellAction(b, hc),
+      footnote: meta.footnote,
+    };
+  });
 }
 
 /**
