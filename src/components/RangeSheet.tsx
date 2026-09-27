@@ -46,6 +46,7 @@ import {
   SEAT_META,
   rangeComboCount,
   seatOnChart,
+  stepSeat,
   type ChartKey,
   type Seat,
 } from '../lib/preflop/ranges';
@@ -100,7 +101,7 @@ export default function RangeSheet({
   // the user can browse away from the seat the sheet opened on. The sheet is
   // mounted only while open, so the seed is re-read on every open; callers that
   // keep it mounted across spots should pass a `key` to force a remount.
-  const [pickedPos, setViewPos] = useState<Seat>(position);
+  const [pickedPos, setPickedPos] = useState<Seat>(position);
 
   // Same story for the tier: seeded from the caller, then owned here so the
   // player can flip 60bb+ → 20bb → 10bb on one seat and watch the chart move.
@@ -118,12 +119,7 @@ export default function RangeSheet({
 
   const step = useCallback((delta: number) => {
     if (!navigable) return;
-    setViewPos((cur) => {
-      const onChart = CHART_META[viewDepth].seats;
-      const next = onChart.indexOf(seatOnChart(cur, viewDepth)) + delta;
-      if (next < 0 || next >= onChart.length) return cur;
-      return onChart[next];
-    });
+    setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
   }, [navigable, viewDepth]);
 
   // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
@@ -296,7 +292,7 @@ export default function RangeSheet({
                 role="tab"
                 aria-selected={p === viewPos}
                 className={`${nav.tab} ${p === viewPos ? nav.tabActive : ''}`}
-                onClick={() => setViewPos(p)}
+                onClick={() => setPickedPos(p)}
               >
                 {SEAT_META[p].short}
                 {p === heroSeat && (

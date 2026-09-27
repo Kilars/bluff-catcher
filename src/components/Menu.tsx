@@ -48,8 +48,8 @@ interface MenuProps {
   currentDepth: Depth;
   onDepthChange: (depth: Depth) => void;
   /** Tournament or cash, for both preflop drills. */
-  currentFormat?: Format;
-  onFormatChange?: (format: Format) => void;
+  currentFormat: Format;
+  onFormatChange: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -62,8 +62,8 @@ export default function Menu({
   onModeChange,
   currentDepth,
   onDepthChange,
-  currentFormat = 'mtt',
-  onFormatChange = () => {},
+  currentFormat,
+  onFormatChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,

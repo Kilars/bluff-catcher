@@ -30,10 +30,9 @@ import {
 // ─── Seat labels ──────────────────────────────────────────────────────────────
 
 /**
- * Short seat names, as written in the sentence and on a phone tab.
- * `UTG1` is a position *id*; "UTG+1" is what a player calls the seat.
+ * The seat's short display name, as written in the sentence and on a phone
+ * tab: `UTG1` is a position *id*; "UTG+1" is what a player calls the seat.
  */
-/** The seat's short display name, e.g. `UTG1` → "UTG+1". */
 export function positionLabel(pos: Seat): string {
   return SEAT_META[pos].short;
 }

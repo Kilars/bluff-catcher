@@ -25,6 +25,7 @@ import {
   CHART_META,
   DEFAULT_DEPTH,
   SEAT_META,
+  chartKeyFor,
   formatOf,
   type ChartKey,
   type Format,
@@ -52,10 +53,12 @@ export const POSITION_LABEL: Record<Seat, string> = Object.fromEntries(
  * later ones are still to act. The blinds are always posted — hero on the SB
  * (cash only) is the one case where a blind is hero's own seat.
  */
-const RING: Record<Format, readonly string[]> = {
-  mtt: ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  cash: ['LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-};
+function ringFor(format: Format): readonly string[] {
+  const seats = CHART_META[chartKeyFor(format, DEFAULT_DEPTH)].seats.filter((s) => s !== 'SB');
+  return [...seats.map((s) => POSITION_LABEL[s]), 'SB', 'BB'];
+}
+
+const RING: Record<Format, readonly string[]> = { mtt: ringFor('mtt'), cash: ringFor('cash') };
 
 /**
  * A non-hero seat as displayed around the felt.

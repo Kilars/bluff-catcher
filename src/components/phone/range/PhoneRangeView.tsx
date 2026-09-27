@@ -40,6 +40,7 @@ import {
   isOpen,
   rangeComboCount,
   seatOnChart,
+  stepSeat,
   type ChartKey,
   type Seat,
 } from '../../../lib/preflop/ranges';
@@ -146,7 +147,7 @@ export default function PhoneRangeView({
   fixedChart,
 }: PhoneRangeViewProps) {
   const navigable = fixedChart === undefined;
-  const [pickedPos, setViewPos] = useState<Seat>(position);
+  const [pickedPos, setPickedPos] = useState<Seat>(position);
   const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
   // Survives the lift on purpose: you scrub to a cell, take your finger off the
   // screen, and *then* read the bar the finger was covering.
@@ -234,12 +235,7 @@ export default function PhoneRangeView({
 
   const step = useCallback(
     (delta: number) => {
-      setViewPos((cur) => {
-        const onChart = CHART_META[viewDepth].seats;
-        const next = onChart.indexOf(seatOnChart(cur, viewDepth)) + delta;
-        if (next < 0 || next >= onChart.length) return cur;
-        return onChart[next];
-      });
+      setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
     },
     [viewDepth]
   );
@@ -327,7 +323,7 @@ export default function PhoneRangeView({
             aria-selected={p === viewPos}
             className={styles.seatTab}
             data-active={p === viewPos}
-            onClick={() => setViewPos(p)}
+            onClick={() => setPickedPos(p)}
           >
             {positionLabel(p)}
             {p === heroSeat && <span className={styles.heroDot} aria-label="(your seat)" />}

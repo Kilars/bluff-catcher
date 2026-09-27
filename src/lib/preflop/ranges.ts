@@ -58,7 +58,7 @@
  * charts round to the majority action.
  */
 
-import type { HandClass } from './hands.ts';
+import { combosForClass, type HandClass } from './hands.ts';
 import { RANKS } from '../odds.ts';
 import { CASH_RFI, CASH_SEATS } from './cashRanges.ts';
 
@@ -228,6 +228,16 @@ export function seatOnChart(seat: Seat, key: ChartKey): Seat {
   const seats = CHART_META[key].seats;
   if (seats.includes(seat)) return seat;
   return key === 'cash' ? seats[0] : 'BTN';
+}
+
+/**
+ * The seat `delta` steps from `seat` along a chart's seat list, or `seat`
+ * itself at either end. Both range browsers page seats with it.
+ */
+export function stepSeat(seat: Seat, key: ChartKey, delta: number): Seat {
+  const seats = CHART_META[key].seats;
+  const next = seats.indexOf(seatOnChart(seat, key)) + delta;
+  return next < 0 || next >= seats.length ? seat : seats[next];
 }
 
 /** The tournament tiers' meta — the subset of `CHART_META` that `Depth` indexes. */
@@ -906,10 +916,6 @@ export function getRangeSet(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): Readonl
  */
 export function rangeComboCount(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): number {
   let count = 0;
-  for (const hc of rangeFor(pos, depth)) {
-    if (hc.length === 2) count += 6;
-    else if (hc[2] === 's') count += 4;
-    else count += 12;
-  }
+  for (const hc of rangeFor(pos, depth)) count += combosForClass(hc);
   return count;
 }

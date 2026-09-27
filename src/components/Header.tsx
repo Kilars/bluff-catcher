@@ -43,8 +43,8 @@ interface HeaderProps {
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
   /** Tournament or cash, for both preflop drills; switched from the menu. */
-  format?: Format;
-  onFormatChange?: (format: Format) => void;
+  format: Format;
+  onFormatChange: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Toggled from the menu. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -72,8 +72,8 @@ export default function Header({
   onModeChange,
   depth,
   onDepthChange,
-  format = 'mtt',
-  onFormatChange = () => {},
+  format,
+  onFormatChange,
   showDraw,
   onShowDrawChange,
   oddsStats,

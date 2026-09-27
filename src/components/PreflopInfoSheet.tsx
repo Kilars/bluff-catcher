@@ -30,6 +30,8 @@ import { useLayoutMode } from '../hooks/useLayoutMode';
 interface DepthBrief {
   /** Sheet title. */
   title: string;
+  /** One line under the title: the table and the stack. */
+  subline: string;
   /** Step 01 — the table. */
   table: string;
   /** Step 03 — the decision. */
@@ -41,6 +43,7 @@ interface DepthBrief {
 
 const DEPTH_BRIEF: Record<ChartKey, DepthBrief> = {
   deep: {
+    subline: '9-handed tournament table · 60bb+ effective',
     title: 'Open or fold, first in',
     table:
       '9-handed tournament, 60 big blinds. Hand selection barely moves between 40bb and 100bb, so this one chart covers all of it.',
@@ -51,6 +54,7 @@ const DEPTH_BRIEF: Record<ChartKey, DepthBrief> = {
       'The earlier you sit, the more players act behind you, so the tighter you open. UTG is the tightest; the button has only the blinds left and opens widest.',
   },
   mid: {
+    subline: '9-handed tournament table · 20bb effective',
     title: 'Open or fold, first in',
     table:
       '9-handed tournament, 20 big blinds. Deep enough to raise and fold, too shallow to win a big pot after the flop.',
@@ -61,6 +65,7 @@ const DEPTH_BRIEF: Record<ChartKey, DepthBrief> = {
       'Implied odds are gone: 65s has no stack left to win, so hands like that come out and suited kings and offsuit broadways go in. The surprise is where the range shrinks. UTG barely moves — it was never opening for implied odds. The button drops seven points, because its widest hands were only ever profitable for the position it had after the flop, and there is no meaningful after-the-flop left.',
   },
   short: {
+    subline: '9-handed tournament table · 10bb effective',
     title: 'Jam or fold, first in',
     table:
       '9-handed tournament, 10 big blinds. A normal raise would commit a third of your stack, so raising and folding is no longer a real option.',
@@ -71,6 +76,7 @@ const DEPTH_BRIEF: Record<ChartKey, DepthBrief> = {
       'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat, while small suited connectors stay out until late position — they are the worst hands to be called by. Note the ranges are about as wide as the 60bb+ ones, not wider: fold equity buys the bottom of the range, and being unable to fold to a re-raise sells the top back. Different hands, similar count.',
   },
   cash: {
+    subline: '6-max cash table · 100bb effective, no ante',
     title: 'Open or fold, first in',
     table:
       '6-max cash game, 100 big blinds, no ante. The first seat is the LJ — GGPoker calls it UTG.',
@@ -111,10 +117,7 @@ function rfiBriefing(depth: ChartKey): InfoSheetContent {
   return {
     kicker: 'The situation',
     title: brief.title,
-    subline:
-      depth === 'cash'
-        ? '6-max cash table · 100bb effective, no ante'
-        : `9-handed tournament table · ${meta.label} effective`,
+    subline: brief.subline,
     steps: [
       { title: 'The table', body: brief.table },
       {

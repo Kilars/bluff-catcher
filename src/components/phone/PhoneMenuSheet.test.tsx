@@ -19,6 +19,8 @@ function setup(overrides: Partial<Parameters<typeof PhoneMenuSheet>[0]> = {}) {
     onModeChange: vi.fn(),
     depth: 'deep' as const,
     onDepthChange: vi.fn(),
+    format: 'mtt' as const,
+    onFormatChange: vi.fn(),
     showDraw: true,
     onShowDrawChange: vi.fn(),
     onOpenRanges: vi.fn(),

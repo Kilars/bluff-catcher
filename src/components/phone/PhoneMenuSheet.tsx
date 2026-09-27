@@ -64,8 +64,8 @@ export interface PhoneMenuSheetProps {
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
   /** Tournament or cash, for both preflop drills. */
-  format?: Format;
-  onFormatChange?: (format: Format) => void;
+  format: Format;
+  onFormatChange: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -84,8 +84,8 @@ export default function PhoneMenuSheet({
   onModeChange,
   depth,
   onDepthChange,
-  format = 'mtt',
-  onFormatChange = () => {},
+  format,
+  onFormatChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,
