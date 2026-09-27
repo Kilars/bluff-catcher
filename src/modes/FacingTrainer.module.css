@@ -1,0 +1,79 @@
+/* FacingTrainer.module.css
+ *
+ * Only what the facing drill adds on top of PreflopTrainer.module.css, which it
+ * reuses for the dock, the hand label, the verdict and the Range / Next / Info
+ * buttons. The two new action buttons take their colours from the range-grid
+ * tokens, so a button and the chart cell it answers are the same colour:
+ * call = green, 3-bet = red (value).
+ */
+
+.btnAction {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  white-space: nowrap;
+  flex: none;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+/* Three buttons instead of two: keep the row tight so the prompt keeps its width */
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+}
+
+.btnCall {
+  border: 1px solid color-mix(in srgb, var(--range-call) 60%, transparent);
+  color: var(--range-call);
+}
+
+.btnCall:hover {
+  border-color: var(--range-call);
+  background: color-mix(in srgb, var(--range-call) 14%, transparent);
+}
+
+.btnRaise {
+  border: 1px solid color-mix(in srgb, var(--range-value) 60%, transparent);
+  color: var(--range-value);
+}
+
+.btnRaise:hover {
+  border-color: var(--range-value);
+  background: color-mix(in srgb, var(--range-value) 14%, transparent);
+}
+
+/* Verdict + the one-line detail under it */
+.verdictBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.detail {
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+/* Lists inside the briefing's step bodies */
+.briefList {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.briefList strong {
+  color: var(--color-neutral-200);
+  font-weight: 500;
+}

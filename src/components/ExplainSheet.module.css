@@ -359,6 +359,14 @@
   gap: var(--space-3);
 }
 
+/* Optional one-liner under the key grid (PreflopInfoSheet `keysNote`) */
+.keysNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+
 .memoriseKicker {
   font-size: 11px;
   letter-spacing: 0.1em;

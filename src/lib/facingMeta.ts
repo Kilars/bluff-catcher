@@ -9,3 +9,11 @@
  */
 
 export const FACING_CONTEXT_LABEL = 'vs open · 50bb+';
+
+/**
+ * The phone top bar's context chip. Shorter than FACING_CONTEXT_LABEL because
+ * at 390px the full "vs open · 50bb+" chip pushed the stats pill off the bar
+ * (it clipped the accuracy). Facing has one depth, so the chip has nothing to
+ * pick there; the 50bb+ figure moves to the seat-ladder line under it.
+ */
+export const FACING_CHIP_LABEL = 'vs open';

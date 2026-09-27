@@ -55,9 +55,11 @@ export interface PhoneSeatLadderProps {
   opener?: Position;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
+  /** Overrides the line under the row (default: "3 folded · 5 behind"). */
+  contextLine?: string;
 }
 
-export default function PhoneSeatLadder({ position, opener, raiseBb }: PhoneSeatLadderProps) {
+export default function PhoneSeatLadder({ position, opener, raiseBb, contextLine }: PhoneSeatLadderProps) {
   const slots = buildLadderSlots(position, opener, raiseBb);
 
   return (
@@ -83,7 +85,7 @@ export default function PhoneSeatLadder({ position, opener, raiseBb }: PhoneSeat
         ))}
       </div>
       <p className={styles.context} data-testid="ladder-context">
-        {ladderContextLine(slots)}
+        {contextLine ?? ladderContextLine(slots)}
       </p>
     </div>
   );

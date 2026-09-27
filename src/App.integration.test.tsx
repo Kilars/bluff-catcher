@@ -91,12 +91,32 @@ describe('the explanation is reachable on phone', () => {
 });
 
 describe('facing mode', () => {
-  it('routes to the facing placeholder, with its own stats key isolated from RFI', () => {
+  it('routes to the facing trainer, and records into its own stats key, not RFI\'s', () => {
     localStorage.setItem('bluff-catcher:mode:v1', 'facing');
     renderAt('desktop', <App />);
 
-    expect(screen.getByTestId('facing-trainer-placeholder')).toHaveTextContent(/vs open · 50bb\+/);
+    // First visit: the facing briefing, not an RFI one.
+    expect(screen.getByText(/JJ and TT always call/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
+
+    expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
     expect(screen.queryByText('Villain')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^K 3-bet$/ }));
+    expect(screen.getByTestId('verdict')).toHaveTextContent(/^(Correct|Wrong) — /);
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:facing:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:preflop:v1')).toBeNull();
+  });
+
+  it('renders the phone facing trainer with three thumb buttons', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'facing');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['facing']));
+    renderAt('phone', <App />);
+
+    expect(screen.getByTestId('phone-facing-trainer')).toBeInTheDocument();
+    expect(screen.getByTestId('decision-fold')).toBeInTheDocument();
+    expect(screen.getByTestId('decision-call')).toBeInTheDocument();
+    expect(screen.getByTestId('decision-3bet')).toBeInTheDocument();
   });
 
   it('is reachable from the desktop menu, and switching to it persists', () => {
@@ -105,7 +125,7 @@ describe('facing mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Facing open/ }));
 
-    expect(screen.getByTestId('facing-trainer-placeholder')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^J Call$/ })).toBeInTheDocument();
     expect(localStorage.getItem('bluff-catcher:mode:v1')).toBe('facing');
   });
 
@@ -115,7 +135,7 @@ describe('facing mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /more|menu/i }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Facing open/ }));
 
-    expect(screen.getByTestId('phone-top-bar')).toHaveTextContent(/vs open · 50bb\+/);
+    expect(screen.getByTestId('phone-top-bar')).toHaveTextContent(/vs open/);
 
     fireEvent.click(screen.getByRole('button', { name: /more|menu/i }));
     expect(screen.queryByRole('menuitemradio', { name: /60bb\+/ })).not.toBeInTheDocument();

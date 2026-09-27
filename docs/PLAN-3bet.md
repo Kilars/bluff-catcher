@@ -293,3 +293,21 @@ Adding a third mode is real work, because the app treats mode as two-way today.
 - **Exploit variants** (merged 3-bets vs weak openers).
 - **Facing a 3-bet after hero opens.** The same PDF has these charts (pp. 9–14). It's a
   natural fourth drill.
+
+---
+
+## Implementation notes (F2–F4, as built)
+
+- **Advance keys** match RFI exactly: after a commit only Space / Enter advance and R opens
+  the range; other keys do nothing. I opens the briefing at any time, Escape closes a sheet.
+- **Briefing** opens once per browser on *both* layouts (`needsBriefing('facing')`), unlike RFI
+  desktop, which still briefs on every mount. `PreflopInfoSheet` takes a `content` prop (plus an
+  optional `keysNote` under the key card, used for "J means call here"); RFI copy is unchanged.
+- **Range sheet** uses the existing `RangeSheet` / `PhoneRangeView` with a new `fixedChart`
+  prop: one bucket chart, no seat/depth navigator, no RFI boundary sentence or combo summary.
+- **Table**: `PreflopTable` gained optional `openerTag` (the bucket, as a third line on the
+  opener's plaque), `stackLabel`, `centreTitle` and `centreLine`; `PhoneSeatLadder` gained
+  `contextLine`. All default to the RFI rendering.
+- **Phone top bar**: the facing chip reads "vs open" (`FACING_CHIP_LABEL`) rather than
+  "vs open · 50bb+", which pushed the stats pill off a 390px bar. 50bb+ moved to the ladder line.
+- The verdict is followed by one detail line, e.g. "A8s vs HJ: 3-bet (bluff) on the vs Late chart".

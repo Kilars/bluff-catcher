@@ -110,6 +110,13 @@ export interface PhoneRangeViewProps {
   legend?: boolean;
   /** Optional one-line note rendered under the grid. */
   footnote?: string;
+  /**
+   * One fixed chart instead of the seat/tier navigator (the facing drill's
+   * bucket chart). Hides the tier chip, the seat strip, the RFI boundary
+   * sentence and the RFI combo summary, and stops swipe paging; `highlight`
+   * is always marked. The string is the chart's name, used in the readout.
+   */
+  fixedChart?: string;
 }
 
 interface Scrub {
@@ -136,7 +143,9 @@ export default function PhoneRangeView({
   cellAction,
   legend = true,
   footnote,
+  fixedChart,
 }: PhoneRangeViewProps) {
+  const navigable = fixedChart === undefined;
   const [viewPos, setViewPos] = useState<Position>(position);
   const [viewDepth, setViewDepth] = useState<Depth>(depth);
   // Survives the lift on purpose: you scrub to a cell, take your finger off the
@@ -145,7 +154,7 @@ export default function PhoneRangeView({
 
   const meta = DEPTH_META[viewDepth];
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
-  const heroHand = viewPos === heroSeat ? highlight : undefined;
+  const heroHand = !navigable || viewPos === heroSeat ? highlight : undefined;
 
   const combos = rangeComboCount(viewPos, viewDepth);
   const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
@@ -242,7 +251,7 @@ export default function PhoneRangeView({
     (e: React.TouchEvent<HTMLDivElement>) => {
       const start = touchStart.current;
       touchStart.current = null;
-      if (!start || start.onGrid) return;
+      if (!start || start.onGrid || !navigable) return;
       const t = e.changedTouches[0];
       if (!t) return;
       const dx = t.clientX - start.x;
@@ -251,7 +260,7 @@ export default function PhoneRangeView({
       if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return;
       step(dx < 0 ? 1 : -1);
     },
-    [step]
+    [step, navigable]
   );
 
   // ── Readout copy ──────────────────────────────────────────────────────────
@@ -274,7 +283,7 @@ export default function PhoneRangeView({
       onTouchEnd={handleTouchEnd}
     >
       {/* Tier — a strip only where switching tiers means something */}
-      {depthSwitchable ? (
+      {!navigable ? null : depthSwitchable ? (
         <div className={styles.depths} role="tablist" aria-label="Stack depth">
           {DEPTHS.map((d) => (
             <button
@@ -299,6 +308,7 @@ export default function PhoneRangeView({
       )}
 
       {/* Seats — 7 x 44px + 6 x 4px gaps = 332px, inside the 366px measure */}
+      {navigable && (
       <div className={styles.seats} role="tablist" aria-label="Position">
         {POSITIONS.map((p) => (
           <button
@@ -315,6 +325,7 @@ export default function PhoneRangeView({
           </button>
         ))}
       </div>
+      )}
 
       {/* The readout — fixed 44px, never collapses, so nothing below it moves */}
       <div className={styles.readout} data-testid="scrub-readout" aria-live="polite">
@@ -326,7 +337,7 @@ export default function PhoneRangeView({
               {'· '}
               {cellAction ? CELL_ACTION_LABELS[scrubAction ?? 'fold'] : scrubOpen ? meta.action : 'fold'}
               {' · '}
-              {positionLabel(viewPos)}
+              {fixedChart ?? positionLabel(viewPos)}
             </span>
           </>
         ) : (
@@ -335,9 +346,11 @@ export default function PhoneRangeView({
       </div>
 
       {/* The words the 169 labels used to carry */}
-      <p className={styles.boundary} data-testid="boundary-sentence">
-        {boundarySentence(viewPos, viewDepth)}
-      </p>
+      {navigable && (
+        <p className={styles.boundary} data-testid="boundary-sentence">
+          {boundarySentence(viewPos, viewDepth)}
+        </p>
+      )}
 
       <div className={styles.grid}>
         {/* Column rank headers, 11px — the legibility floor, and now affordable */}
@@ -363,7 +376,9 @@ export default function PhoneRangeView({
             ref={cellsRef}
             className={styles.cells}
             data-testid="grid-cells"
-            aria-label={`${positionLabel(viewPos)} ${meta.rangeKicker.toLowerCase()} at ${meta.label}`}
+            aria-label={
+              fixedChart ?? `${positionLabel(viewPos)} ${meta.rangeKicker.toLowerCase()} at ${meta.label}`
+            }
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={endScrub}
@@ -412,9 +427,11 @@ export default function PhoneRangeView({
         </div>
       )}
 
-      <p className={styles.summary}>
-        {combos} combos · {pct}% · green = {meta.action}
-      </p>
+      {navigable && (
+        <p className={styles.summary}>
+          {combos} combos · {pct}% · green = {meta.action}
+        </p>
+      )}
 
       {footnote && (
         <p className={styles.footnote} data-testid="range-footnote">

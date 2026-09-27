@@ -231,6 +231,18 @@ interface PreflopTableProps {
   opener?: Position;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
+  /**
+   * A short tag written as a third line on the opener's plaque — the facing
+   * drill puts the chart bucket there ("vs Late") so the seat and the chart it
+   * is graded against read together. Ignored without `opener`.
+   */
+  openerTag?: string;
+  /** Overrides the stack figure on every plaque (default: the depth's label). */
+  stackLabel?: string;
+  /** Overrides the small heading in the middle of the felt (default: hero's seat name). */
+  centreTitle?: string;
+  /** Overrides the counter line in the middle of the felt (default: folded / to act). */
+  centreLine?: string;
 }
 
 /** Face-down pair shown at seats still holding cards. */
@@ -249,14 +261,18 @@ export default function PreflopTable({
   depth = DEFAULT_DEPTH,
   opener,
   raiseBb = DEFAULT_OPENER_RAISE_BB,
+  openerTag,
+  stackLabel: stackLabelOverride,
+  centreTitle,
+  centreLine,
 }: PreflopTableProps) {
   // Everyone at the table is on the same effective stack — that is the whole
   // premise of a single-depth chart, so one label covers every plaque.
-  const stackLabel = DEPTH_META[depth].stackLabel;
+  const stackLabel = stackLabelOverride ?? DEPTH_META[depth].stackLabel;
   const seats = buildSeats(position, opener, raiseBb);
   const posLabel = POSITION_LABEL[position];
-  const posLong = POSITION_LONG[position];
-  const contextLine = buildContextLine(position);
+  const posLong = centreTitle ?? POSITION_LONG[position];
+  const contextLine = centreLine ?? buildContextLine(position);
 
   // The dealer button rides with the BTN seat — slot 0 means hero has it.
   const btnSlot = SEAT_SLOTS[seatSlotIndex(position, 'BTN')];
@@ -289,6 +305,11 @@ export default function PreflopTable({
                     <span className={styles.plaqueStack}>
                       {isFolded ? 'folded' : isOpener ? `raises ${seat.raiseBb}bb` : stackLabel}
                     </span>
+                    {isOpener && openerTag && (
+                      <span className={styles.plaqueTag} data-testid="opener-tag">
+                        {openerTag}
+                      </span>
+                    )}
                   </div>
                 </div>
 

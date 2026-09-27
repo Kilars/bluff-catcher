@@ -43,7 +43,7 @@ import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { DEPTH_META } from './lib/preflop/ranges';
-import { FACING_CONTEXT_LABEL } from './lib/facingMeta';
+import { FACING_CHIP_LABEL } from './lib/facingMeta';
 import { useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
@@ -66,7 +66,7 @@ function contextLabelFor(mode: ReturnType<typeof useAppPrefs>['mode'], depthLabe
     case 'preflop':
       return depthLabel;
     case 'facing':
-      return FACING_CONTEXT_LABEL;
+      return FACING_CHIP_LABEL;
   }
 }
 
@@ -334,7 +334,9 @@ export default function App() {
         />
       )}
 
-      {mode === 'facing' && <FacingTrainer stats={facingStats} />}
+      {mode === 'facing' && (
+        <FacingTrainer stats={facingStats} keysSuspended={keysSuspended} />
+      )}
 
       {/* The standalone chart browser. Unlike the trainer's own range sheet
           this one IS tier-switchable — there is no hand in play for it to
