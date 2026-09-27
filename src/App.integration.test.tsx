@@ -223,3 +223,57 @@ describe('"Show the draw" — the whole wire, root to tree', () => {
   });
 });
 
+
+describe('cash format', () => {
+  it('switches the RFI drill to cash from the desktop menu, persists, and keeps stats apart', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
+    localStorage.setItem('bluff-catcher:preflop-depth:v1', 'short');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['short']));
+    renderAt('desktop', <App />);
+    // Desktop RFI still briefs on every mount; close it.
+    fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Cash/ }));
+    expect(localStorage.getItem('bluff-catcher:format:v1')).toBe('cash');
+    // The stored tier is kept for the return to tournament.
+    expect(localStorage.getItem('bluff-catcher:preflop-depth:v1')).toBe('short');
+
+    // Cash briefing, then a hand graded into the cash key only.
+    expect(screen.getByText(/6-max cash table/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
+    expect(screen.getByText('Preflop RFI · Cash 100bb')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Fold$/ }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:preflop-cash:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:preflop:v1')).toBeNull();
+
+    // No depth group in cash.
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    expect(screen.queryByRole('menuitem', { name: /10bb/ })).not.toBeInTheDocument();
+  });
+
+  it('restores cash on reload and deals the facing drill on a 6-max ring', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'facing');
+    localStorage.setItem('bluff-catcher:format:v1', 'cash');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['facing-cash']));
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText(/Facing open · vs open · Cash 100bb/)).toBeInTheDocument();
+    // 6-max: no UTG seats on the felt.
+    expect(screen.queryByText('UTG+1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^3-bet$/ }));
+    // Cash charts carry no value/bluff label.
+    expect(screen.getByTestId('verdict')).not.toHaveTextContent(/\((value|bluff)\)/);
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:facing-cash:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:facing:v1')).toBeNull();
+  });
+
+  it('shows "Cash" on the phone chip in the facing drill', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'facing');
+    localStorage.setItem('bluff-catcher:format:v1', 'cash');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['facing-cash']));
+    renderAt('phone', <App />);
+    expect(screen.getByTestId('phone-top-bar')).toHaveTextContent(/Cash/);
+    expect(screen.getAllByTestId('seat-slot')).toHaveLength(6);
+  });
+});

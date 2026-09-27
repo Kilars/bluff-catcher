@@ -175,3 +175,14 @@ describe('PhoneSeatLadder', () => {
     }
   });
 });
+
+describe('cash (6-max)', () => {
+  it('draws six slots, and hero on the SB carries the blind', () => {
+    renderAt('phone', <PhoneSeatLadder position="SB" format="cash" />);
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.map((s) => s.getAttribute('data-label'))).toEqual(['LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']);
+    const hero = slots.find((s) => s.getAttribute('data-state') === 'hero')!;
+    expect(hero).toHaveAttribute('data-blind', 'sb');
+    expect(screen.getByTestId('ladder-context')).toHaveTextContent('4 folded · 1 behind');
+  });
+});

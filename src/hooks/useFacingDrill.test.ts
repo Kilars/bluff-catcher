@@ -8,6 +8,7 @@ import { renderHook, act } from '@testing-library/react';
 import * as dealModule from '../lib/preflop/facingDeal';
 import type { FacingSpot } from '../lib/preflop/facingDeal';
 import {
+  facingAnswerWord,
   facingCellAction,
   facingChartTitle,
   facingVerdictText,
@@ -15,6 +16,7 @@ import {
 } from './useFacingDrill';
 import { BRIEFED_KEY } from '../lib/preflop/briefed';
 import { ALL_169 } from '../lib/preflop/hands';
+import { legendFor } from '../lib/preflop/grid';
 import { bucketChartAction } from '../lib/preflop/facing';
 
 const BLUFF: FacingSpot = {
@@ -193,5 +195,41 @@ describe('facing helpers', () => {
         expect(facingCellAction(bucket, hc)).toBe(action === '3bet' ? kind : action);
       }
     }
+  });
+});
+
+describe('cash charts (no value/bluff split)', () => {
+  it('colours cash 3-bets plainly and never as value', () => {
+    expect(facingCellAction('cashEarly', 'AA')).toBe('threeBet');
+    expect(facingCellAction('cashCo', 'A2s')).toBe('threeBet');
+    expect(facingCellAction('cashEarly', '99')).toBe('call');
+    expect(facingCellAction('early', 'AA')).toBe('value');
+  });
+
+  it('says a bare "3-bet" in the verdict', () => {
+    expect(facingAnswerWord({ correct: '3bet' })).toBe('3-bet');
+    expect(facingAnswerWord({ correct: '3bet', kind: 'bluff' })).toBe('3-bet (bluff)');
+  });
+
+  it('builds a three-entry legend for a cash chart and keeps V/B for tournament', () => {
+    expect(legendFor((hc) => facingCellAction('cashCo', hc)).map((i) => i.action)).toEqual([
+      'threeBet',
+      'call',
+      'fold',
+    ]);
+    expect(legendFor((hc) => facingCellAction('late', hc)).map((i) => i.action)).toEqual([
+      'value',
+      'bluff',
+      'call',
+      'fold',
+    ]);
+  });
+
+  it('deals cash spots and briefs cash once, apart from the tournament briefing', () => {
+    localStorage.clear();
+    const { result } = renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'cash' }));
+    expect(['LJ', 'HJ', 'CO']).toContain(result.current.spot.opener);
+    expect(result.current.infoOpen).toBe(true);
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['facing-cash']);
   });
 });
