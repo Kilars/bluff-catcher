@@ -158,6 +158,16 @@
   white-space: nowrap;
 }
 
+/* A third plaque line — the facing drill's chart bucket on the opener's seat */
+.plaqueTag {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-200);
+  white-space: nowrap;
+}
+
 /* Hero's plaque — same nameplate, marginally brighter so "you" reads first */
 .heroSeat .plaque {
   background: color-mix(in srgb, #0e0f18 74%, transparent);

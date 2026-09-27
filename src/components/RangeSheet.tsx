@@ -28,11 +28,17 @@
  *   depth       — the tier to open on (initial only; the sheet owns it after).
  *   highlight   — hero's current hand class; marked only on the hero's own chart.
  *   heroPosition— seat of the hand being drilled, dotted in the tab strip.
+ *   cellAction  — optional 4-colour mode, forwarded to RangeGrid as-is (PLAN-3bet F3).
+ *   legend      — forwarded to RangeGrid; only meaningful with `cellAction`.
+ *   footnote    — optional one-line note forwarded to RangeGrid, rendered under the chart.
+ *   fixedChart  — optional: show one fixed chart under this header instead of the
+ *                 seat/depth navigator (the facing drill's bucket chart). The
+ *                 tabs, arrows and swipe paging go away; `highlight` is always marked.
  *   onClose     — called when the sheet should close.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import RangeGrid from './RangeGrid';
+import RangeGrid, { type CellAction } from './RangeGrid';
 import {
   DEFAULT_DEPTH,
   DEPTHS,
@@ -86,7 +92,18 @@ interface RangeSheetProps {
   depth?: Depth;
   highlight?: HandClass;
   heroPosition?: Position;
+  cellAction?: (hc: HandClass) => CellAction;
+  legend?: boolean;
+  footnote?: string;
+  fixedChart?: FixedChart;
   onClose: () => void;
+}
+
+/** Header for a single, non-navigable chart. */
+export interface FixedChart {
+  kicker: string;
+  title: string;
+  subline?: string;
 }
 
 export default function RangeSheet({
@@ -94,8 +111,13 @@ export default function RangeSheet({
   depth = DEFAULT_DEPTH,
   highlight,
   heroPosition,
+  cellAction,
+  legend,
+  footnote,
+  fixedChart,
   onClose,
 }: RangeSheetProps) {
+  const navigable = fixedChart === undefined;
   // The chart currently on screen. Seeded from `position`, then owned here so
   // the user can browse away from the seat the sheet opened on. The sheet is
   // mounted only while open, so the seed is re-read on every open; callers that
@@ -112,12 +134,13 @@ export default function RangeSheet({
   const canNext = idx < POSITIONS.length - 1;
 
   const step = useCallback((delta: number) => {
+    if (!navigable) return;
     setViewPos((cur) => {
       const next = POSITIONS.indexOf(cur) + delta;
       if (next < 0 || next >= POSITIONS.length) return cur;
       return POSITIONS[next];
     });
-  }, []);
+  }, [navigable]);
 
   // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
   useEffect(() => {
@@ -185,7 +208,7 @@ export default function RangeSheet({
 
   // Only mark the hand on the chart it was actually dealt in.
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
-  const gridHighlight = viewPos === heroSeat ? highlight : undefined;
+  const gridHighlight = !navigable || viewPos === heroSeat ? highlight : undefined;
 
   const combos = rangeComboCount(viewPos, viewDepth);
   const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
@@ -208,6 +231,17 @@ export default function RangeSheet({
         >
           {/* Header */}
           <div className={styles.sheetHeader}>
+            {fixedChart ? (
+            <div className={styles.headerLeft}>
+              <span className={styles.headerKicker}>{fixedChart.kicker}</span>
+              <h1 className={styles.headerTitle}>{fixedChart.title}</h1>
+              <p className={styles.headerSubline}>
+                {fixedChart.subline}
+                {fixedChart.subline && gridHighlight ? ' · ' : ''}
+                {gridHighlight ? `Your hand: ${gridHighlight}` : ''}
+              </p>
+            </div>
+            ) : (
             <div className={styles.headerLeft}>
               <span className={styles.headerKicker}>
                 {meta.rangeKicker} · {meta.label}
@@ -238,6 +272,7 @@ export default function RangeSheet({
                 {gridHighlight ? ` · Your hand: ${gridHighlight}` : ''}
               </p>
             </div>
+            )}
             <button
               type="button"
               className={styles.closeBtn}
@@ -249,6 +284,7 @@ export default function RangeSheet({
           </div>
 
           {/* Stack-depth strip — the same seat, three tiers */}
+          {navigable && (
           <div className={nav.depths} role="tablist" aria-label="Stack depth">
             {DEPTHS.map((d) => (
               <button
@@ -264,8 +300,10 @@ export default function RangeSheet({
               </button>
             ))}
           </div>
+          )}
 
           {/* Position tab strip */}
+          {navigable && (
           <div className={nav.tabs} role="tablist" aria-label="Position">
             {POSITIONS.map((p) => (
               <button
@@ -283,6 +321,7 @@ export default function RangeSheet({
               </button>
             ))}
           </div>
+          )}
 
           {/* Divider */}
           <div className={styles.divider} />
@@ -294,7 +333,14 @@ export default function RangeSheet({
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <RangeGrid position={viewPos} depth={viewDepth} highlight={gridHighlight} />
+            <RangeGrid
+              position={viewPos}
+              depth={viewDepth}
+              highlight={gridHighlight}
+              cellAction={cellAction}
+              legend={legend}
+              footnote={footnote}
+            />
           </div>
 
           {/* Footer */}
@@ -306,9 +352,11 @@ export default function RangeSheet({
             >
               Close
             </button>
-            <span className={nav.navHint}>
-              ← / → arrows, tabs or swipe to change position · {meta.tagline}
-            </span>
+            {navigable && (
+              <span className={nav.navHint}>
+                ← / → arrows, tabs or swipe to change position · {meta.tagline}
+              </span>
+            )}
           </div>
         </div>
       </div>

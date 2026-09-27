@@ -4,18 +4,22 @@
  * Tracks: hands (total committed), correct count, current streak,
  * bestStreak. Derives accuracy (%) on read.
  *
- * Storage key: bluff-catcher:preflop:v1
+ * Storage key: bluff-catcher:preflop:v1 by default.
  * Follows the same conventions as useStats.ts:
  *   - Lazy initialiser loads from localStorage.
  *   - useEffect persists on every state change.
  *   - Corrupt or missing data → default (all zeros).
  *   - Empty state → clears the key (no stale entries).
  *   - SSR guard (typeof window check).
+ *
+ * The storage key is a parameter, defaulting to the RFI key above, so a second
+ * caller (the facing-open drill, `bluff-catcher:facing:v1`) gets its own
+ * isolated instance of the same shape without touching RFI's stats.
  */
 
 import { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'bluff-catcher:preflop:v1';
+export const DEFAULT_PREFLOP_STATS_KEY = 'bluff-catcher:preflop:v1';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,10 +38,10 @@ function defaultState(): PreflopStatsState {
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
-function loadState(): PreflopStatsState {
+function loadState(storageKey: string): PreflopStatsState {
   try {
     if (typeof window === 'undefined') return defaultState();
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw) as PreflopStatsState;
     // Basic shape validation — corrupt data falls through to default
@@ -55,10 +59,10 @@ function loadState(): PreflopStatsState {
   }
 }
 
-function saveState(state: PreflopStatsState): void {
+function saveState(storageKey: string, state: PreflopStatsState): void {
   try {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey, JSON.stringify(state));
   } catch {
     // localStorage might be disabled (private mode, etc.) — silently fail
   }
@@ -66,8 +70,14 @@ function saveState(state: PreflopStatsState): void {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function usePreflopStats() {
-  const [state, setState] = useState<PreflopStatsState>(() => loadState());
+/**
+ * @param storageKey Which localStorage key this instance reads/writes.
+ *   Defaults to the RFI key so existing callers, and existing saved stats, are
+ *   untouched. Pass a different key (e.g. `bluff-catcher:facing:v1`) to get a
+ *   second, isolated instance of the same shape for another mode.
+ */
+export function usePreflopStats(storageKey: string = DEFAULT_PREFLOP_STATS_KEY) {
+  const [state, setState] = useState<PreflopStatsState>(() => loadState(storageKey));
 
   // Persist on state change; clear key when returned to empty
   useEffect(() => {
@@ -75,15 +85,15 @@ export function usePreflopStats() {
     if (isEmpty) {
       try {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(storageKey);
         }
       } catch {
         // Silently fail
       }
     } else {
-      saveState(state);
+      saveState(storageKey, state);
     }
-  }, [state]);
+  }, [state, storageKey]);
 
   // ── record(wasCorrect) ────────────────────────────────────────────────────
 

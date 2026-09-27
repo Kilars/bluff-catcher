@@ -64,6 +64,28 @@ describe('PhoneStatsPill', () => {
     expect(screen.getByTestId('phone-stats-pill')).toHaveTextContent('—');
   });
 
+  it('facing mode: streak and accuracy, same shape as preflop, its own numbers', () => {
+    renderAt(
+      'phone',
+      <PhoneStatsPill mode="facing" streak={2} accuracy={40} hands={5} onPress={noop} />
+    );
+
+    const pill = screen.getByTestId('phone-stats-pill');
+    expect(pill).toHaveTextContent('2');
+    expect(pill).toHaveTextContent('40%');
+    expect(pill).toHaveAccessibleName(
+      'Session stats. Streak 2. Accuracy 40%. Opens details.'
+    );
+  });
+
+  it('facing accuracy reads as — before the first hand', () => {
+    renderAt(
+      'phone',
+      <PhoneStatsPill mode="facing" streak={0} accuracy={0} hands={0} onPress={noop} />
+    );
+    expect(screen.getByTestId('phone-stats-pill')).toHaveTextContent('—');
+  });
+
   it('tapping the pill opens the sheet', () => {
     const onPress = vi.fn();
     renderAt(
@@ -154,6 +176,29 @@ describe('PhoneStatsSheet', () => {
     expect(body.getByText('Correct').nextElementSibling).toHaveTextContent('18');
     expect(body.getByText('Wrong').nextElementSibling).toHaveTextContent('7');
     expect(body.queryByText('By draw')).toBeNull();
+  });
+
+  it('facing mode uses the same layout as preflop, with its own numbers', () => {
+    renderAt(
+      'phone',
+      <PhoneStatsSheet
+        mode="facing"
+        hands={10}
+        correct={6}
+        streak={1}
+        bestStreak={4}
+        accuracy={60}
+        onClose={noop}
+        onReset={noop}
+      />
+    );
+    const body = within(screen.getByTestId('phone-sheet-body'));
+
+    expect(body.getByText('Accuracy').nextElementSibling).toHaveTextContent('60%');
+    expect(body.getByText('Correct').nextElementSibling).toHaveTextContent('6');
+    expect(body.getByText('Wrong').nextElementSibling).toHaveTextContent('4');
+    expect(body.queryByText('By draw')).toBeNull();
+    expect(screen.getByTestId('phone-sheet')).toHaveTextContent('Facing open');
   });
 
   it('Reset lives here, and takes two taps', () => {

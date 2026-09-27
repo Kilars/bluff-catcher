@@ -76,6 +76,20 @@
   border-color: var(--color-neutral-700);
 }
 
+/* Opener — raised instead of folding (PLAN-3bet F2). Outlined in the raise
+   colour so it reads apart from a fold at a glance; the mark carries the bb size. */
+.slot[data-state='opener'] {
+  border-color: var(--range-value);
+}
+
+.slot[data-state='opener'] .label {
+  color: var(--color-neutral-200);
+}
+
+.slot[data-state='opener'] .mark {
+  color: var(--range-value);
+}
+
 /* Hero — lit. The one seat the whole drill is about. */
 .slot[data-state='hero'] {
   background: var(--color-accent-800);

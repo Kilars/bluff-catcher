@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Enriched } from './enrich.ts';
-import { stubJudge, validateFamilyVerdict, type FamilyBrief, type HandFacts } from './judge.ts';
+import { stubJudge, validateFamilyVerdict, type FamilyBrief, type HandFacts, type Severity } from './judge.ts';
 
 const ENRICHED: Enriched = {
   alpha: 0.33,
@@ -75,7 +75,7 @@ describe('validateFamilyVerdict — the seam contract', () => {
   const ok = {
     family: 'PFR flop passivity' as const,
     throughline: null,
-    verdicts: [{ label: 'pfa-check-flop' as const, ref: 'h1', verdict: 'leak' as const, severity: 3, note: 'x' }],
+    verdicts: [{ label: 'pfa-check-flop' as const, ref: 'h1', verdict: 'leak' as const, severity: 3 as const, note: 'x' }],
   };
 
   it('accepts a well-formed verdict', () => {
@@ -96,7 +96,7 @@ describe('validateFamilyVerdict — the seam contract', () => {
 
   it('rejects a severity outside 0..5', () => {
     expect(() =>
-      validateFamilyVerdict(VB, { ...ok, verdicts: [{ ...ok.verdicts[0], severity: 9 }] }),
+      validateFamilyVerdict(VB, { ...ok, verdicts: [{ ...ok.verdicts[0], severity: 9 as unknown as Severity }] }),
     ).toThrow(/severity/);
   });
 
@@ -127,7 +127,7 @@ describe('validateFamilyVerdict — the seam contract', () => {
   });
 
   it('rejects a duplicate verdict for one hand', () => {
-    const one = { label: 'pfa-check-flop' as const, ref: 'h1', verdict: 'leak' as const, severity: 2, note: 'x' };
+    const one = { label: 'pfa-check-flop' as const, ref: 'h1', verdict: 'leak' as const, severity: 2 as const, note: 'x' };
     expect(() =>
       validateFamilyVerdict(VB, { family: 'PFR flop passivity', throughline: null, verdicts: [one, one] }),
     ).toThrow(/duplicate/);

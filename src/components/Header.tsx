@@ -4,13 +4,20 @@
  *
  * The left side now hosts the Menu (hamburger) beside the brand.
  * The right-side content slot is mode-aware:
- *   mode='odds'    → shows odds stat pairs (as before)
- *   mode='preflop' → placeholder for Phase P3
+ *   mode='odds'    → shows odds stat pairs
+ *   mode='preflop' → shows preflop RFI stat pairs (hands/streak/accuracy)
+ *   mode='facing'  → shows facing-open stat pairs, same shape as preflop's,
+ *                    backed by a separate `usePreflopStats()` instance
+ *
+ * Every mode branch below is a `switch`/lookup on `mode`, deliberately, rather
+ * than a two-way `mode === 'odds' ? … : …` check — the latter silently treats
+ * 'facing' as 'preflop' (see docs/PLAN-3bet.md, phase F2).
  */
 
 import Menu from './Menu';
 import type { AppMode } from '../hooks/useAppPrefs';
 import { DEPTH_META, type Depth } from '../lib/preflop/ranges';
+import { FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -21,7 +28,8 @@ interface OddsStatsProps {
   onResetStats?: () => void;
 }
 
-interface PreflopStatsProps {
+/** Same shape for the preflop RFI drill and the facing-open drill. */
+interface PreflopLikeStatsProps {
   hands: number;
   streak: number;
   accuracy: number;
@@ -38,9 +46,22 @@ interface HeaderProps {
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
   oddsStats?: OddsStatsProps;
-  preflopStats?: PreflopStatsProps;
+  preflopStats?: PreflopLikeStatsProps;
+  /** Facing-open mode's own stats — a separate `usePreflopStats()` instance. */
+  facingStats?: PreflopLikeStatsProps;
   /** Opens the standalone RFI range-chart browser from the menu. */
   onOpenRanges: () => void;
+}
+
+function brandSub(mode: AppMode, depth: Depth): string {
+  switch (mode) {
+    case 'odds':
+      return 'Odds trainer';
+    case 'preflop':
+      return `Preflop RFI · ${DEPTH_META[depth].label}`;
+    case 'facing':
+      return `Facing open · ${FACING_CONTEXT_LABEL}`;
+  }
 }
 
 export default function Header({
@@ -52,8 +73,13 @@ export default function Header({
   onShowDrawChange,
   oddsStats,
   preflopStats,
+  facingStats,
   onOpenRanges,
 }: HeaderProps) {
+  // 'preflop' and 'facing' render an identical stat block (hands/streak/
+  // accuracy); this picks which props feed it without a two-way check.
+  const preflopLikeStats = mode === 'preflop' ? preflopStats : mode === 'facing' ? facingStats : undefined;
+  const preflopLikeLabel = mode === 'facing' ? 'facing' : 'preflop';
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`
@@ -73,11 +99,7 @@ export default function Header({
         />
         <div className={styles.brand}>
           <span className={styles.brandName}>RUNOUT</span>
-          <span className={styles.brandSub}>
-            {mode === 'odds'
-              ? 'Odds trainer'
-              : `Preflop RFI · ${DEPTH_META[depth].label}`}
-          </span>
+          <span className={styles.brandSub}>{brandSub(mode, depth)}</span>
         </div>
       </div>
 
@@ -126,27 +148,27 @@ export default function Header({
             )}
           </>
         )}
-        {mode === 'preflop' && preflopStats && (
+        {(mode === 'preflop' || mode === 'facing') && preflopLikeStats && (
           <>
             <div className={styles.statPair}>
               <span>Hands</span>
-              <span className={styles.statValue}>{preflopStats.hands}</span>
+              <span className={styles.statValue}>{preflopLikeStats.hands}</span>
             </div>
             <div className={styles.statPair}>
               <span>Streak</span>
-              <span className={styles.statValueAccent}>{preflopStats.streak}</span>
+              <span className={styles.statValueAccent}>{preflopLikeStats.streak}</span>
             </div>
             <div className={styles.statPair}>
               <span>Accuracy</span>
               <span className={styles.statValue}>
-                {preflopStats.hands === 0 ? '—' : `${preflopStats.accuracy.toFixed(0)}%`}
+                {preflopLikeStats.hands === 0 ? '—' : `${preflopLikeStats.accuracy.toFixed(0)}%`}
               </span>
             </div>
-            {preflopStats.onResetStats && (
+            {preflopLikeStats.onResetStats && (
               <button
                 className={styles.resetButton}
-                onClick={preflopStats.onResetStats}
-                title="Reset preflop stats"
+                onClick={preflopLikeStats.onResetStats}
+                title={`Reset ${preflopLikeLabel} stats`}
               >
                 Reset
               </button>

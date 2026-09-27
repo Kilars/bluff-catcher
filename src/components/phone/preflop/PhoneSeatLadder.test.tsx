@@ -135,6 +135,38 @@ describe('PhoneSeatLadder', () => {
     expect(screen.getByLabelText('BTN, to act, dealer button')).toBeInTheDocument();
   });
 
+  describe('opener (PLAN-3bet F2)', () => {
+    it('marks the opener slot and leaves the other pre-hero seats folded', () => {
+      renderAt('phone', <PhoneSeatLadder position="BTN" opener="HJ" />);
+      expect(statesByLabel()).toEqual({
+        UTG: 'folded',
+        'UTG+1': 'folded',
+        'UTG+2': 'folded',
+        LJ: 'folded',
+        HJ: 'opener',
+        CO: 'folded',
+        BTN: 'hero',
+        SB: 'behind',
+        BB: 'behind',
+      });
+    });
+
+    it('defaults the raise to 2.5bb and shows it in the description', () => {
+      renderAt('phone', <PhoneSeatLadder position="BTN" opener="CO" />);
+      expect(screen.getByLabelText('CO, raises 2.5bb')).toBeInTheDocument();
+    });
+
+    it('honours an overridden raise size', () => {
+      renderAt('phone', <PhoneSeatLadder position="BTN" opener="CO" raiseBb={3} />);
+      expect(screen.getByLabelText('CO, raises 3bb')).toBeInTheDocument();
+    });
+
+    it('renders exactly as today when opener is omitted', () => {
+      renderAt('phone', <PhoneSeatLadder position="BTN" />);
+      expect(Object.values(statesByLabel())).not.toContain('opener');
+    });
+  });
+
   it('never shows more than one hero slot', () => {
     for (const position of POSITIONS) {
       const { unmount } = renderAt('phone', <PhoneSeatLadder position={position} />);

@@ -15,9 +15,12 @@
  *
  * Props:
  *   depth   — the tier being drilled.
+ *   content — optional: replaces the tier briefing with another drill's copy
+ *             (the facing-open drill uses this), keeping the same chrome.
  *   onClose — called when the sheet should close.
  */
 
+import type { ReactNode } from 'react';
 import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
 import styles from './ExplainSheet.module.css';
 import { useLayoutMode } from '../hooks/useLayoutMode';
@@ -69,17 +72,70 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
   },
 };
 
+// ─── Sheet content ────────────────────────────────────────────────────────────
+
+/**
+ * Everything the sheet says. The RFI drill builds this from its tier
+ * (`rfiBriefing` below); another drill — the facing-open one — passes its own
+ * through `content`, so both share one piece of chrome rather than a fork.
+ */
+export interface InfoSheetContent {
+  /** Small caps line above the title. */
+  kicker: string;
+  title: string;
+  /** One line under the title. */
+  subline: string;
+  /** Numbered steps, 01… in order. */
+  steps: { title: string; body: ReactNode }[];
+  /** The desktop key card (hidden on phone). */
+  keys: { key: string; label: string }[];
+  /** Optional line under the key card. */
+  keysNote?: string;
+  /** Footer button label. */
+  cta: string;
+}
+
+/** The RFI drill's briefing for one stack tier. */
+function rfiBriefing(depth: Depth): InfoSheetContent {
+  const meta = DEPTH_META[depth];
+  const brief = DEPTH_BRIEF[depth];
+  return {
+    kicker: 'The situation',
+    title: brief.title,
+    subline: `9-handed tournament table · ${meta.label} effective`,
+    steps: [
+      { title: 'The table', body: brief.table },
+      {
+        title: 'The action',
+        body: 'Everyone before you has folded — you are first in. Only the blinds and the seats behind you are left.',
+      },
+      { title: 'Your decision', body: brief.decision },
+      { title: brief.lessonTitle, body: brief.lesson },
+    ],
+    keys: [
+      { key: 'F', label: 'Fold' },
+      { key: 'J', label: meta.actionLabel },
+      { key: 'Space', label: 'Next hand' },
+      { key: 'R', label: 'Range grid' },
+      { key: 'I', label: 'This page' },
+    ],
+    cta: 'Start drilling',
+  };
+}
+
 interface PreflopInfoSheetProps {
   depth?: Depth;
+  /** Replaces the tier briefing entirely (`depth` is then ignored). */
+  content?: InfoSheetContent;
   onClose: () => void;
 }
 
 export default function PreflopInfoSheet({
   depth = DEFAULT_DEPTH,
+  content,
   onClose,
 }: PreflopInfoSheetProps) {
-  const meta = DEPTH_META[depth];
-  const brief = DEPTH_BRIEF[depth];
+  const brief = content ?? rfiBriefing(depth);
   const layout = useLayoutMode();
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -99,11 +155,9 @@ export default function PreflopInfoSheet({
           {/* Header */}
           <div className={styles.sheetHeader}>
             <div className={styles.headerLeft}>
-              <span className={styles.headerKicker}>The situation</span>
+              <span className={styles.headerKicker}>{brief.kicker}</span>
               <h1 className={styles.headerTitle}>{brief.title}</h1>
-              <p className={styles.headerSubline}>
-                9-handed tournament table · {meta.label} effective
-              </p>
+              <p className={styles.headerSubline}>{brief.subline}</p>
             </div>
             <button
               type="button"
@@ -121,40 +175,19 @@ export default function PreflopInfoSheet({
           {/* Body — numbered steps, same shape as ExplainSheet */}
           <div className={styles.body}>
             <div className={styles.leftCol}>
-              <div className={styles.step}>
-                <span className={styles.stepIndex}>01</span>
-                <div className={styles.stepContent}>
-                  <h2 className={styles.stepTitle}>The table</h2>
-                  <p className={styles.stepBody}>{brief.table}</p>
+              {brief.steps.map((step, i) => (
+                <div className={styles.step} key={step.title}>
+                  <span className={styles.stepIndex}>{String(i + 1).padStart(2, '0')}</span>
+                  <div className={styles.stepContent}>
+                    <h2 className={styles.stepTitle}>{step.title}</h2>
+                    {typeof step.body === 'string' ? (
+                      <p className={styles.stepBody}>{step.body}</p>
+                    ) : (
+                      <div className={styles.stepBody}>{step.body}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              <div className={styles.step}>
-                <span className={styles.stepIndex}>02</span>
-                <div className={styles.stepContent}>
-                  <h2 className={styles.stepTitle}>The action</h2>
-                  <p className={styles.stepBody}>
-                    Everyone before you has folded — you are first in. Only the
-                    blinds and the seats behind you are left.
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.step}>
-                <span className={styles.stepIndex}>03</span>
-                <div className={styles.stepContent}>
-                  <h2 className={styles.stepTitle}>Your decision</h2>
-                  <p className={styles.stepBody}>{brief.decision}</p>
-                </div>
-              </div>
-
-              <div className={styles.step}>
-                <span className={styles.stepIndex}>04</span>
-                <div className={styles.stepContent}>
-                  <h2 className={styles.stepTitle}>{brief.lessonTitle}</h2>
-                  <p className={styles.stepBody}>{brief.lesson}</p>
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Right: key hints — desktop only. A phone has no keyboard, so
@@ -165,27 +198,16 @@ export default function PreflopInfoSheet({
               <div className={styles.memoriseCard}>
                 <span className={styles.memoriseKicker}>Keys</span>
                 <div className={styles.memoriseGrid}>
-                  <div className={styles.memoriseRow}>
-                    <span>F</span>
-                    <span className={styles.memoriseValue}>Fold</span>
-                  </div>
-                  <div className={styles.memoriseRow}>
-                    <span>J</span>
-                    <span className={styles.memoriseValue}>{meta.actionLabel}</span>
-                  </div>
-                  <div className={styles.memoriseRow}>
-                    <span>Space</span>
-                    <span className={styles.memoriseValue}>Next hand</span>
-                  </div>
-                  <div className={styles.memoriseRow}>
-                    <span>R</span>
-                    <span className={styles.memoriseValue}>Range grid</span>
-                  </div>
-                  <div className={styles.memoriseRow}>
-                    <span>I</span>
-                    <span className={styles.memoriseValue}>This page</span>
-                  </div>
+                  {brief.keys.map((k) => (
+                    <div className={styles.memoriseRow} key={k.key}>
+                      <span>{k.key}</span>
+                      <span className={styles.memoriseValue}>{k.label}</span>
+                    </div>
+                  ))}
                 </div>
+                {brief.keysNote && (
+                  <p className={styles.keysNote}>{brief.keysNote}</p>
+                )}
               </div>
             </div>
             )}
@@ -194,7 +216,7 @@ export default function PreflopInfoSheet({
           {/* Footer */}
           <div className={styles.footer}>
             <button type="button" className={styles.btnAccent} onClick={onClose}>
-              Start drilling
+              {brief.cta}
             </button>
           </div>
         </div>

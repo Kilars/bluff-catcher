@@ -43,7 +43,13 @@ import {
   type Depth,
   type Position,
 } from '../../../lib/preflop/ranges';
-import { RANK_LABELS, cellClass } from '../../../lib/preflop/grid';
+import {
+  CELL_ACTION_LABELS,
+  CELL_ACTION_LEGEND,
+  RANK_LABELS,
+  cellClass,
+  type CellAction,
+} from '../../../lib/preflop/grid';
 import { boundarySentence, positionLabel } from '../../../lib/preflop/boundary';
 import type { HandClass } from '../../../lib/preflop/hands';
 import styles from './PhoneRangeView.module.css';
@@ -94,6 +100,23 @@ export interface PhoneRangeViewProps {
    * for the standalone chart browser opened from the menu.
    */
   depthSwitchable?: boolean;
+  /**
+   * Optional 4-colour mode (PLAN-3bet F3): value / bluff / call / fold instead
+   * of the boolean isOpen() read. Omit it and this renders exactly as before.
+   */
+  cellAction?: (hc: HandClass) => CellAction;
+  /** Show the value/bluff/call/fold legend under the grid. Only meaningful
+   *  with `cellAction`; defaults to true whenever `cellAction` is given. */
+  legend?: boolean;
+  /** Optional one-line note rendered under the grid. */
+  footnote?: string;
+  /**
+   * One fixed chart instead of the seat/tier navigator (the facing drill's
+   * bucket chart). Hides the tier chip, the seat strip, the RFI boundary
+   * sentence and the RFI combo summary, and stops swipe paging; `highlight`
+   * is always marked. The string is the chart's name, used in the readout.
+   */
+  fixedChart?: string;
 }
 
 interface Scrub {
@@ -117,7 +140,12 @@ export default function PhoneRangeView({
   highlight,
   heroPosition,
   depthSwitchable = false,
+  cellAction,
+  legend = true,
+  footnote,
+  fixedChart,
 }: PhoneRangeViewProps) {
+  const navigable = fixedChart === undefined;
   const [viewPos, setViewPos] = useState<Position>(position);
   const [viewDepth, setViewDepth] = useState<Depth>(depth);
   // Survives the lift on purpose: you scrub to a cell, take your finger off the
@@ -126,7 +154,7 @@ export default function PhoneRangeView({
 
   const meta = DEPTH_META[viewDepth];
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
-  const heroHand = viewPos === heroSeat ? highlight : undefined;
+  const heroHand = !navigable || viewPos === heroSeat ? highlight : undefined;
 
   const combos = rangeComboCount(viewPos, viewDepth);
   const pct = ((combos / TOTAL_COMBOS) * 100).toFixed(1);
@@ -223,7 +251,7 @@ export default function PhoneRangeView({
     (e: React.TouchEvent<HTMLDivElement>) => {
       const start = touchStart.current;
       touchStart.current = null;
-      if (!start || start.onGrid) return;
+      if (!start || start.onGrid || !navigable) return;
       const t = e.changedTouches[0];
       if (!t) return;
       const dx = t.clientX - start.x;
@@ -232,12 +260,13 @@ export default function PhoneRangeView({
       if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return;
       step(dx < 0 ? 1 : -1);
     },
-    [step]
+    [step, navigable]
   );
 
   // ── Readout copy ──────────────────────────────────────────────────────────
 
   const scrubHand = scrub ? cellClass(scrub.row, scrub.col) : null;
+  const scrubAction = scrubHand ? cellAction?.(scrubHand) : undefined;
   const scrubOpen = scrubHand ? isOpen(viewPos, scrubHand, viewDepth) : false;
 
   const geometry = {
@@ -254,7 +283,7 @@ export default function PhoneRangeView({
       onTouchEnd={handleTouchEnd}
     >
       {/* Tier — a strip only where switching tiers means something */}
-      {depthSwitchable ? (
+      {!navigable ? null : depthSwitchable ? (
         <div className={styles.depths} role="tablist" aria-label="Stack depth">
           {DEPTHS.map((d) => (
             <button
@@ -279,6 +308,7 @@ export default function PhoneRangeView({
       )}
 
       {/* Seats — 7 x 44px + 6 x 4px gaps = 332px, inside the 366px measure */}
+      {navigable && (
       <div className={styles.seats} role="tablist" aria-label="Position">
         {POSITIONS.map((p) => (
           <button
@@ -295,6 +325,7 @@ export default function PhoneRangeView({
           </button>
         ))}
       </div>
+      )}
 
       {/* The readout — fixed 44px, never collapses, so nothing below it moves */}
       <div className={styles.readout} data-testid="scrub-readout" aria-live="polite">
@@ -304,9 +335,9 @@ export default function PhoneRangeView({
             <span className={styles.readoutMeta}>
               {/* No leading space: it would be collapsed (see .readout's gap). */}
               {'· '}
-              {scrubOpen ? meta.action : 'fold'}
+              {cellAction ? CELL_ACTION_LABELS[scrubAction ?? 'fold'] : scrubOpen ? meta.action : 'fold'}
               {' · '}
-              {positionLabel(viewPos)}
+              {fixedChart ?? positionLabel(viewPos)}
             </span>
           </>
         ) : (
@@ -315,9 +346,11 @@ export default function PhoneRangeView({
       </div>
 
       {/* The words the 169 labels used to carry */}
-      <p className={styles.boundary} data-testid="boundary-sentence">
-        {boundarySentence(viewPos, viewDepth)}
-      </p>
+      {navigable && (
+        <p className={styles.boundary} data-testid="boundary-sentence">
+          {boundarySentence(viewPos, viewDepth)}
+        </p>
+      )}
 
       <div className={styles.grid}>
         {/* Column rank headers, 11px — the legibility floor, and now affordable */}
@@ -343,7 +376,9 @@ export default function PhoneRangeView({
             ref={cellsRef}
             className={styles.cells}
             data-testid="grid-cells"
-            aria-label={`${positionLabel(viewPos)} ${meta.rangeKicker.toLowerCase()} at ${meta.label}`}
+            aria-label={
+              fixedChart ?? `${positionLabel(viewPos)} ${meta.rangeKicker.toLowerCase()} at ${meta.label}`
+            }
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={endScrub}
@@ -353,9 +388,11 @@ export default function PhoneRangeView({
             {RANK_LABELS.map((_, rowIdx) =>
               RANK_LABELS.map((__, colIdx) => {
                 const hc = cellClass(rowIdx, colIdx);
-                const open = isOpen(viewPos, hc, viewDepth);
+                const action = cellAction?.(hc);
+                const open = action ? action !== 'fold' : isOpen(viewPos, hc, viewDepth);
                 const hero = heroHand === hc;
                 const scrubbed = scrub?.row === rowIdx && scrub?.col === colIdx;
+                const label = action ? CELL_ACTION_LABELS[action] : open ? meta.action : 'fold';
 
                 // No text child, by design. The aria-label is the only name the
                 // cell carries — sighted readers get the shape plus the scrub
@@ -365,11 +402,12 @@ export default function PhoneRangeView({
                   <div
                     key={hc}
                     className={styles.cell}
-                    data-open={open}
+                    data-open={action ? undefined : open}
+                    data-action={action}
                     data-region={rowIdx === colIdx ? 'pair' : rowIdx < colIdx ? 'suited' : 'offsuit'}
                     data-hero={hero || undefined}
                     data-scrubbed={scrubbed || undefined}
-                    aria-label={`${hc}: ${open ? meta.action : 'fold'}${hero ? ' (your hand)' : ''}`}
+                    aria-label={`${hc}: ${label}${hero ? ' (your hand)' : ''}`}
                   />
                 );
               })
@@ -378,9 +416,28 @@ export default function PhoneRangeView({
         </div>
       </div>
 
-      <p className={styles.summary}>
-        {combos} combos · {pct}% · green = {meta.action}
-      </p>
+      {cellAction && legend && (
+        <div className={styles.legend} data-testid="range-legend">
+          {CELL_ACTION_LEGEND.map((item) => (
+            <span key={item.action} className={styles.legendItem}>
+              <span className={styles.legendSwatch} data-action={item.action} />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {navigable && (
+        <p className={styles.summary}>
+          {combos} combos · {pct}% · green = {meta.action}
+        </p>
+      )}
+
+      {footnote && (
+        <p className={styles.footnote} data-testid="range-footnote">
+          {footnote}
+        </p>
+      )}
     </div>
   );
 }

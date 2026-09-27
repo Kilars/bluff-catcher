@@ -31,6 +31,31 @@ export const RANK_LABELS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4
  * - row < col  → row rank > col rank → suited upper-right (e.g. row=0,col=1 → "AKs")
  * - row > col  → row rank < col rank → offsuit lower-left (e.g. row=1,col=0 → "AKo")
  */
+// ─── 4-colour cell action (PLAN-3bet F3) ───────────────────────────────────────
+//
+// A second grid mode used by the facing-open drill: instead of a boolean
+// open/fold, each cell carries one of four actions. Lives here, alongside the
+// orientation convention, so `RangeGrid` and `PhoneRangeView` cannot disagree
+// on what a colour means or what to call it in an aria-label.
+
+export type CellAction = 'value' | 'bluff' | 'call' | 'fold';
+
+/** Verdict-style label for a cell action, used in aria-labels and readouts. */
+export const CELL_ACTION_LABELS: Record<CellAction, string> = {
+  value: '3-bet (value)',
+  bluff: '3-bet (bluff)',
+  call: 'call',
+  fold: 'fold',
+};
+
+/** Legend entries in a fixed, sensible reading order. */
+export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: string }> = [
+  { action: 'value', label: '3-bet — value (V)' },
+  { action: 'bluff', label: '3-bet — bluff (B)' },
+  { action: 'call', label: 'call' },
+  { action: 'fold', label: 'fold' },
+];
+
 export function cellClass(row: number, col: number): HandClass {
   const rowRank = RANK_LABELS[row];
   const colRank = RANK_LABELS[col];

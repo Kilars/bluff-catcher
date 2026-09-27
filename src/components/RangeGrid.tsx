@@ -6,15 +6,36 @@
  * which triangle is suited.
  *
  * Props:
- *   position  — the hero's seat; used to colour play vs fold cells via isOpen().
- *   depth     — the stack tier whose chart to draw (default: the 60bb+ chart).
- *   highlight — optional HandClass to mark with a distinct outline (hero's current hand).
+ *   position   — the hero's seat; used to colour play vs fold cells via isOpen().
+ *   depth      — the stack tier whose chart to draw (default: the 60bb+ chart).
+ *   highlight  — optional HandClass to mark with a distinct outline (hero's current hand).
+ *   cellAction — optional 4-colour mode (PLAN-3bet F3). When given, it replaces the
+ *                boolean isOpen() read: each cell is coloured value / bluff / call / fold
+ *                per `cellAction(hc)` instead of open / fold. Omit it and this component
+ *                renders exactly as before — the RFI usage is untouched.
+ *   legend     — show the value/bluff/call/fold legend under the grid. Only meaningful
+ *                with `cellAction`; defaults to true whenever `cellAction` is given.
+ *   footnote   — optional one-line note rendered under the grid (and legend, if shown).
  */
 
-import { DEFAULT_DEPTH, DEPTH_META, isOpen, type Depth, type Position } from '../lib/preflop/ranges';
-import { RANK_LABELS, cellClass } from '../lib/preflop/grid';
+import {
+  DEFAULT_DEPTH,
+  DEPTH_META,
+  isOpen,
+  type Depth,
+  type Position,
+} from '../lib/preflop/ranges';
+import {
+  CELL_ACTION_LABELS,
+  CELL_ACTION_LEGEND,
+  RANK_LABELS,
+  cellClass,
+  type CellAction,
+} from '../lib/preflop/grid';
 import type { HandClass } from '../lib/preflop/hands';
 import styles from './RangeGrid.module.css';
+
+export type { CellAction };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -22,12 +43,18 @@ interface RangeGridProps {
   position: Position;
   highlight?: HandClass;
   depth?: Depth;
+  cellAction?: (hc: HandClass) => CellAction;
+  legend?: boolean;
+  footnote?: string;
 }
 
 export default function RangeGrid({
   position,
   highlight,
   depth = DEFAULT_DEPTH,
+  cellAction,
+  legend = true,
+  footnote,
 }: RangeGridProps) {
   // "open" at 60bb+/20bb, "jam" at 10bb — the cell colour means the same
   // thing either way, only the word for it changes.
@@ -54,7 +81,8 @@ export default function RangeGrid({
           {/* Data cells */}
           {RANK_LABELS.map((_, colIdx) => {
             const hc = cellClass(rowIdx, colIdx);
-            const open = isOpen(position, hc, depth);
+            const action = cellAction?.(hc);
+            const open = action ? action !== 'fold' : isOpen(position, hc, depth);
             const isHighlighted = highlight === hc;
 
             // Determine triangle region for semantic class
@@ -67,19 +95,31 @@ export default function RangeGrid({
               regionClass = styles.offsuit;
             }
 
+            const colourClass = action
+              ? styles[action]
+              : open
+                ? styles.open
+                : styles.fold;
+
+            const label = action
+              ? CELL_ACTION_LABELS[action]
+              : open
+                ? actionWord
+                : 'fold';
+
             return (
               <div
                 key={hc}
                 className={[
                   styles.cell,
                   regionClass,
-                  open ? styles.open : styles.fold,
+                  colourClass,
                   isHighlighted ? styles.highlighted : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
                 title={hc}
-                aria-label={`${hc}: ${open ? actionWord : 'fold'}${isHighlighted ? ' (your hand)' : ''}`}
+                aria-label={`${hc}: ${label}${isHighlighted ? ' (your hand)' : ''}`}
               >
                 <span className={styles.cellLabel}>{hc}</span>
               </div>
@@ -87,6 +127,23 @@ export default function RangeGrid({
           })}
         </div>
       ))}
+
+      {cellAction && legend && (
+        <div className={styles.legend} data-testid="range-legend">
+          {CELL_ACTION_LEGEND.map((item) => (
+            <span key={item.action} className={styles.legendItem}>
+              <span className={`${styles.legendSwatch} ${styles[item.action]}`} />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {footnote && (
+        <p className={styles.footnote} data-testid="range-footnote">
+          {footnote}
+        </p>
+      )}
     </div>
   );
 }
