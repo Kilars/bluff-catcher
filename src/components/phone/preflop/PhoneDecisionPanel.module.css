@@ -210,6 +210,62 @@
   background: var(--color-accent-700);
 }
 
+/* ── Three-action variant (PLAN-3bet F2): Call and 3-bet ───────────────────
+ * Call reuses the "continue" green the range grid uses for the same idea;
+ * 3-bet gets the aggression red. Fold keeps its neutral `.btnFold` above. */
+
+.btnCall {
+  border: 1px solid color-mix(in srgb, var(--range-call) 55%, transparent);
+  background: color-mix(in srgb, var(--range-call) 20%, var(--color-surface));
+  color: var(--range-call);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnCall:hover {
+    border-color: var(--range-call);
+    background: color-mix(in srgb, var(--range-call) 30%, var(--color-surface));
+  }
+}
+
+.btnCall:active {
+  border-color: var(--range-call);
+  background: color-mix(in srgb, var(--range-call) 30%, var(--color-surface));
+}
+
+.btnRaise {
+  border: 1px solid color-mix(in srgb, var(--range-value) 55%, transparent);
+  background: color-mix(in srgb, var(--range-value) 20%, var(--color-surface));
+  color: var(--range-value);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btnRaise:hover {
+    border-color: var(--range-value);
+    background: color-mix(in srgb, var(--range-value) 30%, var(--color-surface));
+  }
+}
+
+.btnRaise:active {
+  border-color: var(--range-value);
+  background: color-mix(in srgb, var(--range-value) 30%, var(--color-surface));
+}
+
+/* Small key-hint badge inside a thumb button — only rendered when a button
+   config carries a `hint`. The default two-button row never sets one. */
+.keyHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: var(--space-2);
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 11px;
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
 /* Post-commit: full width, so the finger that just pressed Open meets a
  * different shape — and inert for 300ms, so a double tap cannot burn a spot. */
 .btnNext {

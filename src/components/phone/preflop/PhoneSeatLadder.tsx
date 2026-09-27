@@ -27,6 +27,7 @@
  */
 
 import { buildLadderSlots, ladderContextLine, type LadderSlot } from './ladderSlots';
+import { DEFAULT_OPENER_RAISE_BB } from '../../PreflopTable';
 import type { Position } from '../../../lib/preflop/ranges';
 import styles from './PhoneSeatLadder.module.css';
 
@@ -35,6 +36,7 @@ function slotDescription(slot: LadderSlot): string {
   const parts: string[] = [slot.label];
   if (slot.state === 'folded') parts.push('folded');
   else if (slot.state === 'hero') parts.push('you');
+  else if (slot.state === 'opener') parts.push(`raises ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
   else parts.push('to act');
   if (slot.isButton) parts.push('dealer button');
   return parts.join(', ');
@@ -45,10 +47,18 @@ function slotDescription(slot: LadderSlot): string {
 export interface PhoneSeatLadderProps {
   /** Hero's seat. Everything else on the row is derived from it. */
   position: Position;
+  /**
+   * The facing-open drill's raiser (PLAN-3bet F2): a seat before hero that
+   * opened instead of folding. Omit it and the row renders exactly as the RFI
+   * drill always has.
+   */
+  opener?: Position;
+  /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
+  raiseBb?: number;
 }
 
-export default function PhoneSeatLadder({ position }: PhoneSeatLadderProps) {
-  const slots = buildLadderSlots(position);
+export default function PhoneSeatLadder({ position, opener, raiseBb }: PhoneSeatLadderProps) {
+  const slots = buildLadderSlots(position, opener, raiseBb);
 
   return (
     <div className={styles.ladderBlock}>
@@ -66,7 +76,7 @@ export default function PhoneSeatLadder({ position }: PhoneSeatLadderProps) {
             aria-label={slotDescription(slot)}
           >
             <span className={styles.mark} aria-hidden="true">
-              {slot.isButton ? 'D' : ''}
+              {slot.isButton ? 'D' : slot.state === 'opener' ? (slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB) : ''}
             </span>
             <span className={styles.label}>{slot.label}</span>
           </div>

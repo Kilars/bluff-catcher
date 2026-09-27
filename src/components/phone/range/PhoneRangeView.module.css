@@ -366,6 +366,31 @@
   box-shadow: inset 0 0 0 1px var(--color-neutral-800);
 }
 
+/* ── 4-colour mode (value / bluff / call / fold) — PLAN-3bet F3 ──────────── */
+/* Only reached via `cellAction` (the facing-open drill); `[data-open]` above
+   stays the only colour path for the RFI usage. */
+
+.cell[data-action='value'] {
+  background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
+}
+
+.cell[data-action='bluff'] {
+  background: color-mix(in srgb, var(--range-bluff) 55%, var(--color-bg));
+}
+
+.cell[data-action='call'] {
+  background: color-mix(in srgb, var(--range-call) 55%, var(--color-bg));
+}
+
+.cell[data-action='call'][data-region='pair'] {
+  background: color-mix(in srgb, var(--range-call) 78%, var(--color-bg));
+}
+
+.cell[data-action='fold'] {
+  background: var(--color-neutral-900);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+}
+
 /* Post-commit, the hero's cell keeps its accent outline. The grid fits on one
    screen, so it never has to be scrolled into view. */
 .cell[data-hero] {
@@ -387,6 +412,43 @@
   text-align: center;
   font-size: 12px;
   color: var(--color-neutral-500);
+}
+
+/* ── Legend + footnote (PLAN-3bet F3) ──────────────────────────────────── */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  flex: none;
+}
+
+.legendSwatch[data-action='value'] { background: var(--range-value); }
+.legendSwatch[data-action='bluff'] { background: var(--range-bluff); }
+.legendSwatch[data-action='call'] { background: var(--range-call); }
+.legendSwatch[data-action='fold'] { background: var(--color-neutral-800); }
+
+.footnote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-neutral-500);
+  text-align: center;
 }
 
 /* ── Hover, guarded ─────────────────────────────────────────────────────── */

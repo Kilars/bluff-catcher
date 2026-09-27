@@ -406,4 +406,58 @@ describe('PhoneRangeView', () => {
       expect(screen.queryByText(/arrows, tabs or swipe/i)).toBeNull();
     });
   });
+
+  describe('4-colour mode (cellAction) — PLAN-3bet F3', () => {
+    const sample: Record<string, 'value' | 'bluff' | 'call' | 'fold'> = {
+      AA: 'value',
+      A8s: 'bluff',
+      JJ: 'call',
+      '72o': 'fold',
+    };
+    const cellAction = (hc: string) => sample[hc] ?? 'fold';
+
+    it('colours the sampled cells value / bluff / call / fold', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" cellAction={cellAction} />);
+      expect(cellFor('AA').getAttribute('aria-label')).toBe('AA: 3-bet (value)');
+      expect(cellFor('A8s').getAttribute('aria-label')).toBe('A8s: 3-bet (bluff)');
+      expect(cellFor('JJ').getAttribute('aria-label')).toBe('JJ: call');
+      expect(cellFor('72o').getAttribute('aria-label')).toBe('72o: fold');
+    });
+
+    it('renders a legend by default when cellAction is given', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" cellAction={cellAction} />);
+      const legend = screen.getByTestId('range-legend');
+      expect(legend).toHaveTextContent('3-bet — value');
+      expect(legend).toHaveTextContent('call');
+    });
+
+    it('hides the legend when legend={false}', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" cellAction={cellAction} legend={false} />);
+      expect(screen.queryByTestId('range-legend')).toBeNull();
+    });
+
+    it('renders no legend without cellAction', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" />);
+      expect(screen.queryByTestId('range-legend')).toBeNull();
+    });
+
+    it('renders an optional footnote', () => {
+      renderAt(
+        'phone',
+        <PhoneRangeView position="BTN" cellAction={cellAction} footnote="A test footnote." />
+      );
+      expect(screen.getByTestId('range-footnote')).toHaveTextContent('A test footnote.');
+    });
+
+    it('names the scrubbed cell by its action in the readout', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" cellAction={cellAction} />);
+      expect(scrubTo(0, 0)).toMatch(/^AA · 3-bet \(value\) · BTN$/);
+    });
+
+    it('leaves the isOpen path byte-identical when cellAction is omitted', () => {
+      renderAt('phone', <PhoneRangeView position="BTN" />);
+      expect(cellFor('AKs').getAttribute('aria-label')).toBe('AKs: open');
+      expect(cellFor('72o').getAttribute('aria-label')).toBe('72o: fold');
+    });
+  });
 });

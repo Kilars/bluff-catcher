@@ -9,10 +9,10 @@
  * blinds here and not on desktop.
  */
 
-import { buildSeats, POSITION_LABEL } from '../../PreflopTable';
+import { buildSeats, DEFAULT_OPENER_RAISE_BB, POSITION_LABEL } from '../../PreflopTable';
 import type { Position } from '../../../lib/preflop/ranges';
 
-export type SlotState = 'folded' | 'hero' | 'behind';
+export type SlotState = 'folded' | 'hero' | 'behind' | 'opener';
 
 export interface LadderSlot {
   /** Seat label as shown: UTG, UTG+1, …, BTN, SB, BB. */
@@ -22,23 +22,33 @@ export interface LadderSlot {
   isButton: boolean;
   /** Posted blind, if any. */
   blind?: 'sb' | 'bb';
+  /** The open size, in bb — only set when `state === 'opener'`. */
+  raiseBb?: number;
 }
 
 /**
  * The nine slots in action order, hero included.
  *
  * `buildSeats` returns the eight seats that are not hero, already in action
- * order: the folded ones first, then the seats behind, then SB and BB. Hero
- * therefore belongs at exactly the fold boundary.
+ * order: the folded/opener ones first, then the seats behind, then SB and BB.
+ * Hero therefore belongs at exactly the fold boundary.
+ *
+ * `opener` / `raiseBb` (PLAN-3bet F2, optional): forwarded to `buildSeats` — see
+ * there for the constraint that the opener must be a seat before hero.
  */
-export function buildLadderSlots(position: Position): LadderSlot[] {
-  const seats = buildSeats(position);
-  const foldedCount = seats.filter((s) => s.type === 'folded').length;
+export function buildLadderSlots(
+  position: Position,
+  opener?: Position,
+  raiseBb: number = DEFAULT_OPENER_RAISE_BB
+): LadderSlot[] {
+  const seats = buildSeats(position, opener, raiseBb);
+  const beforeCount = seats.filter((s) => s.type === 'folded' || s.type === 'opener').length;
 
-  const before: LadderSlot[] = seats.slice(0, foldedCount).map((s) => ({
+  const before: LadderSlot[] = seats.slice(0, beforeCount).map((s) => ({
     label: s.label,
-    state: 'folded' as const,
+    state: s.type === 'opener' ? ('opener' as const) : ('folded' as const),
     isButton: s.isBtn === true,
+    raiseBb: s.type === 'opener' ? s.raiseBb : undefined,
   }));
 
   const hero: LadderSlot = {
@@ -50,7 +60,7 @@ export function buildLadderSlots(position: Position): LadderSlot[] {
     isButton: position === 'BTN',
   };
 
-  const after: LadderSlot[] = seats.slice(foldedCount).map((s) => ({
+  const after: LadderSlot[] = seats.slice(beforeCount).map((s) => ({
     label: s.label,
     state: 'behind' as const,
     isButton: s.isBtn === true,
