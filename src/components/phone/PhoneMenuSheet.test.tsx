@@ -40,6 +40,7 @@ describe('PhoneMenuSheet', () => {
 
     expect(menu().getByRole('menuitemradio', { name: /Odds trainer/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitemradio', { name: /Preflop RFI/ })).toBeInTheDocument();
+    expect(menu().getByRole('menuitemradio', { name: /Facing open/ })).toBeInTheDocument();
 
     for (const depth of DEPTHS) {
       expect(
@@ -51,8 +52,8 @@ describe('PhoneMenuSheet', () => {
     expect(menu().getByRole('menuitem', { name: /RFI range charts/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitem', { name: /Reset stats/ })).toBeInTheDocument();
 
-    // Two modes + three depths + the draw toggle + charts + reset, and nothing else.
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(2 + DEPTHS.length);
+    // Three modes + three depths + the draw toggle + charts + reset, and nothing else.
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3 + DEPTHS.length);
     expect(menu().getAllByRole('menuitemcheckbox')).toHaveLength(1);
     expect(menu().getAllByRole('menuitem')).toHaveLength(2);
   });
@@ -76,7 +77,20 @@ describe('PhoneMenuSheet', () => {
 
   it('lists the stack depths in both modes — the context chip opens this sheet too', () => {
     setup({ mode: 'odds' });
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(2 + DEPTHS.length);
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3 + DEPTHS.length);
+  });
+
+  it('leaves out the depth group in facing mode — it has no depth picker', () => {
+    setup({ mode: 'facing' });
+    // Three modes, and none of the depth radios.
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3);
+    for (const depth of DEPTHS) {
+      expect(
+        menu().queryByRole('menuitemradio', {
+          name: new RegExp(DEPTH_META[depth].label.replace('+', '\\+')),
+        })
+      ).not.toBeInTheDocument();
+    }
   });
 
   it('switching mode reports it and closes', () => {

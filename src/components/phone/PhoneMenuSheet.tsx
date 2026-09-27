@@ -3,9 +3,12 @@
  *
  * Same items, reachable posture (PLAN-phone §5.3): mode, stack depth, the RFI
  * range charts, and Reset stats. The desktop `Menu` shows the depth group only
- * in preflop mode; here it is always listed, because this sheet is also what
- * the top bar's context chip opens — the chip's whole promise is one tap to the
- * tier switch, so the tier has to be in the sheet whichever door was used.
+ * in preflop mode; here it is listed in both odds and preflop mode, because
+ * this sheet is also what the top bar's context chip opens — the chip's whole
+ * promise is one tap to the tier switch, so the tier has to be in the sheet
+ * whichever door was used. Facing mode is the one exception: it has no depth
+ * picker at all (one 50bb+ chart, not a tier to switch — see
+ * docs/PLAN-3bet.md), so the group is left out entirely there.
  *
  * Both entry points render this same component; pass a `title` to say which
  * door it was ("Menu" from `⋯`, "Mode & depth" from the chip).
@@ -32,6 +35,7 @@ import styles from './PhoneMenuSheet.module.css';
 const MODE_ITEMS: { mode: AppMode; label: string; note: string }[] = [
   { mode: 'odds', label: 'Odds trainer', note: 'Chance you improve by the river' },
   { mode: 'preflop', label: 'Preflop RFI', note: 'Open or fold, by seat and stack' },
+  { mode: 'facing', label: 'Facing open', note: 'Fold, call or 3-bet, vs open · 50bb+' },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -137,27 +141,31 @@ export default function PhoneMenuSheet({
           ))}
         </div>
 
-        <div className={styles.group}>
-          <span className={styles.groupLabel}>Stack depth</span>
-          {DEPTHS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              role="menuitemradio"
-              aria-checked={d === depth}
-              className={`${styles.row} ${d === depth ? styles.rowActive : ''}`}
-              onClick={() => selectDepth(d)}
-            >
-              <span className={styles.rowMain}>
-                {DEPTH_META[d].label}
-                <span className={styles.rowNote}>
-                  {DEPTH_META[d].name} · {DEPTH_META[d].actionLabel.toLowerCase()} or fold
+        {/* Facing mode has no depth picker — its source chart is one span,
+            50bb+, not a tier to switch between. See docs/PLAN-3bet.md. */}
+        {mode !== 'facing' && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Stack depth</span>
+            {DEPTHS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                role="menuitemradio"
+                aria-checked={d === depth}
+                className={`${styles.row} ${d === depth ? styles.rowActive : ''}`}
+                onClick={() => selectDepth(d)}
+              >
+                <span className={styles.rowMain}>
+                  {DEPTH_META[d].label}
+                  <span className={styles.rowNote}>
+                    {DEPTH_META[d].name} · {DEPTH_META[d].actionLabel.toLowerCase()} or fold
+                  </span>
                 </span>
-              </span>
-              {d === depth && <span className={styles.marker} aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
+                {d === depth && <span className={styles.marker} aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className={styles.group}>
           <span className={styles.groupLabel}>Odds drill</span>

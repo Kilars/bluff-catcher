@@ -271,6 +271,74 @@ describe('usePreflopStats', () => {
     });
   });
 
+  // ── Storage key parameter (facing mode's own instance) ───────────────────
+
+  describe('storage key parameter', () => {
+    const FACING_KEY = 'bluff-catcher:facing:v1';
+
+    it('defaults to the RFI key when no key is passed', () => {
+      const { result } = renderHook(() => usePreflopStats());
+      act(() => {
+        result.current.record(true);
+      });
+      expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    });
+
+    it('a second instance with its own key never touches the default key', () => {
+      const { result } = renderHook(() => usePreflopStats(FACING_KEY));
+
+      act(() => {
+        result.current.record(true);
+        result.current.record(true);
+      });
+
+      expect(localStorage.getItem(FACING_KEY)).not.toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('two instances at different keys keep fully independent state', () => {
+      const { result: rfi } = renderHook(() => usePreflopStats());
+      const { result: facing } = renderHook(() => usePreflopStats(FACING_KEY));
+
+      act(() => {
+        rfi.current.record(true);
+        rfi.current.record(true);
+        rfi.current.record(true);
+      });
+      act(() => {
+        facing.current.record(false);
+      });
+
+      expect(rfi.current.hands).toBe(3);
+      expect(rfi.current.streak).toBe(3);
+      expect(facing.current.hands).toBe(1);
+      expect(facing.current.streak).toBe(0);
+
+      const rfiStored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+      const facingStored = JSON.parse(localStorage.getItem(FACING_KEY)!);
+      expect(rfiStored.hands).toBe(3);
+      expect(facingStored.hands).toBe(1);
+    });
+
+    it('resetting one instance leaves the other untouched', () => {
+      const { result: rfi } = renderHook(() => usePreflopStats());
+      const { result: facing } = renderHook(() => usePreflopStats(FACING_KEY));
+
+      act(() => {
+        rfi.current.record(true);
+        facing.current.record(true);
+      });
+      act(() => {
+        facing.current.reset();
+      });
+
+      expect(facing.current.hands).toBe(0);
+      expect(localStorage.getItem(FACING_KEY)).toBeNull();
+      expect(rfi.current.hands).toBe(1);
+      expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    });
+  });
+
   // ── reset() ───────────────────────────────────────────────────────────────
 
   describe('reset()', () => {

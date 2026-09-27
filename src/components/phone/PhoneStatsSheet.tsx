@@ -72,6 +72,16 @@ interface CommonProps {
   onReset: () => void;
 }
 
+/** The preflop and facing variants share this shape; only `mode` distinguishes them. */
+interface PreflopLikeVariant {
+  hands: number;
+  correct: number;
+  streak: number;
+  bestStreak: number;
+  /** 0–100. */
+  accuracy: number;
+}
+
 export type PhoneStatsSheetProps = CommonProps &
   (
     | {
@@ -85,15 +95,8 @@ export type PhoneStatsSheetProps = CommonProps &
         /** Straight from useStats — keyed by DrawRead.primaryCategory. */
         perCategory: Record<string, CategoryStat>;
       }
-    | {
-        mode: 'preflop';
-        hands: number;
-        correct: number;
-        streak: number;
-        bestStreak: number;
-        /** 0–100. */
-        accuracy: number;
-      }
+    | ({ mode: 'preflop' } & PreflopLikeVariant)
+    | ({ mode: 'facing' } & PreflopLikeVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -112,7 +115,8 @@ export default function PhoneStatsSheet(props: PhoneStatsSheetProps) {
     onClose();
   }, [armed, onReset, onClose]);
 
-  const subtitle = props.mode === 'odds' ? 'Odds trainer' : 'Preflop RFI';
+  const subtitle =
+    props.mode === 'odds' ? 'Odds trainer' : props.mode === 'preflop' ? 'Preflop RFI' : 'Facing open';
 
   return (
     <PhoneSheet

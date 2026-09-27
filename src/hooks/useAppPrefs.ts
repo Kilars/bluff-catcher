@@ -22,7 +22,10 @@ import { DEFAULT_DEPTH, DEPTHS, type Depth } from '../lib/preflop/ranges';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop';
+export type AppMode = 'odds' | 'preflop' | 'facing';
+
+/** Every valid mode, in menu order. Same list `loadMode` validates against. */
+export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing'];
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
@@ -32,8 +35,7 @@ export function loadMode(): AppMode {
   try {
     if (typeof window === 'undefined') return 'odds';
     const raw = localStorage.getItem(MODE_KEY);
-    if (raw === 'odds' || raw === 'preflop') return raw;
-    return 'odds';
+    return (MODES as readonly string[]).includes(raw ?? '') ? (raw as AppMode) : 'odds';
   } catch {
     return 'odds';
   }

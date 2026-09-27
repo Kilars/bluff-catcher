@@ -1,7 +1,7 @@
 /**
  * App — root shell. Holds mode state and routes to the active mode.
  *
- * mode: 'odds' | 'preflop'
+ * mode: 'odds' | 'preflop' | 'facing'
  *   Persisted to localStorage key bluff-catcher:mode:v1.
  *   Default 'odds' on first load or corrupt value.
  *
@@ -9,7 +9,9 @@
  *   The stack tier the preflop trainer drills. Persisted to
  *   bluff-catcher:preflop-depth:v1, default 'deep'. Lives here rather than in
  *   PreflopTrainer because the header menu owns the switch and the standalone
- *   range browser opens on the same tier.
+ *   range browser opens on the same tier. Facing mode has no depth picker (its
+ *   source chart is one span, 50bb+ — see docs/PLAN-3bet.md, "Depth caveat"),
+ *   so this is simply unused while mode === 'facing'.
  *
  * Structure (odds mode):
  *   <div.frame>
@@ -17,11 +19,15 @@
  *     <OddsTrainer>  ← Table + Dock + ExplainSheet (no inner frame)
  *   </div.frame>
  *
- * Structure (preflop mode):
+ * Structure (preflop / facing mode):
  *   <div.frame>
- *     <Header>   ← shared, with hamburger menu (stats slot reserved for P3)
- *     <preflop placeholder>
+ *     <Header>   ← shared, with hamburger menu + that mode's own stats
+ *     <PreflopTrainer> / <FacingTrainer>
  *   </div.frame>
+ *
+ * Facing mode reuses `usePreflopStats()` — same shape (hands/streak/accuracy)
+ * — but as a **second instance**, keyed to its own storage key, so its numbers
+ * never mix with RFI's. See `facingStats` below.
  *
  * layout: 'phone' | 'compact' | 'desktop'
  *   From useLayoutMode(), which is the app's only viewport read and publishes
@@ -37,16 +43,32 @@ import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { DEPTH_META } from './lib/preflop/ranges';
+import { FACING_CONTEXT_LABEL } from './lib/facingMeta';
 import { useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
-import PhoneStatsPill from './components/phone/PhoneStatsPill';
-import PhoneStatsSheet from './components/phone/PhoneStatsSheet';
+import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
+import PhoneStatsSheet, { type PhoneStatsSheetProps } from './components/phone/PhoneStatsSheet';
 import PhoneSheet from './components/phone/PhoneSheet';
 import PhoneRangeView from './components/phone/range/PhoneRangeView';
 import OddsTrainer from './modes/OddsTrainer';
 import PreflopTrainer from './modes/PreflopTrainer';
+import FacingTrainer from './modes/FacingTrainer';
 import styles from './App.module.css';
+
+const FACING_STATS_KEY = 'bluff-catcher:facing:v1';
+
+/** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
+function contextLabelFor(mode: ReturnType<typeof useAppPrefs>['mode'], depthLabel: string): string {
+  switch (mode) {
+    case 'odds':
+      return 'Odds';
+    case 'preflop':
+      return depthLabel;
+    case 'facing':
+      return FACING_CONTEXT_LABEL;
+  }
+}
 
 // ─── Viewport scaling constants ───────────────────────────────────────────────
 //
@@ -92,6 +114,8 @@ export default function App() {
   const [phoneSheet, setPhoneSheet] = useState<'menu' | 'context' | 'stats' | null>(null);
   const stats = useStats();
   const preflopStats = usePreflopStats();
+  // Facing mode's own instance: same shape, isolated storage key.
+  const facingStats = usePreflopStats(FACING_STATS_KEY);
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -159,26 +183,100 @@ export default function App() {
   // felt completely.
   const keysSuspended = rangesOpen || phoneSheet !== null;
 
-  const phoneStats =
-    mode === 'odds'
-      ? ({ mode: 'odds', streak: stats.streak, bands: stats.bands, hands: stats.hands } as const)
-      : ({
+  let phoneStats: PhoneStatsPillProps;
+  switch (mode) {
+    case 'odds':
+      phoneStats = {
+        mode: 'odds',
+        streak: stats.streak,
+        bands: stats.bands,
+        onPress: () => setPhoneSheet('stats'),
+      };
+      break;
+    case 'preflop':
+      phoneStats = {
+        mode: 'preflop',
+        streak: preflopStats.streak,
+        accuracy: preflopStats.accuracy,
+        hands: preflopStats.hands,
+        onPress: () => setPhoneSheet('stats'),
+      };
+      break;
+    case 'facing':
+      phoneStats = {
+        mode: 'facing',
+        streak: facingStats.streak,
+        accuracy: facingStats.accuracy,
+        hands: facingStats.hands,
+        onPress: () => setPhoneSheet('stats'),
+      };
+      break;
+  }
+
+  // Which mode's reset() the phone chrome's Reset row/button should call —
+  // one switch, used by both the menu sheet and the stats sheet, instead of a
+  // two-way check that would silently reset RFI's stats from facing mode.
+  function resetStatsFor(m: typeof mode): () => void {
+    switch (m) {
+      case 'odds':
+        return stats.reset;
+      case 'preflop':
+        return preflopStats.reset;
+      case 'facing':
+        return facingStats.reset;
+    }
+  }
+
+  // A plain `Omit<PhoneStatsSheetProps, ...>` would collapse the union to its
+  // shared keys (keyof of a union, not per-member), so it is distributed over
+  // each variant explicitly instead.
+  function phoneStatsSheetProps(
+    m: typeof mode
+  ): PhoneStatsSheetProps extends infer V
+    ? V extends PhoneStatsSheetProps
+      ? Omit<V, 'onReset' | 'onClose'>
+      : never
+    : never {
+    switch (m) {
+      case 'odds':
+        return {
+          mode: 'odds',
+          hands: stats.hands,
+          streak: stats.streak,
+          bestStreak: stats.bestStreak,
+          errors: stats.errors,
+          bands: stats.bands,
+          perCategory: stats.perCategory,
+        };
+      case 'preflop':
+        return {
           mode: 'preflop',
-          streak: preflopStats.streak,
-          accuracy: preflopStats.accuracy,
           hands: preflopStats.hands,
-        } as const);
+          correct: preflopStats.correct,
+          streak: preflopStats.streak,
+          bestStreak: preflopStats.bestStreak,
+          accuracy: preflopStats.accuracy,
+        };
+      case 'facing':
+        return {
+          mode: 'facing',
+          hands: facingStats.hands,
+          correct: facingStats.correct,
+          streak: facingStats.streak,
+          bestStreak: facingStats.bestStreak,
+          accuracy: facingStats.accuracy,
+        };
+    }
+  }
 
   return (
     <div className={styles.frame}>
       {isPhone ? (
         <PhoneTopBar
-          contextLabel={mode === 'odds' ? 'Odds' : DEPTH_META[depth].label}
+          contextLabel={contextLabelFor(mode, DEPTH_META[depth].label)}
           onOpenContext={() => setPhoneSheet('context')}
           onOpenMenu={() => setPhoneSheet('menu')}
-          stats={
-            <PhoneStatsPill {...phoneStats} onPress={() => setPhoneSheet('stats')} />
-          }
+          stats={<PhoneStatsPill {...phoneStats} />}
         />
       ) : (
       <Header
@@ -210,6 +308,16 @@ export default function App() {
               }
             : undefined
         }
+        facingStats={
+          mode === 'facing'
+            ? {
+                hands: facingStats.hands,
+                streak: facingStats.streak,
+                accuracy: facingStats.accuracy,
+                onResetStats: facingStats.reset,
+              }
+            : undefined
+        }
       />
       )}
 
@@ -225,6 +333,8 @@ export default function App() {
           keysSuspended={keysSuspended}
         />
       )}
+
+      {mode === 'facing' && <FacingTrainer stats={facingStats} />}
 
       {/* The standalone chart browser. Unlike the trainer's own range sheet
           this one IS tier-switchable — there is no hand in play for it to
@@ -255,32 +365,15 @@ export default function App() {
             setPhoneSheet(null);
             setRangesOpen(true);
           }}
-          onResetStats={mode === 'odds' ? stats.reset : preflopStats.reset}
+          onResetStats={resetStatsFor(mode)}
           onClose={() => setPhoneSheet(null)}
         />
       )}
 
       {isPhone && phoneSheet === 'stats' && (
         <PhoneStatsSheet
-          {...(mode === 'odds'
-            ? ({
-                mode: 'odds',
-                hands: stats.hands,
-                streak: stats.streak,
-                bestStreak: stats.bestStreak,
-                errors: stats.errors,
-                bands: stats.bands,
-                perCategory: stats.perCategory,
-              } as const)
-            : ({
-                mode: 'preflop',
-                hands: preflopStats.hands,
-                correct: preflopStats.correct,
-                streak: preflopStats.streak,
-                bestStreak: preflopStats.bestStreak,
-                accuracy: preflopStats.accuracy,
-              } as const))}
-          onReset={mode === 'odds' ? stats.reset : preflopStats.reset}
+          {...phoneStatsSheetProps(mode)}
+          onReset={resetStatsFor(mode)}
           onClose={() => setPhoneSheet(null)}
         />
       )}

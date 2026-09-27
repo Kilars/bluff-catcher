@@ -36,6 +36,7 @@ interface MenuItem {
 const MENU_ITEMS: MenuItem[] = [
   { mode: 'odds', label: 'Odds trainer' },
   { mode: 'preflop', label: 'Preflop RFI' },
+  { mode: 'facing', label: 'Facing open' },
 ];
 
 interface MenuProps {

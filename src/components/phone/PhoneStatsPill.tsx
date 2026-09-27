@@ -8,6 +8,7 @@
  *
  *   odds     streak, then the three-dot band tally (green / amber / red)
  *   preflop  streak, then accuracy
+ *   facing   streak, then accuracy — same shape as preflop, its own numbers
  *
  * The pill is a 44px tap target built out of padding, so the numbers stay small
  * enough for a 44px bar to hold them beside the brand and the context chip.
@@ -25,6 +26,15 @@ interface CommonProps {
   onPress: () => void;
 }
 
+/** The preflop and facing variants share this shape; only `mode` distinguishes them. */
+interface AccuracyVariant {
+  streak: number;
+  /** 0–100. Rendered as "—" until the first hand. */
+  accuracy: number;
+  /** Hands committed; only used to decide whether accuracy means anything yet. */
+  hands: number;
+}
+
 export type PhoneStatsPillProps = CommonProps &
   (
     | {
@@ -33,14 +43,8 @@ export type PhoneStatsPillProps = CommonProps &
         /** Session tally by band — the three dots. */
         bands: Bands;
       }
-    | {
-        mode: 'preflop';
-        streak: number;
-        /** 0–100. Rendered as "—" until the first hand. */
-        accuracy: number;
-        /** Hands committed; only used to decide whether accuracy means anything yet. */
-        hands: number;
-      }
+    | ({ mode: 'preflop' } & AccuracyVariant)
+    | ({ mode: 'facing' } & AccuracyVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,12 +52,12 @@ export type PhoneStatsPillProps = CommonProps &
 export default function PhoneStatsPill(props: PhoneStatsPillProps) {
   const { streak, onPress } = props;
 
-  const accuracyText =
-    props.mode === 'preflop'
-      ? props.hands === 0
-        ? '—'
-        : `${props.accuracy.toFixed(0)}%`
-      : null;
+  const isAccuracyMode = props.mode === 'preflop' || props.mode === 'facing';
+  const accuracyText = isAccuracyMode
+    ? props.hands === 0
+      ? '—'
+      : `${props.accuracy.toFixed(0)}%`
+    : null;
 
   // Spoken in full: on screen these are three coloured dots and a bare number,
   // which is exactly the sort of thing a screen reader cannot infer.

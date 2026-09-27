@@ -35,4 +35,18 @@ describe('needsBriefing', () => {
     expect(needsBriefing('deep')).toBe(false);
     expect(needsBriefing('mid')).toBe(true);
   });
+
+  it('accepts a non-depth id, for a mode with its own briefing (e.g. "facing")', () => {
+    expect(needsBriefing('facing')).toBe(true);
+    markBriefed('facing');
+    expect(needsBriefing('facing')).toBe(false);
+    // Marking the facing id does not brief any depth tier.
+    expect(needsBriefing('deep')).toBe(true);
+  });
+
+  it('a depth id and a same-named-looking mode id share the one list, exactly as any two ids would', () => {
+    markBriefed('deep');
+    markBriefed('facing');
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['deep', 'facing']);
+  });
 });

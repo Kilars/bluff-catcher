@@ -54,10 +54,24 @@ describe('mode persistence', () => {
     expect(loadMode()).toBe('preflop');
   });
 
+  it('round-trips "facing" correctly', () => {
+    saveMode('facing');
+    expect(localStorage.getItem(MODE_KEY)).toBe('facing');
+    expect(loadMode()).toBe('facing');
+  });
+
   it('overwrites a previous mode value', () => {
     saveMode('preflop');
     saveMode('odds');
     expect(loadMode()).toBe('odds');
+  });
+
+  it('overwrites preflop with facing and back', () => {
+    saveMode('preflop');
+    saveMode('facing');
+    expect(loadMode()).toBe('facing');
+    saveMode('preflop');
+    expect(loadMode()).toBe('preflop');
   });
 
   it('uses the versioned key bluff-catcher:mode:v1', () => {
