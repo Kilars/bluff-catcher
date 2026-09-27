@@ -82,8 +82,8 @@ describe('PhoneMenuSheet', () => {
 
   it('leaves out the depth group in facing mode — it has no depth picker', () => {
     setup({ mode: 'facing' });
-    // Three modes, and none of the depth radios.
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3);
+    // Three modes and the two formats, and none of the depth radios.
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(5);
     for (const depth of DEPTHS) {
       expect(
         menu().queryByRole('menuitemradio', {
@@ -91,6 +91,37 @@ describe('PhoneMenuSheet', () => {
         })
       ).not.toBeInTheDocument();
     }
+  });
+
+  it('shows the format group in the preflop drills, not in odds', () => {
+    setup({ mode: 'preflop' });
+    expect(menu().getByRole('menuitemradio', { name: /Tournament/ })).toHaveAttribute('aria-checked', 'true');
+    expect(menu().getByRole('menuitemradio', { name: /Cash/ })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('hides the format group in odds mode', () => {
+    setup({ mode: 'odds' });
+    expect(menu().queryByRole('menuitemradio', { name: /Tournament/ })).not.toBeInTheDocument();
+  });
+
+  it('hides the depth group in cash — cash has one depth', () => {
+    setup({ mode: 'preflop', format: 'cash' });
+    expect(menu().getByRole('menuitemradio', { name: /Cash/ })).toHaveAttribute('aria-checked', 'true');
+    for (const depth of DEPTHS) {
+      expect(
+        menu().queryByRole('menuitemradio', {
+          name: new RegExp(DEPTH_META[depth].label.replace('+', '\\+')),
+        })
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it('picking a format reports it and closes', () => {
+    const onFormatChange = vi.fn();
+    const props = setup({ mode: 'facing', onFormatChange });
+    fireEvent.click(menu().getByRole('menuitemradio', { name: /Cash/ }));
+    expect(onFormatChange).toHaveBeenCalledWith('cash');
+    expect(props.onClose).toHaveBeenCalled();
   });
 
   it('switching mode reports it and closes', () => {

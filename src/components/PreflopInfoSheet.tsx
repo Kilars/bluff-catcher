@@ -21,7 +21,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
+import { CHART_META, DEFAULT_DEPTH, type ChartKey } from '../lib/preflop/ranges';
 import styles from './ExplainSheet.module.css';
 import { useLayoutMode } from '../hooks/useLayoutMode';
 
@@ -39,7 +39,7 @@ interface DepthBrief {
   lesson: string;
 }
 
-const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
+const DEPTH_BRIEF: Record<ChartKey, DepthBrief> = {
   deep: {
     title: 'Open or fold, first in',
     table:
@@ -70,6 +70,15 @@ const DEPTH_BRIEF: Record<Depth, DepthBrief> = {
     lesson:
       'You win two ways: everyone folds, or you get called and win a showdown. So every pocket pair and every suited ace jams from every seat, while small suited connectors stay out until late position — they are the worst hands to be called by. Note the ranges are about as wide as the 60bb+ ones, not wider: fold equity buys the bottom of the range, and being unable to fold to a re-raise sells the top back. Different hands, similar count.',
   },
+  cash: {
+    title: 'Open or fold, first in',
+    table:
+      '6-max cash game, 100 big blinds, no ante. The first seat is the LJ — GGPoker calls it UTG.',
+    decision: 'Open-raise to 2.5bb (3bb from the SB), or fold. No limping, not even from the SB.',
+    lessonTitle: 'Why cash is tighter',
+    lesson:
+      'Same seats as the tournament charts, fewer hands: LJ opens 17% here against 24% at a 9-max table with antes. No ante means less dead money to win, and rake taxes small pots. The SB is the new seat — only the BB is behind, so it opens 43%, but it raises or folds.',
+  },
 };
 
 // ─── Sheet content ────────────────────────────────────────────────────────────
@@ -96,13 +105,16 @@ export interface InfoSheetContent {
 }
 
 /** The RFI drill's briefing for one stack tier. */
-function rfiBriefing(depth: Depth): InfoSheetContent {
-  const meta = DEPTH_META[depth];
+function rfiBriefing(depth: ChartKey): InfoSheetContent {
+  const meta = CHART_META[depth];
   const brief = DEPTH_BRIEF[depth];
   return {
     kicker: 'The situation',
     title: brief.title,
-    subline: `9-handed tournament table · ${meta.label} effective`,
+    subline:
+      depth === 'cash'
+        ? '6-max cash table · 100bb effective, no ante'
+        : `9-handed tournament table · ${meta.label} effective`,
     steps: [
       { title: 'The table', body: brief.table },
       {
@@ -124,7 +136,7 @@ function rfiBriefing(depth: Depth): InfoSheetContent {
 }
 
 interface PreflopInfoSheetProps {
-  depth?: Depth;
+  depth?: ChartKey;
   /** Replaces the tier briefing entirely (`depth` is then ignored). */
   content?: InfoSheetContent;
   onClose: () => void;

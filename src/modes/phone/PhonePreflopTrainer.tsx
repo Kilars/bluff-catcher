@@ -44,7 +44,7 @@ import PhonePreflopStage from '../../components/phone/preflop/PhonePreflopStage'
 import PhoneDecisionPanel from '../../components/phone/preflop/PhoneDecisionPanel';
 import { POSITION_LABEL } from '../../components/PreflopTable';
 import type { UsePreflopDrillReturn } from '../../hooks/usePreflopDrill';
-import type { Position } from '../../lib/preflop/ranges';
+import { formatOf, type Seat } from '../../lib/preflop/ranges';
 import styles from './PhonePreflopTrainer.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export interface PhonePreflopTrainerProps extends UsePreflopDrillReturn {
  */
 function defaultBoundaryText(
   handClass: string,
-  position: Position,
+  position: Seat,
   correct: 'open' | 'fold',
   rangeKicker: string
 ): string {
@@ -108,7 +108,7 @@ export default function PhonePreflopTrainer({
     <section className={styles.trainer} data-testid="phone-preflop-trainer">
       <div className={styles.topPad} />
 
-      <PhoneSeatLadder position={spot.position} />
+      <PhoneSeatLadder position={spot.position} format={formatOf(spot.depth)} />
 
       <div className={styles.gapAbove} />
 

@@ -78,16 +78,21 @@ export type Position = (typeof POSITIONS)[number];
  */
 export type Seat = Position | 'SB';
 
-/** Display names for every seat, so no component keeps its own copy. */
-export const SEAT_META: Record<Seat, { short: string; long: string }> = {
-  UTG: { short: 'UTG', long: 'Under the gun' },
-  UTG1: { short: 'UTG+1', long: 'UTG + 1' },
-  UTG2: { short: 'UTG+2', long: 'UTG + 2' },
-  LJ: { short: 'LJ', long: 'Lojack' },
-  HJ: { short: 'HJ', long: 'Hijack' },
-  CO: { short: 'CO', long: 'Cutoff' },
-  BTN: { short: 'BTN', long: 'Button' },
-  SB: { short: 'SB', long: 'Small blind' },
+/**
+ * Display names for every seat, so no component keeps its own copy.
+ *   short — tab strips, plaques, the seat ladder ("UTG+1")
+ *   long  — the felt's centre heading ("Under the gun")
+ *   title — range-sheet headings ("Under the Gun (UTG)")
+ */
+export const SEAT_META: Record<Seat, { short: string; long: string; title: string }> = {
+  UTG: { short: 'UTG', long: 'Under the gun', title: 'Under the Gun (UTG)' },
+  UTG1: { short: 'UTG+1', long: 'UTG + 1', title: 'UTG+1' },
+  UTG2: { short: 'UTG+2', long: 'UTG + 2', title: 'UTG+2' },
+  LJ: { short: 'LJ', long: 'Lojack', title: 'Lojack (LJ)' },
+  HJ: { short: 'HJ', long: 'Hijack', title: 'Hijack (HJ)' },
+  CO: { short: 'CO', long: 'Cutoff', title: 'Cutoff (CO)' },
+  BTN: { short: 'BTN', long: 'Button', title: 'Button (BTN)' },
+  SB: { short: 'SB', long: 'Small blind', title: 'Small Blind (SB)' },
 };
 
 // ─── Format ───────────────────────────────────────────────────────────────────
@@ -96,7 +101,11 @@ export const SEAT_META: Record<Seat, { short: string; long: string }> = {
 export const FORMATS = ['mtt', 'cash'] as const;
 export type Format = (typeof FORMATS)[number];
 
-export const FORMAT_LABEL: Record<Format, string> = { mtt: 'Tournament', cash: 'Cash' };
+/** Menu copy per format, so the choice says what it changes. */
+export const FORMAT_META: Record<Format, { label: string; note: string }> = {
+  mtt: { label: 'Tournament', note: '9-max · antes · three stack depths' },
+  cash: { label: 'Cash', note: '6-max · 100bb · no ante' },
+};
 
 // ─── Stack depth ──────────────────────────────────────────────────────────────
 
@@ -114,6 +123,9 @@ export const DEFAULT_DEPTH: Depth = 'deep';
  * meta, the briefing id and the stats key.
  */
 export type ChartKey = Depth | 'cash';
+
+/** Every chart key, in the order range browsers list them. */
+export const CHART_KEYS: readonly ChartKey[] = [...DEPTHS, 'cash'];
 
 export function chartKeyFor(format: Format, depth: Depth): ChartKey {
   return format === 'cash' ? 'cash' : depth;
@@ -194,7 +206,7 @@ export const CHART_META: Record<ChartKey, DepthMeta> = {
     id: 'cash',
     seats: CASH_SEATS,
     label: 'Cash',
-    name: 'Cash',
+    name: '6-max',
     stackLabel: '100 bb',
     action: 'open',
     actionLabel: 'Open',
@@ -205,6 +217,18 @@ export const CHART_META: Record<ChartKey, DepthMeta> = {
       '6-max, 100bb, no ante. Tighter than the tournament charts — no dead money to fight for, and rake taxes small pots.',
   },
 };
+
+/**
+ * The seat a range browser shows when it switches to a chart that lacks the
+ * seat on screen: 9-max UTG…UTG+2 fold into 6-max LJ (the first seat to act),
+ * and the SB — cash only — maps to the tournament BTN. Every other seat exists
+ * on both, so it stays put and flipping back restores the pick.
+ */
+export function seatOnChart(seat: Seat, key: ChartKey): Seat {
+  const seats = CHART_META[key].seats;
+  if (seats.includes(seat)) return seat;
+  return key === 'cash' ? seats[0] : 'BTN';
+}
 
 /** The tournament tiers' meta — the subset of `CHART_META` that `Depth` indexes. */
 export const DEPTH_META: Record<Depth, DepthMeta> = CHART_META;

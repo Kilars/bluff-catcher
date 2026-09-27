@@ -16,7 +16,7 @@
 
 import Menu from './Menu';
 import type { AppMode } from '../hooks/useAppPrefs';
-import { DEPTH_META, type Depth } from '../lib/preflop/ranges';
+import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
 import { FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
@@ -42,6 +42,9 @@ interface HeaderProps {
   /** Stack tier the preflop trainer is drilling; switched from the menu. */
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Tournament or cash, for both preflop drills; switched from the menu. */
+  format?: Format;
+  onFormatChange?: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Toggled from the menu. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -53,14 +56,16 @@ interface HeaderProps {
   onOpenRanges: () => void;
 }
 
-function brandSub(mode: AppMode, depth: Depth): string {
+function brandSub(mode: AppMode, depth: Depth, format: Format): string {
   switch (mode) {
     case 'odds':
       return 'Odds trainer';
     case 'preflop':
-      return `Preflop RFI · ${DEPTH_META[depth].label}`;
+      return format === 'cash'
+        ? 'Preflop RFI · Cash 100bb'
+        : `Preflop RFI · ${CHART_META[chartKeyFor(format, depth)].label}`;
     case 'facing':
-      return `Facing open · ${FACING_CONTEXT_LABEL}`;
+      return `Facing open · ${FACING_CONTEXT_LABEL[format]}`;
   }
 }
 
@@ -69,6 +74,8 @@ export default function Header({
   onModeChange,
   depth,
   onDepthChange,
+  format = 'mtt',
+  onFormatChange = () => {},
   showDraw,
   onShowDrawChange,
   oddsStats,
@@ -93,13 +100,15 @@ export default function Header({
           onModeChange={onModeChange}
           currentDepth={depth}
           onDepthChange={onDepthChange}
+          currentFormat={format}
+          onFormatChange={onFormatChange}
           showDraw={showDraw}
           onShowDrawChange={onShowDrawChange}
           onOpenRanges={onOpenRanges}
         />
         <div className={styles.brand}>
           <span className={styles.brandName}>RUNOUT</span>
-          <span className={styles.brandSub}>{brandSub(mode, depth)}</span>
+          <span className={styles.brandSub}>{brandSub(mode, depth, format)}</span>
         </div>
       </div>
 

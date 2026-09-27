@@ -14,7 +14,7 @@
  * Movement is clamped at both ends (no wraparound) so the seat order stays
  * legible as "earliest → latest position".
  *
- * A second strip above the seats switches stack depth (60bb+ / 20bb / 10bb),
+ * A second strip above the seats switches stack depth (60bb+ / 20bb / 10bb, and Cash, which swaps in the 6-max seats),
  * so the same seat can be compared across tiers without closing the sheet.
  * Depth is sheet-local: browsing to 10bb here does not change the tier the
  * trainer is drilling.
@@ -40,40 +40,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import RangeGrid, { type CellAction } from './RangeGrid';
 import {
+  CHART_KEYS,
+  CHART_META,
   DEFAULT_DEPTH,
-  DEPTHS,
-  DEPTH_META,
-  POSITIONS,
+  SEAT_META,
   rangeComboCount,
-  type Depth,
-  type Position,
+  seatOnChart,
+  type ChartKey,
+  type Seat,
 } from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
 import styles from './ExplainSheet.module.css';
 import nav from './RangeSheet.module.css';
-
-// ─── Position display labels ──────────────────────────────────────────────────
-
-const POSITION_LABELS: Record<Position, string> = {
-  UTG: 'Under the Gun (UTG)',
-  UTG1: 'UTG+1',
-  UTG2: 'UTG+2',
-  LJ: 'Lojack (LJ)',
-  HJ: 'Hijack (HJ)',
-  CO: 'Cutoff (CO)',
-  BTN: 'Button (BTN)',
-};
-
-/** Short labels for the tab strip — the full names do not fit on a phone. */
-const POSITION_SHORT: Record<Position, string> = {
-  UTG: 'UTG',
-  UTG1: 'UTG+1',
-  UTG2: 'UTG+2',
-  LJ: 'LJ',
-  HJ: 'HJ',
-  CO: 'CO',
-  BTN: 'BTN',
-};
 
 /** Total preflop combos (52 choose 2) — denominator for the range percentage. */
 const TOTAL_COMBOS = 1326;
@@ -88,10 +66,10 @@ const SWIPE_MIN_PX = 50;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface RangeSheetProps {
-  position: Position;
-  depth?: Depth;
+  position: Seat;
+  depth?: ChartKey;
   highlight?: HandClass;
-  heroPosition?: Position;
+  heroPosition?: Seat;
   cellAction?: (hc: HandClass) => CellAction;
   legend?: boolean;
   footnote?: string;
@@ -122,25 +100,31 @@ export default function RangeSheet({
   // the user can browse away from the seat the sheet opened on. The sheet is
   // mounted only while open, so the seed is re-read on every open; callers that
   // keep it mounted across spots should pass a `key` to force a remount.
-  const [viewPos, setViewPos] = useState<Position>(position);
+  const [pickedPos, setViewPos] = useState<Seat>(position);
 
   // Same story for the tier: seeded from the caller, then owned here so the
   // player can flip 60bb+ → 20bb → 10bb on one seat and watch the chart move.
-  const [viewDepth, setViewDepth] = useState<Depth>(depth);
-  const meta = DEPTH_META[viewDepth];
+  // Cash is a fourth tab here: it swaps in the 6-max seats, and the same seat
+  // can then be compared across formats.
+  const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
+  const meta = CHART_META[viewDepth];
+  const seats = meta.seats;
+  // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
+  const viewPos = seatOnChart(pickedPos, viewDepth);
 
-  const idx = POSITIONS.indexOf(viewPos);
+  const idx = seats.indexOf(viewPos);
   const canPrev = idx > 0;
-  const canNext = idx < POSITIONS.length - 1;
+  const canNext = idx < seats.length - 1;
 
   const step = useCallback((delta: number) => {
     if (!navigable) return;
     setViewPos((cur) => {
-      const next = POSITIONS.indexOf(cur) + delta;
-      if (next < 0 || next >= POSITIONS.length) return cur;
-      return POSITIONS[next];
+      const onChart = CHART_META[viewDepth].seats;
+      const next = onChart.indexOf(seatOnChart(cur, viewDepth)) + delta;
+      if (next < 0 || next >= onChart.length) return cur;
+      return onChart[next];
     });
-  }, [navigable]);
+  }, [navigable, viewDepth]);
 
   // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
   useEffect(() => {
@@ -256,7 +240,7 @@ export default function RangeSheet({
                 >
                   ‹
                 </button>
-                <h1 className={styles.headerTitle}>{POSITION_LABELS[viewPos]}</h1>
+                <h1 className={styles.headerTitle}>{SEAT_META[viewPos].title}</h1>
                 <button
                   type="button"
                   className={nav.arrow}
@@ -285,8 +269,8 @@ export default function RangeSheet({
 
           {/* Stack-depth strip — the same seat, three tiers */}
           {navigable && (
-          <div className={nav.depths} role="tablist" aria-label="Stack depth">
-            {DEPTHS.map((d) => (
+          <div className={nav.depths} role="tablist" aria-label="Chart">
+            {CHART_KEYS.map((d) => (
               <button
                 key={d}
                 type="button"
@@ -295,8 +279,8 @@ export default function RangeSheet({
                 className={`${nav.depthTab} ${d === viewDepth ? nav.depthTabActive : ''}`}
                 onClick={() => setViewDepth(d)}
               >
-                <span className={nav.depthLabel}>{DEPTH_META[d].label}</span>
-                <span className={nav.depthName}>{DEPTH_META[d].name}</span>
+                <span className={nav.depthLabel}>{CHART_META[d].label}</span>
+                <span className={nav.depthName}>{CHART_META[d].name}</span>
               </button>
             ))}
           </div>
@@ -305,7 +289,7 @@ export default function RangeSheet({
           {/* Position tab strip */}
           {navigable && (
           <div className={nav.tabs} role="tablist" aria-label="Position">
-            {POSITIONS.map((p) => (
+            {seats.map((p) => (
               <button
                 key={p}
                 type="button"
@@ -314,7 +298,7 @@ export default function RangeSheet({
                 className={`${nav.tab} ${p === viewPos ? nav.tabActive : ''}`}
                 onClick={() => setViewPos(p)}
               >
-                {POSITION_SHORT[p]}
+                {SEAT_META[p].short}
                 {p === heroSeat && (
                   <span className={nav.heroDot} aria-label="(your seat)" />
                 )}

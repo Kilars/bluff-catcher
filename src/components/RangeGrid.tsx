@@ -20,14 +20,14 @@
 
 import {
   DEFAULT_DEPTH,
-  DEPTH_META,
+  CHART_META,
   isOpen,
-  type Depth,
-  type Position,
+  type ChartKey,
+  type Seat,
 } from '../lib/preflop/ranges';
 import {
   CELL_ACTION_LABELS,
-  CELL_ACTION_LEGEND,
+  legendFor,
   RANK_LABELS,
   cellClass,
   type CellAction,
@@ -40,9 +40,9 @@ export type { CellAction };
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface RangeGridProps {
-  position: Position;
+  position: Seat;
   highlight?: HandClass;
-  depth?: Depth;
+  depth?: ChartKey;
   cellAction?: (hc: HandClass) => CellAction;
   legend?: boolean;
   footnote?: string;
@@ -58,7 +58,7 @@ export default function RangeGrid({
 }: RangeGridProps) {
   // "open" at 60bb+/20bb, "jam" at 10bb — the cell colour means the same
   // thing either way, only the word for it changes.
-  const actionWord = DEPTH_META[depth].action;
+  const actionWord = CHART_META[depth].action;
 
   return (
     <div className={styles.gridWrapper}>
@@ -130,7 +130,7 @@ export default function RangeGrid({
 
       {cellAction && legend && (
         <div className={styles.legend} data-testid="range-legend">
-          {CELL_ACTION_LEGEND.map((item) => (
+          {legendFor(cellAction).map((item) => (
             <span key={item.action} className={styles.legendItem}>
               <span className={`${styles.legendSwatch} ${styles[item.action]}`} />
               {item.label}

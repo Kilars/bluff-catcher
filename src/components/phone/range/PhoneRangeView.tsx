@@ -34,18 +34,18 @@
 
 import { useCallback, useRef, useState } from 'react';
 import {
+  CHART_KEYS,
+  CHART_META,
   DEFAULT_DEPTH,
-  DEPTHS,
-  DEPTH_META,
-  POSITIONS,
   isOpen,
   rangeComboCount,
-  type Depth,
-  type Position,
+  seatOnChart,
+  type ChartKey,
+  type Seat,
 } from '../../../lib/preflop/ranges';
 import {
   CELL_ACTION_LABELS,
-  CELL_ACTION_LEGEND,
+  legendFor,
   RANK_LABELS,
   cellClass,
   type CellAction,
@@ -84,19 +84,19 @@ const SWIPE_MIN_PX = 50;
 
 export interface PhoneRangeViewProps {
   /** Seat to open on. Seeds the view; the strip owns it afterwards. */
-  position: Position;
-  /** Tier to open on. Seeds the view; default is the 60bb+ chart. */
-  depth?: Depth;
+  position: Seat;
+  /** Chart to open on. Seeds the view; default is the 60bb+ chart. */
+  depth?: ChartKey;
   /** Hero's hand class, outlined on the hero's own chart only. */
   highlight?: HandClass;
   /** Hero's seat. Defaults to `position` when a `highlight` is given. */
-  heroPosition?: Position;
+  heroPosition?: Seat;
   /**
    * Whether the tier can be switched from inside this view.
    *
    * `false` (default) renders the active tier as a static chip. That is the
    * trainer's sheet: a sheet-local depth that silently does not change what the
-   * drill is testing is a phone trap. `true` renders the 3-way strip, and is
+   * drill is testing is a phone trap. `true` renders the chart strip (the three tiers plus Cash), and is
    * for the standalone chart browser opened from the menu.
    */
   depthSwitchable?: boolean;
@@ -146,13 +146,16 @@ export default function PhoneRangeView({
   fixedChart,
 }: PhoneRangeViewProps) {
   const navigable = fixedChart === undefined;
-  const [viewPos, setViewPos] = useState<Position>(position);
-  const [viewDepth, setViewDepth] = useState<Depth>(depth);
+  const [pickedPos, setViewPos] = useState<Seat>(position);
+  const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
   // Survives the lift on purpose: you scrub to a cell, take your finger off the
   // screen, and *then* read the bar the finger was covering.
   const [scrub, setScrub] = useState<Scrub | null>(null);
 
-  const meta = DEPTH_META[viewDepth];
+  const meta = CHART_META[viewDepth];
+  const seats = meta.seats;
+  // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
+  const viewPos = seatOnChart(pickedPos, viewDepth);
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
   const heroHand = !navigable || viewPos === heroSeat ? highlight : undefined;
 
@@ -229,13 +232,17 @@ export default function PhoneRangeView({
 
   const touchStart = useRef<{ x: number; y: number; onGrid: boolean } | null>(null);
 
-  const step = useCallback((delta: number) => {
-    setViewPos((cur) => {
-      const next = POSITIONS.indexOf(cur) + delta;
-      if (next < 0 || next >= POSITIONS.length) return cur;
-      return POSITIONS[next];
-    });
-  }, []);
+  const step = useCallback(
+    (delta: number) => {
+      setViewPos((cur) => {
+        const onChart = CHART_META[viewDepth].seats;
+        const next = onChart.indexOf(seatOnChart(cur, viewDepth)) + delta;
+        if (next < 0 || next >= onChart.length) return cur;
+        return onChart[next];
+      });
+    },
+    [viewDepth]
+  );
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     const t = e.touches[0];
@@ -284,8 +291,8 @@ export default function PhoneRangeView({
     >
       {/* Tier — a strip only where switching tiers means something */}
       {!navigable ? null : depthSwitchable ? (
-        <div className={styles.depths} role="tablist" aria-label="Stack depth">
-          {DEPTHS.map((d) => (
+        <div className={styles.depths} role="tablist" aria-label="Chart">
+          {CHART_KEYS.map((d) => (
             <button
               key={d}
               type="button"
@@ -295,8 +302,8 @@ export default function PhoneRangeView({
               data-active={d === viewDepth}
               onClick={() => setViewDepth(d)}
             >
-              <span className={styles.depthLabel}>{DEPTH_META[d].label}</span>
-              <span className={styles.depthName}>{DEPTH_META[d].name}</span>
+              <span className={styles.depthLabel}>{CHART_META[d].label}</span>
+              <span className={styles.depthName}>{CHART_META[d].name}</span>
             </button>
           ))}
         </div>
@@ -307,10 +314,10 @@ export default function PhoneRangeView({
         </p>
       )}
 
-      {/* Seats — 7 x 44px + 6 x 4px gaps = 332px, inside the 366px measure */}
+      {/* Seats — at most 7 x 44px + 6 x 4px gaps = 332px, inside the 366px measure */}
       {navigable && (
       <div className={styles.seats} role="tablist" aria-label="Position">
-        {POSITIONS.map((p) => (
+        {seats.map((p) => (
           <button
             key={p}
             type="button"
@@ -418,7 +425,7 @@ export default function PhoneRangeView({
 
       {cellAction && legend && (
         <div className={styles.legend} data-testid="range-legend">
-          {CELL_ACTION_LEGEND.map((item) => (
+          {legendFor(cellAction).map((item) => (
             <span key={item.action} className={styles.legendItem}>
               <span className={styles.legendSwatch} data-action={item.action} />
               {item.label}
