@@ -2,8 +2,8 @@
 
 The third drill, sitting next to the Preflop RFI drill. Someone opens, it folds to hero on the
 button, and hero chooses **Fold / Call / 3-bet**. Read `PLAN-preflop.md` first. This plan
-reuses its conventions and most of its code: `lib/` stays pure and tested, RNG is injectable,
-and `tsc --noEmit` plus the tests stay green at every phase.
+reuses its conventions: `lib/` stays pure and tested, RNG is injectable, and `tsc --noEmit`
+plus the tests stay green at every phase.
 
 Branch: `feat/facing-open-trainer`.
 
@@ -19,20 +19,22 @@ Branch: `feat/facing-open-trainer`.
 - **Two charts to learn, not six.** Openers fall into two buckets. Hero learns one chart per
   bucket and is graded against that bucket's chart:
 
-  | Bucket     | Openers                  | Chart it uses          |
-  |------------|--------------------------|------------------------|
-  | **vs Early** | UTG, UTG+1             | PokerCoaching BTN vs UTG+1 |
-  | **vs Late**  | UTG+2, LJ, HJ, CO      | PokerCoaching BTN vs HJ    |
+  | Bucket       | Openers              | Chart it uses              |
+  |--------------|----------------------|----------------------------|
+  | **vs Early** | UTG, UTG+1           | PokerCoaching BTN vs UTG+1 |
+  | **vs Late**  | UTG+2, LJ, HJ, CO    | PokerCoaching BTN vs LJ    |
 
 - **Pure charts, no mixing.** Every hand has exactly one right answer. The source charts are
   already pure, so we don't round anything ourselves (see "Source" below).
-- **One depth for now: 50bb+.** No 20bb tier yet. The deep RFI chart is labelled 60bb+ and
-  this one is labelled 50bb+, because that's the depth the source says it applies from.
+- **One depth for now, labelled 50bb+.** No 20bb tier yet. See "Depth caveat": the chart is
+  solved at 100bb, and the bottom of that span is where it's least accurate.
 - **Solver baseline**, no "vs fish" variant. The merged-vs-weak adjustments stay in
   `strategy-notes.md` §7 for now.
-- **Answer loop:** same as RFI. Commit, get a verdict, wait for input. Keys: **F = Fold,
-  J = Call, K = 3-bet**, the three home-row fingers in order of aggression. Buttons are
-  clickable too.
+- **Answer loop:** same as RFI. Commit, get a verdict, wait for input.
+  - Keys: **F = Fold, J = Call, K = 3-bet**, the three home-row fingers in order of
+    aggression. Buttons are clickable too.
+  - Heads-up: J means "open" in the RFI drill and "call" here. The modes never share a screen,
+    so nothing conflicts, but the briefing should say it once.
 - **The verdict names the kind of 3-bet:** "Correct — 3-bet (bluff)" /
   "Wrong — this is a 3-bet for value". Both kinds grade as the same action. The label is
   there because *why* a hand 3-bets is the lesson, and it's free, since the source colours
@@ -58,37 +60,50 @@ fold / call / 3-bet answer differs (out of 1326).
 - **Three natural clusters:** {UTG, UTG+1}, then {UTG+2, LJ, HJ}, then CO on its own.
   - The first cut is after UTG+1, not after LJ. That's where UTG+2 opens up enough to
     bring in value AQs and the suited-ace bluffs A8s–A6s.
-- **Average error per opener**, i.e. combos graded differently from that seat's real chart:
+  - That cut is optimal: none of the other 4 contiguous 2-way splits comes out better.
+- **Average error per opener**, i.e. combos graded differently from that seat's real chart.
+  Two weightings:
+  - *Uniform*: each opener counts the same.
+  - *Real*: how often each seat is the one that opens into the BTN. An earlier seat gets
+    first shot, so UTG opens most often (~20%) and CO least often (~13.5%). The estimate
+    uses each seat's RFI width from `ranges.ts` (deep), times the chance that every earlier
+    seat folded.
 
-  | Setup | Charts | Avg combos off | ≈ % of dealt hands |
-  |---|---|---|---|
-  | 6 exact charts | 6 | 0 | 0% |
-  | **2 buckets (UTG1 chart / HJ chart)** | **2** | **29** | **~2.2%** |
-  | 3 buckets (UTG1 / LJ / CO) | 3 | 10 | ~0.8% |
-  | 1 chart (LJ) | 1 | 55 | ~4.1% |
+  | Setup | Charts | Uniform | Real | ≈ % of dealt hands |
+  |---|---|---|---|---|
+  | 6 exact charts | 6 | 0 | 0 | 0% |
+  | **2 buckets (UTG+1 chart / LJ chart)** | **2** | **29** | **26** | **~2%** |
+  | 2 buckets (UTG+1 chart / HJ chart) | 2 | 29 | 27 | ~2% |
+  | 3 buckets (UTG+1 / LJ / CO) | 3 | 10 | 10 | ~0.8% |
+  | 1 chart (LJ) | 1 | 55 | — | ~4% |
 
-- **Why HJ represents Late:** LJ and HJ tie on raw error (160 combos across the bucket). HJ
-  sits closer to CO (88 vs 116 combos apart), and CO opens are the ones BTN faces most, so
-  HJ wins.
-- **Where the 2-bucket error lands:** mostly CO opens (88 combos), and it's all in the
-  **bluffs**:
-  - It folds 8 hands that bluff-3-bet vs CO: K8s, Q8s, J8s, 64s, 43s, QJo, KTo, A9o.
-  - It 3-bets 4 hands that flat vs CO: A5s, A4s, KJo, ATo.
-  - It never folds a value hand or a call. The value and calling ranges are right against
-    every opener in the bucket. Missing a few bluffs is the cheap way to be wrong.
-- **Upgrade path:** to go to 3 buckets later, split CO out into its own chart. It's a
-  data-only change (see P0: buckets are a table, not code).
+- **Why LJ represents Late:** LJ and HJ tie on uniform error, and LJ wins once seats are
+  weighted by how often they actually open. It's also the middle of its bucket.
+- **Where the 2-bucket error lands.** It isn't only bluffs. Against the later openers the
+  Late chart plays **tight**; against UTG+2 it is slightly loose on bluffs:
+
+  | Real opener | Combos off | What differs |
+  |---|---:|---|
+  | UTG | 16 | A3s, A2s bluff (real: fold); J9s call (real: fold); 76s call (real: bluff) |
+  | UTG+2 | 16 | A8s–A6s bluff (real: fold); A9s call (real: bluff) |
+  | HJ | 28 | Folds K9s, Q9s, T8s, 97s (real: call) and 86s, 75s (real: bluff); flats AJs (real: value 3-bet) |
+  | CO | 116 | As vs HJ, plus folds K8s, Q8s, J8s, 64s, 43s, QJo, KTo, A9o (real: bluff), and 3-bets A5s, A4s, KJo, ATo (real: call) |
+
+  - The biggest single error is vs CO. It's mostly missing marginal suited calls and bluffs,
+    which is the cheap direction. The 4 hands it 3-bets that CO flats cost more.
+  - **Upgrade path:** giving CO its own chart cuts the error from 26 to 10 combos. It's a
+    data-only change (see F0: buckets are a table, not code).
 
 ### What the two shapes teach
 
-| | vs Early (UTG+1 chart) | vs Late (HJ chart) |
+| | vs Early (UTG+1 chart) | vs Late (LJ chart) |
 |---|---|---|
-| Continue | 15.2% | 20.7% |
-| 3-bet value | QQ+, AK | QQ+, AK, **AQ**, AJs |
-| 3-bet bluff | A5s–A2s, AQo, AJo, KQo | A8s–A2s, 86s, 75s, 65s, 54s, ATo, KJo |
-| Call | 22–JJ, AQs–ATs, KQs–KTs, QJs, QTs, JTs, J9s, T9s, 98s, 87s, 76s | 22–JJ, ATs, A9s, KQs–K9s, QJs–Q9s, JTs, J9s, T9s, T8s, 98s, 97s, 87s, 76s, AJo, KQo |
+| Continue | 15.2% | 18.9% |
+| 3-bet value | QQ+, AK | QQ+, AK, **AQ** |
+| 3-bet bluff | A5s–A2s, AQo, AJo, KQo | A8s–A2s, 65s, 54s, ATo, KJo |
+| Call | 22–JJ, AQs–ATs, KQs–KTs, QJs, QTs, JTs, J9s, T9s, 98s, 87s, 76s | 22–JJ, AJs–A9s, KQs–KTs, QJs, QTs, JTs, J9s, T9s, 98s, 87s, 76s, AJo, KQo |
 
-- **JJ and TT are always calls.** At 100bb the solver flats them from BTN against every opener.
+- **JJ and TT are calls against every opener**, in all 6 source charts, at 100bb.
 - **Offsuit broadways flip from 3-bet to call** between buckets. vs Early, AQo/AJo/KQo 3-bet
   as bluffs: they block the top of a tight range and play badly as a flat. vs Late, AQo
   becomes value and AJo/KQo are good enough to flat.
@@ -97,19 +112,43 @@ fold / call / 3-bet answer differs (out of 1326).
 
 ---
 
+## Depth caveat
+
+- The pack is solved at **100bb with antes** and says it applies to **~50bb and deeper**.
+  We label it 50bb+.
+- It's accurate at the top of that span and loose at the bottom. Your own notes
+  (`strategy-notes.md` §7, "What changes 100bb → 50bb") say that as stacks drop towards
+  50bb:
+  - JJ/TT move towards 3-bet.
+  - A5s–A2s move towards 3-bet.
+  - 54s/43s-type flats drop out.
+  The chart shows none of that. The briefing and the range sheet say so in one line.
+- This is the opposite extrapolation to the RFI trainer. Its 60bb+ chart is solved at 40bb
+  and stretched *upwards*, where RFI barely changes. Here we stretch *downwards*, where
+  3-bet/flat decisions do move.
+- It's also a different pack from the RFI charts: 100bb with a 2.5bb open, vs the 40bb pack
+  with ~2.2–2.5bb opens. The villain ranges this chart assumes are therefore not exactly the
+  ranges the RFI drill teaches for the same seat. It's close enough for a trainer. Don't
+  cross-check the two drills combo for combo.
+- If the 20bb tier ever ships, it replaces the bottom of this span rather than sitting under
+  it.
+
+---
+
 ## Source
 
 **PokerCoaching free preflop chart pack**, `full-preflop-charts.pdf`, page 6,
 "Facing RFI: Button". It's the same vendor as the RFI charts.
 
-- 100bb with antes. The pack says it applies to **~50bb and deeper**. Sizes: 2.5bb open,
-  3× 3-bet in position.
+- 100bb with antes, applies ~50bb+. Sizes: 2.5bb open, 3× 3-bet in position.
 - Already **pure**: every cell is one colour, and value and bluff 3-bets are coloured apart.
   The pack does the rounding, which is what the owner asked for (no hand-rolled
   simplification).
-- All 6 BTN charts were extracted into `research/pokercoaching-btn-vs-rfi.json` by sampling
-  cell colours. **Every chart's value / bluff / call / fold combo totals match the counts
-  printed under it**, e.g. BTN vs UTG = 34 / 48 / 108 / 1136.
+- All 6 BTN charts are extracted into `research/pokercoaching-btn-vs-rfi.json` by sampling
+  cell colours.
+  - **Every chart's value / bluff / call / fold combo totals match the counts printed under
+    it**, e.g. BTN vs UTG = 34 / 48 / 108 / 1136.
+  - A second, independent extraction found zero differences in all 6 × 169 cells.
 - Other options looked at:
   - **PTO / Simple Ranges.** Converts solver mixes to pure strategies while keeping the
     overall frequencies. It's the fallback if we ever need a spot the pack doesn't cover
@@ -126,64 +165,122 @@ fold / call / 3-bet answer differs (out of 1326).
 
 - `FACING_ACTIONS = ['fold', 'call', '3bet']`, plus a `ThreeBetKind = 'value' | 'bluff'`
   carried on 3-bet cells for the verdict text.
-- `OPENERS = ['UTG','UTG1','UTG2','LJ','HJ','CO']` reuses `Position` from `ranges.ts`.
+- `OPENERS = ['UTG','UTG1','UTG2','LJ','HJ','CO']` as a subset of `Position` from
+  `ranges.ts`.
 - `BUCKET_OF: Record<Opener, 'early' | 'late'>`. A table, so a 3rd bucket is a data change.
 - Two explicit charts (`EARLY`, `LATE`) as hand-class sets per action, transcribed from the
-  JSON (UTG+1 and HJ). `facingAction(opener, handClass)` returns the action and, for a
-  3-bet, its kind.
-- Keep all 6 source charts in the test fixture (from the JSON), not in the app, so tests can
+  JSON (UTG+1 and LJ). `facingAction(opener, handClass)` returns the action and, for a 3-bet,
+  its kind.
+- Keep all 6 source charts in a test fixture (from the JSON), not in the app, so tests can
   report the bucket error.
 
-**Acceptance:** `facing.test.ts` pins each bucket's value / bluff / call combo counts
-(34/52/116 and 54/68/152). Spot-checks: vs Early AQo = 3-bet, JJ = call, A9s = fold; vs Late
-AQo = 3-bet value, A8s = 3-bet bluff, KQo = call. The bucket-error test asserts the table
-above (avg 29.3 combos), so a chart edit that drifts gets caught.
+**Acceptance:** `facing.test.ts`:
+- Pins each bucket's value / bluff / call combo counts: 34 / 52 / 116 and 50 / 60 / 140.
+- Spot-checks:
+  - vs Early: AQo = 3-bet bluff, JJ = call, A9s = fold.
+  - vs Late: AQo = 3-bet value, A8s = 3-bet bluff, KQo = call, AJs = call.
+- Bucket-error test: asserts the uniform average (29.3 combos) and the per-opener rows of
+  the error table above, so a chart edit that drifts gets caught.
 
 ### Phase F1 — Dealer  *(Opus)*
 
-- `dealFacingSpot({ rng, pool })` picks an opener, then samples a hand through the existing
-  `Pool` interface.
-  - **Opener weights:** uniform over the 6 to start. Seats in a bucket share a chart, so no
-    need to model real open frequencies yet.
-  - **Pool:** reuse `edgeSkewPool`'s idea. Upweight hands on a **border between two actions**
-    (fold↔call, call↔3-bet) and downweight trash well outside the continuing range. Here the
-    border is "next to a cell with a different action" in the 13×13 grid, which is simpler
-    and more honest than a strength rank, because the call/3-bet boundary isn't linear
-    (AJo 3-bets, AJs calls).
-- Returns `{ opener, bucket, cards, handClass, correct: FacingAction, kind? }`.
+- `dealFacingSpot({ rng, pool })` → `{ opener, bucket, cards, handClass, correct, kind? }`.
+- **Opener pick:** first a bucket at **50/50**, then an opener uniformly within it. Both
+  charts get equal practice. A uniform pick over 6 seats would give Late 4/6 of the deals.
+- **Hand pool:** a new `FacingPool` with its own signature. The RFI `Pool` takes
+  `(pos, hc, depth)`, and `edgeSkewPool`'s boundary comes from `getRangeSet`, so neither fits
+  as-is.
+  - **Neighbours of a class** (defined exactly, so the weights are testable):
+    - the 4 orthogonal cells in the 13×13 grid, **plus**
+    - its **suitedness twin**: same two ranks, other half of the grid (AJs ↔ AJo). Pairs
+      have no twin.
 
-**Acceptance:** seeded tests. `correct` always matches `facingAction`. Border hands show up
-about 4× as often as a mid hand, trash about 0.25×, and every class appears at least once.
+    The twin rule matters: AJs and AJo sit in mirrored cells and never touch in the grid,
+    yet "AJo 3-bets, AJs calls" is exactly the kind of boundary the drill is for.
+  - **Border** = at least one neighbour has a different action in that bucket's chart.
+    Weight **4×**.
+  - **Trash** = folds in *all 6* source charts, and no neighbour continues in any of them.
+    Weight **0.25×**.
+  - **Mid** = everything else. Weight **1×**.
+  - No weight is ever 0, so every class stays reachable.
 
-### Phase F2 — Mode + table  *(Haiku, Opus-reviewed)*
+**Acceptance:** seeded tests:
+- `correct` always matches `facingAction`.
+- Over N deals, per-class frequency divided by its combo count lands within ±15% of
+  4× / 1× / 0.25× relative to mid.
+- Every one of the 169 classes appears at least once.
+- The early/late split is 50% ± 2%.
 
-- New mode `'facing'` in the menu ("Facing open"). Same persisted-mode key, so no migration.
-- `modes/FacingTrainer.tsx` + `hooks/useFacingDrill.ts`, modelled on `usePreflopDrill`.
-- Table: reuse `PreflopTable` / `PhoneSeatLadder`, with the opener's seat showing a **2.5bb
-  raise**, the seats between them and hero folded, blinds posted, and hero on BTN.
+### Phase F2 — Mode + table  *(Opus: shell, Haiku: table)*
+
+Adding a third mode is real work, because the app treats mode as two-way today.
+
+- **Mode type and saved setting:**
+  - `AppMode` becomes `'odds' | 'preflop' | 'facing'`.
+  - `loadMode()` in `useAppPrefs.ts` accepts `'facing'`. Today it only accepts `odds` and
+    `preflop`, so a saved `facing` would reset to `odds`.
+  - No key change or migration: old values stay valid.
+- **Replace every two-way mode check** with a switch or a per-mode lookup. They're in
+  `App.tsx` (the stats, label and reset lines around 163–283), `Header.tsx`,
+  `PhoneStatsPill.tsx` and `PhoneStatsSheet.tsx`. As written, each of them would treat
+  `facing` as `preflop`. Add a test that renders each mode's header and stats pill.
+- Menu entries in `Menu.tsx` and `PhoneMenuSheet.tsx`: "Facing open".
+- `modes/FacingTrainer.tsx` + `hooks/useFacingDrill.ts`, modelled on `usePreflopDrill`, with
+  three actions.
+- **Table: new raise state.** `PreflopTable`'s `buildSeats()` and the phone ladder's
+  `SlotState` only know folded / to act / blinds.
+  - Add an `opener` seat state with a **2.5bb raise chip**, reusing the blind-chip styling.
+  - Seats between the opener and hero render folded, and hero sits on BTN.
   - The bucket is on the plaque ("vs Early", "vs Late") so hero can link seat to chart.
-- Three buttons + F / J / K. Phone: three buttons in the thumb zone.
+- Three buttons + F / J / K. Phone: a three-button `PhoneDecisionPanel` variant in the
+  thumb zone.
 
-**Acceptance:** legal spot every deal. All three keys and buttons commit. The RFI and odds
-modes are unchanged.
+**Acceptance:**
+- Legal spot on every deal, with the opener's raise chip visible on desktop and phone.
+- All three keys and buttons commit.
+- Reload restores `facing` mode.
+- Header and stats show the facing stats in facing mode, and odds/RFI are unchanged in
+  theirs. The existing mode tests still pass.
 
 ### Phase F3 — Verdict, stats, range view  *(Haiku)*
 
 - Verdict with the 3-bet kind: "Correct — call" / "Wrong — this is a 3-bet (bluff)".
-- Own stats key `bluff-catcher:facing:v1`: hands, streak, accuracy. Same shape as
-  `usePreflopStats`, so reuse the hook with a key parameter rather than forking it.
-- `RangeGrid` gains a **4-colour mode**: value / bluff / call / fold, matching the source's
-  red / blue / green / white, with hero's cell marked. The sheet shows the **bucket's** chart,
-  titled "BTN vs Early (UTG, UTG+1)".
+- **Stats:** `usePreflopStats` hard-codes its storage key (`usePreflopStats.ts:19`).
+  - Make the key a parameter that defaults to the current value, so RFI stats are untouched.
+  - Facing uses `bluff-catcher:facing:v1`: hands, streak, accuracy.
+- **`RangeGrid` 4-colour mode.** Today it computes one boolean (`isOpen`) and has open/fold
+  classes only.
+  - Add a `cellAction(hc)` prop, value / bluff / call / fold CSS classes from tokens
+    (matching the source's red / blue / green / white), and a legend.
+  - The RFI usage keeps the 2-colour path.
+- **Range sheet** shows the **bucket's** chart, titled e.g. "BTN vs Late (UTG+2, LJ, HJ,
+  CO)", with hero's cell marked. It also has a one-line footnote on the error:
+  - vs Late: "vs HJ/CO the exact chart is a bit wider: more suited calls and bluffs."
+  - vs Early: "UTG is a touch tighter than this."
 
-**Acceptance:** the grid colouring matches `facingAction` for all 169 cells. Stats persist
-and reset. Phone and desktop both work.
+  This way a player 3-betting K8s vs a real CO open knows why they were graded wrong.
 
-### Phase F4 — Polish + verify  *(Opus)*
+**Acceptance:**
+- Grid colouring matches `facingAction` for all 169 cells in both buckets.
+- The RFI grid renders exactly as before.
+- Facing stats persist and reset without touching RFI stats.
+- Phone and desktop both work.
 
-- A first-visit briefing (reuse `briefed.ts`): the two buckets, which seats go where, and the
-  three rules from "What the two shapes teach".
-- `/verify` the whole loop at desktop and 390×844.
+### Phase F4 — Briefing, polish, verify  *(Opus)*
+
+- **Briefing:** `briefed.ts` is keyed by `Depth`. Reusing `'deep'` would mean a player
+  already briefed on RFI never sees this one.
+  - Widen the key to a string id, e.g. `'facing'`, keeping the existing depth ids valid.
+  - Content: the two buckets and which seats go where, the three rules from "What the two
+    shapes teach", the depth caveat, and J = call.
+- `/polish` pass, then `/verify` the whole loop at desktop and 390×844.
+
+**Acceptance:**
+- First visit to facing mode opens the briefing once, and RFI briefings are unaffected.
+- The loop (deal → commit → verdict → range sheet → next) is usable one-thumbed at 390×844
+  with no clipping.
+- Odds and RFI modes are unchanged.
+- `tsc`, lint and tests are green.
 
 ---
 
