@@ -18,6 +18,7 @@
 
 import type { Enriched } from './enrich.ts';
 import type { Label } from './labels.ts';
+import type { Removal } from '../read.ts';
 import type { Family } from './priority.ts';
 
 /**
@@ -46,7 +47,7 @@ export interface HandFacts {
   board: string[];
   handClass: string;
   boardType: string | null;
-  removals: string[];
+  removals: Removal[];
   /** Players who saw the flop — heads-up vs multiway changes every threshold. */
   playersToFlop: number;
   /** Compact blind action line up to Hero's street — see lines.ts. */

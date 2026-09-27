@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { LABELS } from './labels.ts';
-import type { InstanceVerdict } from './judge.ts';
+import type { InstanceVerdict, Severity } from './judge.ts';
 import {
   BASE_PRIORITY,
   FAMILIES,
@@ -80,8 +80,8 @@ describe('rankGroups', () => {
   });
 });
 
-function v(label: string, verdict: InstanceVerdict['verdict'], severity: number): InstanceVerdict {
-  return { label, id: 'h', verdict, severity, note: '' } as InstanceVerdict;
+function v(label: string, verdict: InstanceVerdict['verdict'], severity: Severity): InstanceVerdict {
+  return { label, ref: 'h', verdict, severity, note: '' } as InstanceVerdict;
 }
 
 describe('spotWrongness', () => {
