@@ -15,8 +15,11 @@ import {
   neighbours,
   type FacingTier,
 } from './facingDeal';
-import { BUCKETS, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket } from './facing';
+import { bucketsFor, bucketFor, facingActionIn, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket } from './facing';
 import { ALL_169, combosForClass, handClass as computeHandClass } from './hands';
+
+/** These suites cover the tournament charts; cash has its own below. */
+const MTT_BUCKETS = bucketsFor('mtt');
 
 // Simple deterministic LCG seeded RNG (same as deal.test.ts)
 function makeRng(seed: number): () => number {
@@ -66,7 +69,7 @@ describe('facingTier()', () => {
   });
 
   it('never gives a class weight 0', () => {
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       for (const hc of ALL_169) expect(borderSkewFacingPool.weight(b, hc)).toBeGreaterThan(0);
     }
     expect(ACTIVE_FACING_POOL).toBe(borderSkewFacingPool);
@@ -95,8 +98,8 @@ describe('dealFacingSpot() — distribution', () => {
   // One 40k sample, read four ways.
   const rng = makeRng(2024);
   const N = 40000;
-  const counts: Record<Bucket, Record<string, number>> = { early: {}, late: {} };
-  for (const b of BUCKETS) for (const hc of ALL_169) counts[b][hc] = 0;
+  const counts = { early: {}, late: {} } as Record<Bucket, Record<string, number>>;
+  for (const b of MTT_BUCKETS) for (const hc of ALL_169) counts[b][hc] = 0;
   const openerCounts: Record<string, number> = {};
   for (const o of OPENERS) openerCounts[o] = 0;
 
@@ -111,9 +114,9 @@ describe('dealFacingSpot() — distribution', () => {
     const earlyDeals = early.reduce((sum, o) => sum + openerCounts[o], 0);
     expect(Math.abs(earlyDeals / N - 0.5)).toBeLessThan(0.02);
 
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       const seats = OPENERS.filter((o) => BUCKET_OF[o] === b);
-      const expected = N / BUCKETS.length / seats.length;
+      const expected = N / MTT_BUCKETS.length / seats.length;
       for (const o of seats) {
         expect(Math.abs(openerCounts[o] - expected) / expected, o).toBeLessThan(0.1);
       }
@@ -127,7 +130,7 @@ describe('dealFacingSpot() — distribution', () => {
   });
 
   it('weights border 4× and trash 0.25× against mid, per combo, within ±15%', () => {
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       // Per-combo rate of a whole tier, so a pair's 6 combos are not read as
       // six times the luck.
       const dealt: Record<FacingTier, number> = { border: 0, mid: 0, trash: 0 };
@@ -146,5 +149,45 @@ describe('dealFacingSpot() — distribution', () => {
         expect(Math.abs(ratio / target - 1), `${b} ${t}: ${ratio}`).toBeLessThan(0.15);
       }
     }
+  });
+});
+
+describe('dealFacingSpot() — cash format', () => {
+  const rng = makeRng(77);
+  const N = 20000;
+  const openerCounts: Record<string, number> = {};
+  const bucketCounts: Record<string, number> = {};
+  const seen = new Set<string>();
+  const spots = Array.from({ length: N }, () => dealFacingSpot({ rng, format: 'cash' }));
+  for (const s of spots) {
+    openerCounts[s.opener] = (openerCounts[s.opener] ?? 0) + 1;
+    bucketCounts[s.bucket] = (bucketCounts[s.bucket] ?? 0) + 1;
+    seen.add(s.handClass);
+  }
+
+  it('only deals cash openers and cash buckets, graded without a kind', () => {
+    expect(Object.keys(openerCounts).sort()).toEqual(['CO', 'HJ', 'LJ']);
+    expect(Object.keys(bucketCounts).sort()).toEqual(['cashCo', 'cashEarly']);
+    for (const s of spots.slice(0, 2000)) {
+      expect(s.bucket).toBe(bucketFor('cash', s.opener));
+      expect(s.correct).toBe(facingActionIn('cash', s.opener, s.handClass).action);
+      expect(s.kind).toBeUndefined();
+    }
+  });
+
+  it('splits the two cash charts 50% ± 2%, LJ and HJ evenly inside vs LJ/HJ', () => {
+    expect(Math.abs(bucketCounts.cashEarly / N - 0.5)).toBeLessThan(0.02);
+    expect(Math.abs(openerCounts.LJ - openerCounts.HJ) / (N / 4)).toBeLessThan(0.1);
+  });
+
+  it('keeps every class reachable', () => {
+    expect(seen.size).toBe(169);
+  });
+
+  it('measures "trash" against the cash charts only', () => {
+    // 72o folds in every chart of both formats and has no continuing neighbour.
+    expect(facingTier('cashEarly', '72o')).toBe('trash');
+    // A7s folds vs LJ/HJ but 3-bets vs CO, so it is never trash in cash.
+    expect(facingTier('cashEarly', 'A7s')).not.toBe('trash');
   });
 });

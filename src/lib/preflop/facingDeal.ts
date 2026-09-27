@@ -18,13 +18,16 @@ import {
   type FacingAction,
   type Opener,
   type ThreeBetKind,
+  type FacingChart,
   BUCKETS,
   BUCKET_META,
   OPENERS,
   bucketChartAction,
+  bucketsFor,
   chartAction,
-  facingAction,
 } from './facing.ts';
+import type { Format } from './ranges.ts';
+import { CASH_VS_CO, CASH_VS_EARLY } from './cashRanges.ts';
 import { FACING_SOURCES } from './facingSources.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -32,7 +35,7 @@ import { FACING_SOURCES } from './facingSources.ts';
 export interface FacingSpot {
   /** The seat that opened. The felt shows the real seat. */
   opener: Opener;
-  /** The chart hero is graded against: `BUCKET_OF[opener]`. */
+  /** The chart hero is graded against: `bucketFor(format, opener)`. */
   bucket: Bucket;
   cards: [Card, Card];
   handClass: HandClass;
@@ -56,6 +59,8 @@ export interface DealFacingOpts {
   rng?: () => number;
   /** Override pool strategy. Default: ACTIVE_FACING_POOL. */
   pool?: FacingPool;
+  /** Tournament (default) or cash. Picks the buckets, openers and charts. */
+  format?: Format;
 }
 
 // ─── Grid neighbours ──────────────────────────────────────────────────────────
@@ -110,16 +115,19 @@ export const TIER_WEIGHT: Record<FacingTier, number> = {
   trash: 0.25,
 };
 
-const SOURCE_CHARTS = OPENERS.map((o) => FACING_SOURCES[o]);
-
-function foldsEverywhere(hc: HandClass): boolean {
-  return SOURCE_CHARTS.every((chart) => chartAction(chart, hc).action === 'fold');
-}
+/** The source charts "trash" is measured against: the format's own charts only. */
+const SOURCE_CHARTS: Record<Format, readonly FacingChart[]> = {
+  mtt: OPENERS.map((o) => FACING_SOURCES[o]),
+  cash: [CASH_VS_EARLY, CASH_VS_CO],
+};
 
 function computeTier(bucket: Bucket, hc: HandClass): FacingTier {
   const own = bucketChartAction(bucket, hc).action;
   const near = neighbours(hc);
   if (near.some((n) => bucketChartAction(bucket, n).action !== own)) return 'border';
+  const sources = SOURCE_CHARTS[BUCKET_META[bucket].format];
+  const foldsEverywhere = (c: HandClass) =>
+    sources.every((chart) => chartAction(chart, c).action === 'fold');
   if (foldsEverywhere(hc) && near.every(foldsEverywhere)) return 'trash';
   return 'mid';
 }
@@ -129,10 +137,10 @@ function tiersFor(bucket: Bucket): ReadonlyMap<HandClass, FacingTier> {
   return new Map(ALL_169.map((hc) => [hc, computeTier(bucket, hc)]));
 }
 
-const TIER_CACHE: Record<Bucket, ReadonlyMap<HandClass, FacingTier>> = {
-  early: tiersFor('early'),
-  late: tiersFor('late'),
-};
+const TIER_CACHE = Object.fromEntries(BUCKETS.map((b) => [b, tiersFor(b)])) as Record<
+  Bucket,
+  ReadonlyMap<HandClass, FacingTier>
+>;
 
 /** The weighting tier of a class in a bucket (see `FacingTier`). */
 export function facingTier(bucket: Bucket, hc: HandClass): FacingTier {
@@ -177,7 +185,7 @@ function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): H
  *    equal practice; a uniform pick over six seats would give Late 4/6.
  * 2. Sample a hand class via the pool (default: borderSkewFacingPool).
  * 3. Deal one of that class's concrete combos uniformly.
- * 4. Grade it with facingAction(opener, handClass).
+ * 4. Grade it against the bucket's chart (`bucketChartAction`).
  *
  * @param opts.rng - Injectable RNG for deterministic tests
  * @param opts.pool - Override pool strategy (default: ACTIVE_FACING_POOL)
@@ -185,9 +193,10 @@ function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): H
 export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const rng = opts?.rng ?? Math.random;
   const pool = opts?.pool ?? ACTIVE_FACING_POOL;
+  const buckets = bucketsFor(opts?.format ?? 'mtt');
 
   // 1. Bucket, then opener within it
-  const bucket = BUCKETS[Math.floor(rng() * BUCKETS.length)];
+  const bucket = buckets[Math.floor(rng() * buckets.length)];
   const seats = BUCKET_META[bucket].openers;
   const opener = seats[Math.floor(rng() * seats.length)];
 
@@ -200,7 +209,7 @@ export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const verifiedClass = handClass(cards[0], cards[1]);
 
   // 4. Grade
-  const { action, kind } = facingAction(opener, verifiedClass);
+  const { action, kind } = bucketChartAction(bucket, verifiedClass);
 
   return {
     opener,

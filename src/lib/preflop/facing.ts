@@ -35,7 +35,8 @@
  */
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
-import type { Position } from './ranges.ts';
+import type { Format, Position } from './ranges.ts';
+import { CASH_VS_CO, CASH_VS_EARLY, type CashOpener } from './cashRanges.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,12 @@ export interface FacingAnswer {
 export const OPENERS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO'] as const satisfies readonly Position[];
 export type Opener = (typeof OPENERS)[number];
 
-export const BUCKETS = ['early', 'late'] as const;
+/**
+ * Every chart the drill grades against, across both formats. The tournament
+ * buckets come first so `bucketsFor('mtt')` is exactly the pair the dealer has
+ * always picked from (golden.test.ts pins the deals).
+ */
+export const BUCKETS = ['early', 'late', 'cashEarly', 'cashCo'] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
 /**
@@ -79,8 +85,40 @@ export const BUCKET_OF: Record<Opener, Bucket> = {
   CO: 'late',
 };
 
+/**
+ * Cash (6-max): only LJ, HJ and CO can open into the button. The source uses
+ * one chart for vs LJ and vs HJ, so bucketing adds no error on top of it.
+ */
+export const CASH_BUCKET_OF: Record<CashOpener, Bucket> = {
+  LJ: 'cashEarly',
+  HJ: 'cashEarly',
+  CO: 'cashCo',
+};
+
+/** The bucket an opener is graded against in a format. */
+export function bucketFor(format: Format, opener: Opener): Bucket {
+  if (format === 'mtt') return BUCKET_OF[opener];
+  const bucket = (CASH_BUCKET_OF as Partial<Record<Opener, Bucket>>)[opener];
+  if (!bucket) throw new Error(`${opener} cannot open into the button in 6-max`);
+  return bucket;
+}
+
+/** A format's buckets, in the order the dealer picks from. */
+export function bucketsFor(format: Format): readonly Bucket[] {
+  return BUCKETS.filter((b) => BUCKET_META[b].format === format);
+}
+
 export interface BucketMeta {
   id: Bucket;
+  format: Format;
+  /**
+   * Whether this chart splits 3-bets into value and bluff. The cash source
+   * does not, so cash charts put every 3-bet in `value` and the verdict, grid
+   * and legend drop the kind.
+   */
+  kinds: boolean;
+  /** Stack figure for the plaques and labels, e.g. "50bb+". */
+  stackLabel: string;
   /** Plaque / tab label, e.g. "vs Early". */
   label: string;
   /** The openers graded against this bucket's chart, in seat order. */
@@ -94,12 +132,17 @@ export interface BucketMeta {
 }
 
 function openersIn(bucket: Bucket): readonly Opener[] {
-  return OPENERS.filter((o) => BUCKET_OF[o] === bucket);
+  return OPENERS.filter(
+    (o) => BUCKET_OF[o] === bucket || (CASH_BUCKET_OF as Partial<Record<Opener, Bucket>>)[o] === bucket
+  );
 }
 
 export const BUCKET_META: Record<Bucket, BucketMeta> = {
   early: {
     id: 'early',
+    format: 'mtt',
+    kinds: true,
+    stackLabel: '50bb+',
     label: 'vs Early',
     openers: openersIn('early'),
     chartSeat: 'UTG1',
@@ -108,11 +151,36 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
   },
   late: {
     id: 'late',
+    format: 'mtt',
+    kinds: true,
+    stackLabel: '50bb+',
     label: 'vs Late',
     openers: openersIn('late'),
     chartSeat: 'LJ',
     chartName: 'BTN vs LJ',
     footnote: 'vs HJ/CO the exact chart is a bit wider: more suited calls and bluffs.',
+  },
+  cashEarly: {
+    id: 'cashEarly',
+    format: 'cash',
+    kinds: false,
+    stackLabel: '100bb',
+    label: 'vs LJ/HJ',
+    openers: openersIn('cashEarly'),
+    chartSeat: 'LJ',
+    chartName: 'BTN vs LJ/HJ (cash)',
+    footnote: 'The source uses one chart for LJ and HJ. Flats are the simplified chart’s: 66–99, A9s, A8s, QTs, JTs.',
+  },
+  cashCo: {
+    id: 'cashCo',
+    format: 'cash',
+    kinds: false,
+    stackLabel: '100bb',
+    label: 'vs CO',
+    openers: openersIn('cashCo'),
+    chartSeat: 'CO',
+    chartName: 'BTN vs CO (cash)',
+    footnote: 'Same flats as vs LJ/HJ; only 3-bets are added.',
   },
 };
 
@@ -177,6 +245,8 @@ export const LATE: FacingChart = {
 export const BUCKET_CHART: Record<Bucket, FacingChart> = {
   early: EARLY,
   late: LATE,
+  cashEarly: CASH_VS_EARLY,
+  cashCo: CASH_VS_CO,
 };
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
@@ -189,14 +259,23 @@ export function chartAction(chart: FacingChart, hc: HandClass): FacingAnswer {
   return { action: 'fold' };
 }
 
-/** The bucket chart's answer for a hand class. */
+/**
+ * The bucket chart's answer for a hand class. A chart without kinds (cash)
+ * answers a bare 3-bet, never "value".
+ */
 export function bucketChartAction(bucket: Bucket, hc: HandClass): FacingAnswer {
-  return chartAction(BUCKET_CHART[bucket], hc);
+  const answer = chartAction(BUCKET_CHART[bucket], hc);
+  return BUCKET_META[bucket].kinds ? answer : { action: answer.action };
 }
 
-/** The graded answer when `opener` opens and hero holds `hc` on the button. */
+/** The graded answer when `opener` opens and hero holds `hc` on the button (tournament). */
 export function facingAction(opener: Opener, hc: HandClass): FacingAnswer {
   return bucketChartAction(BUCKET_OF[opener], hc);
+}
+
+/** The graded answer in a given format. */
+export function facingActionIn(format: Format, opener: Opener, hc: HandClass): FacingAnswer {
+  return bucketChartAction(bucketFor(format, opener), hc);
 }
 
 export interface FacingComboCounts {

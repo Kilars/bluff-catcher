@@ -60,6 +60,7 @@
 
 import type { HandClass } from './hands.ts';
 import { RANKS } from '../odds.ts';
+import { CASH_RFI, CASH_SEATS } from './cashRanges.ts';
 
 // ─── Position enum ────────────────────────────────────────────────────────────
 
@@ -70,6 +71,33 @@ export type Position = (typeof POSITIONS)[number];
 // reference charts treat them that way — roughly 3 percentage points apart at
 // 60bb. They get their own ranges.
 
+/**
+ * Any seat a drill can put hero in: the 9-max non-blind seats plus the SB,
+ * which only the cash chart opens from (docs/PLAN-cash.md). `Position` stays
+ * the narrow 9-max type — `lib/hh` parses against it and must never see SB.
+ */
+export type Seat = Position | 'SB';
+
+/** Display names for every seat, so no component keeps its own copy. */
+export const SEAT_META: Record<Seat, { short: string; long: string }> = {
+  UTG: { short: 'UTG', long: 'Under the gun' },
+  UTG1: { short: 'UTG+1', long: 'UTG + 1' },
+  UTG2: { short: 'UTG+2', long: 'UTG + 2' },
+  LJ: { short: 'LJ', long: 'Lojack' },
+  HJ: { short: 'HJ', long: 'Hijack' },
+  CO: { short: 'CO', long: 'Cutoff' },
+  BTN: { short: 'BTN', long: 'Button' },
+  SB: { short: 'SB', long: 'Small blind' },
+};
+
+// ─── Format ───────────────────────────────────────────────────────────────────
+
+/** Tournament (9-max, antes, three stack tiers) or cash (6-max, 100bb, no ante). */
+export const FORMATS = ['mtt', 'cash'] as const;
+export type Format = (typeof FORMATS)[number];
+
+export const FORMAT_LABEL: Record<Format, string> = { mtt: 'Tournament', cash: 'Cash' };
+
 // ─── Stack depth ──────────────────────────────────────────────────────────────
 
 /** The three tournament stack tiers, deepest first. */
@@ -79,8 +107,26 @@ export type Depth = (typeof DEPTHS)[number];
 /** The tier every existing caller gets when it does not name one. */
 export const DEFAULT_DEPTH: Depth = 'deep';
 
+/**
+ * The chart an RFI spot is graded against: one of the tournament tiers, or the
+ * single cash chart. Prefs persist `format` and `depth` separately and resolve
+ * to this one key (`chartKeyFor`), which then indexes the ranges, the display
+ * meta, the briefing id and the stats key.
+ */
+export type ChartKey = Depth | 'cash';
+
+export function chartKeyFor(format: Format, depth: Depth): ChartKey {
+  return format === 'cash' ? 'cash' : depth;
+}
+
+export function formatOf(key: ChartKey): Format {
+  return key === 'cash' ? 'cash' : 'mtt';
+}
+
 export interface DepthMeta {
-  id: Depth;
+  id: ChartKey;
+  /** The seats hero can be dealt, in action order. */
+  seats: readonly Seat[];
   /** Stack size as shown in tabs and menus, e.g. "60bb+". */
   label: string;
   /** One-word tier name, e.g. "Deep". */
@@ -101,9 +147,10 @@ export interface DepthMeta {
   tagline: string;
 }
 
-export const DEPTH_META: Record<Depth, DepthMeta> = {
+export const CHART_META: Record<ChartKey, DepthMeta> = {
   deep: {
     id: 'deep',
+    seats: POSITIONS,
     label: '60bb+',
     name: 'Deep',
     stackLabel: '60+ bb',
@@ -117,6 +164,7 @@ export const DEPTH_META: Record<Depth, DepthMeta> = {
   },
   mid: {
     id: 'mid',
+    seats: POSITIONS,
     label: '20bb',
     name: 'Mid',
     stackLabel: '20 bb',
@@ -130,6 +178,7 @@ export const DEPTH_META: Record<Depth, DepthMeta> = {
   },
   short: {
     id: 'short',
+    seats: POSITIONS,
     label: '10bb',
     name: 'Short',
     stackLabel: '10 bb',
@@ -141,7 +190,24 @@ export const DEPTH_META: Record<Depth, DepthMeta> = {
     tagline:
       'No raise-folding left. Every chip goes in or none do, so raw equity plus fold equity decides it.',
   },
+  cash: {
+    id: 'cash',
+    seats: CASH_SEATS,
+    label: 'Cash',
+    name: 'Cash',
+    stackLabel: '100 bb',
+    action: 'open',
+    actionLabel: 'Open',
+    actionNoun: 'an open',
+    rangeKicker: 'Opening range',
+    prompt: 'Open or fold?',
+    tagline:
+      '6-max, 100bb, no ante. Tighter than the tournament charts — no dead money to fight for, and rake taxes small pots.',
+  },
 };
+
+/** The tournament tiers' meta — the subset of `CHART_META` that `Depth` indexes. */
+export const DEPTH_META: Record<Depth, DepthMeta> = CHART_META;
 
 // ─── Range expansion helpers ─────────────────────────────────────────────────
 
@@ -747,7 +813,7 @@ function buildShortBTN(): Set<HandClass> {
 
 // ─── Range registry ───────────────────────────────────────────────────────────
 
-const RANGES: Record<Depth, Record<Position, Set<HandClass>>> = {
+const RANGES: Record<ChartKey, Partial<Record<Seat, ReadonlySet<HandClass>>>> = {
   deep: {
     UTG: buildUTG(),
     UTG1: buildUTG1(),
@@ -775,45 +841,46 @@ const RANGES: Record<Depth, Record<Position, Set<HandClass>>> = {
     CO: buildShortCO(),
     BTN: buildShortBTN(),
   },
+  cash: CASH_RFI,
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 //
 // `depth` is a trailing optional argument on every lookup so that callers that
 // predate the tiers — and every existing test — keep reading the deep chart
-// without change.
+// without change. It takes any `ChartKey`, so the cash chart reads the same way.
 
-/**
- * Check if a hand class is played (opened at 60bb+/20bb, jammed at 10bb) from
- * the given position.
- */
-export function isOpen(pos: Position, hc: HandClass, depth: Depth = DEFAULT_DEPTH): boolean {
-  return RANGES[depth][pos].has(hc);
+/** The stored set for a seat, or a thrown error if that chart has no such seat. */
+function rangeFor(pos: Seat, depth: ChartKey): ReadonlySet<HandClass> {
+  const set = RANGES[depth][pos];
+  if (!set) throw new Error(`no ${depth} chart for ${pos}`);
+  return set;
 }
 
 /**
- * Get the full range set for a position at a depth.
+ * Check if a hand class is played (opened at 60bb+/20bb/cash, jammed at 10bb)
+ * from the given seat.
+ */
+export function isOpen(pos: Seat, hc: HandClass, depth: ChartKey = DEFAULT_DEPTH): boolean {
+  return rangeFor(pos, depth).has(hc);
+}
+
+/**
+ * Get the full range set for a seat on a chart.
  * Returns a read-only view of the stored set (same reference across calls).
  */
-export function getRangeSet(
-  pos: Position,
-  depth: Depth = DEFAULT_DEPTH
-): ReadonlySet<HandClass> {
-  return RANGES[depth][pos];
+export function getRangeSet(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): ReadonlySet<HandClass> {
+  return rangeFor(pos, depth);
 }
 
 /**
- * Count the number of concrete combos in a position's range at a depth.
+ * Count the number of concrete combos in a seat's range on a chart.
  */
-export function rangeComboCount(pos: Position, depth: Depth = DEFAULT_DEPTH): number {
+export function rangeComboCount(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): number {
   let count = 0;
-  for (const hc of RANGES[depth][pos]) {
-    const { type } = (() => {
-      if (hc.length === 2) return { type: 'pair' as const };
-      return { type: (hc[2] === 's' ? 'suited' : 'offsuit') as 'suited' | 'offsuit' };
-    })();
-    if (type === 'pair') count += 6;
-    else if (type === 'suited') count += 4;
+  for (const hc of rangeFor(pos, depth)) {
+    if (hc.length === 2) count += 6;
+    else if (hc[2] === 's') count += 4;
     else count += 12;
   }
   return count;
