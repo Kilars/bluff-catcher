@@ -90,6 +90,38 @@ describe('the explanation is reachable on phone', () => {
   });
 });
 
+describe('facing mode', () => {
+  it('routes to the facing placeholder, with its own stats key isolated from RFI', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'facing');
+    renderAt('desktop', <App />);
+
+    expect(screen.getByTestId('facing-trainer-placeholder')).toHaveTextContent(/vs open · 50bb\+/);
+    expect(screen.queryByText('Villain')).not.toBeInTheDocument();
+  });
+
+  it('is reachable from the desktop menu, and switching to it persists', () => {
+    renderAt('desktop', <App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Facing open/ }));
+
+    expect(screen.getByTestId('facing-trainer-placeholder')).toBeInTheDocument();
+    expect(localStorage.getItem('bluff-catcher:mode:v1')).toBe('facing');
+  });
+
+  it('is reachable from the phone menu, and the phone menu has no depth group there', () => {
+    renderAt('phone', <App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /more|menu/i }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Facing open/ }));
+
+    expect(screen.getByTestId('phone-top-bar')).toHaveTextContent(/vs open · 50bb\+/);
+
+    fireEvent.click(screen.getByRole('button', { name: /more|menu/i }));
+    expect(screen.queryByRole('menuitemradio', { name: /60bb\+/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('phone drops what a phone cannot use', () => {
   it('shows no keyboard hints in the preflop briefing', () => {
     localStorage.setItem('bluff-catcher:mode:v1', 'preflop');
