@@ -35,8 +35,16 @@
  */
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
-import type { Format, Position } from './ranges.ts';
+import type { Format, Position, Seat } from './ranges.ts';
 import { CASH_VS_CO, CASH_VS_EARLY, type CashOpener } from './cashRanges.ts';
+import {
+  BB_CASH_CHARTS,
+  BB_CASH_OPENERS,
+  BB_MTT_CHARTS,
+  BB_MTT_OPENERS,
+  type BbCashOpener,
+  type BbMttOpener,
+} from './bbDefendRanges.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -64,12 +72,29 @@ export const OPENERS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO'] as const satisf
 export type Opener = (typeof OPENERS)[number];
 
 /**
- * Every chart the drill grades against, across both formats. The tournament
- * buckets come first so `bucketsFor('mtt')` is exactly the pair the dealer has
- * always picked from (golden.test.ts pins the deals).
+ * Which facing drill a chart belongs to: hero on the button facing an open
+ * (docs/PLAN-3bet.md), or hero in the big blind (docs/PLAN-bb-defend.md).
  */
-export const BUCKETS = ['early', 'late', 'cashEarly', 'cashCo'] as const;
-export type Bucket = (typeof BUCKETS)[number];
+export type Drill = 'btn' | 'bb';
+
+/**
+ * The BTN drill's charts, across both formats. The tournament buckets come
+ * first so `bucketsFor('mtt')` is exactly the pair the dealer has always
+ * picked from (golden.test.ts pins the deals).
+ */
+const BTN_BUCKETS = ['early', 'late', 'cashEarly', 'cashCo'] as const;
+
+/** The BB drill grades each opener against its own chart: one bucket per opener. */
+export type BbBucket = `bb-mtt-${BbMttOpener}` | `bb-cash-${BbCashOpener}`;
+
+const BB_BUCKETS: readonly BbBucket[] = [
+  ...BB_MTT_OPENERS.map((o) => `bb-mtt-${o}` as const),
+  ...BB_CASH_OPENERS.map((o) => `bb-cash-${o}` as const),
+];
+
+/** Every chart either drill grades against. */
+export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket;
+export const BUCKETS: readonly Bucket[] = [...BTN_BUCKETS, ...BB_BUCKETS];
 
 /**
  * Which chart each opener is graded against. The first cut sits after UTG+1:
@@ -95,81 +120,129 @@ export const BUCKET_OF_IN: Record<Format, Partial<Record<Opener, Bucket>>> = {
   cash: { LJ: 'cashEarly', HJ: 'cashEarly', CO: 'cashCo' } satisfies Record<CashOpener, Bucket>,
 };
 
-/** The bucket an opener is graded against in a format. */
+/** The bucket an opener is graded against in a format (BTN drill). */
 export function bucketFor(format: Format, opener: Opener): Bucket {
   const bucket = BUCKET_OF_IN[format][opener];
   if (!bucket) throw new Error(`${opener} cannot open into the button in 6-max`);
   return bucket;
 }
 
-/** A format's buckets, in the order the dealer picks from. */
-export function bucketsFor(format: Format): readonly Bucket[] {
-  return BUCKETS.filter((b) => BUCKET_META[b].format === format);
+/** A drill's buckets in a format, in the order the dealer picks from. */
+export function bucketsFor(format: Format, drill: Drill = 'btn'): readonly Bucket[] {
+  return BUCKETS.filter((b) => BUCKET_META[b].format === format && BUCKET_META[b].drill === drill);
 }
 
 export interface BucketMeta {
   id: Bucket;
+  drill: Drill;
   format: Format;
   /** Stack figure for the plaques and labels, e.g. "50bb+". */
   stackLabel: string;
   /** Plaque / tab label, e.g. "vs Early". */
   label: string;
   /** The openers graded against this bucket's chart, in seat order. */
-  openers: readonly Opener[];
+  openers: readonly Seat[];
   /** The source chart this bucket uses: the opener seat it was solved against. */
-  chartSeat: Opener;
+  chartSeat: Seat;
+  /** The open size hero faces, in bb. */
+  raiseBb: number;
   /** The source chart's name as the pack prints it, e.g. "BTN vs UTG+1". */
   chartName: string;
   /** One-line range-sheet footnote on where the bucket chart is off. */
-  footnote: string;
+  footnote?: string;
 }
 
 function openersIn(format: Format, bucket: Bucket): readonly Opener[] {
   return OPENERS.filter((o) => BUCKET_OF_IN[format][o] === bucket);
 }
 
+/**
+ * The BB drill's opens (source metadata, docs/PLAN-bb-defend.md "Source"):
+ * tournament 2.3bb at 40bb with the SB raising to 3.5bb; cash 2.5bb, SB 3bb.
+ */
+const BB_RAISE_BB: Record<Format, { open: number; sb: number }> = {
+  mtt: { open: 2.3, sb: 3.5 },
+  cash: { open: 2.5, sb: 3 },
+};
+
+/** "UTG+1" etc. — kept local so this module stays free of display imports. */
+const SEAT_NAME: Record<Seat, string> = {
+  UTG: 'UTG', UTG1: 'UTG+1', UTG2: 'UTG+2', LJ: 'LJ', HJ: 'HJ', CO: 'CO', BTN: 'BTN', SB: 'SB',
+};
+
+function bbMeta(format: Format, openers: readonly (BbMttOpener | BbCashOpener)[]) {
+  const stackLabel = format === 'mtt' ? '40bb' : '100bb';
+  return Object.fromEntries(
+    openers.map((o) => {
+      const id = `bb-${format}-${o}` as BbBucket;
+      const meta: BucketMeta = {
+        id,
+        drill: 'bb',
+        format,
+        stackLabel,
+        label: `vs ${SEAT_NAME[o]}`,
+        openers: [o],
+        chartSeat: o,
+        raiseBb: o === 'SB' ? BB_RAISE_BB[format].sb : BB_RAISE_BB[format].open,
+        chartName: `BB vs ${SEAT_NAME[o]} (${format === 'mtt' ? '40bb' : 'cash'})`,
+      };
+      return [id, meta];
+    })
+  );
+}
+
 export const BUCKET_META: Record<Bucket, BucketMeta> = {
   early: {
     id: 'early',
+    drill: 'btn',
     format: 'mtt',
     stackLabel: '50bb+',
     label: 'vs Early',
     openers: openersIn('mtt', 'early'),
     chartSeat: 'UTG1',
+    raiseBb: 2.5,
     chartName: 'BTN vs UTG+1',
     footnote: 'UTG is a touch tighter than this.',
   },
   late: {
     id: 'late',
+    drill: 'btn',
     format: 'mtt',
     stackLabel: '50bb+',
     label: 'vs Late',
     openers: openersIn('mtt', 'late'),
     chartSeat: 'LJ',
+    raiseBb: 2.5,
     chartName: 'BTN vs LJ',
     footnote: 'vs HJ/CO the exact chart is a bit wider: more suited calls and bluffs.',
   },
   cashEarly: {
     id: 'cashEarly',
+    drill: 'btn',
     format: 'cash',
     stackLabel: '100bb',
     label: 'vs LJ/HJ',
     openers: openersIn('cash', 'cashEarly'),
     chartSeat: 'LJ',
+    raiseBb: 2.5,
     chartName: 'BTN vs LJ/HJ (cash)',
     footnote: 'The source uses one chart for LJ and HJ. Flats are the simplified chart’s: 66–99, A9s, A8s, QTs, JTs.',
   },
   cashCo: {
     id: 'cashCo',
+    drill: 'btn',
     format: 'cash',
     stackLabel: '100bb',
     label: 'vs CO',
     openers: openersIn('cash', 'cashCo'),
     chartSeat: 'CO',
+    raiseBb: 2.5,
     chartName: 'BTN vs CO (cash)',
     footnote: 'Same flats as vs LJ/HJ; only 3-bets are added.',
   },
-};
+  ...bbMeta('mtt', BB_MTT_OPENERS),
+  ...bbMeta('cash', BB_CASH_OPENERS),
+} as Record<Bucket, BucketMeta>;
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -243,12 +316,21 @@ export const LATE: KindedChart = {
 };
 
 /** The chart each bucket is graded against. */
-export const BUCKET_CHART: Record<Bucket, FacingChart> = {
+export const BUCKET_CHART = {
   early: EARLY,
   late: LATE,
   cashEarly: CASH_VS_EARLY,
   cashCo: CASH_VS_CO,
-};
+  ...Object.fromEntries(BB_MTT_OPENERS.map((o) => [`bb-mtt-${o}`, BB_MTT_CHARTS[o]])),
+  ...Object.fromEntries(BB_CASH_OPENERS.map((o) => [`bb-cash-${o}`, BB_CASH_CHARTS[o]])),
+} as Record<Bucket, FacingChart>;
+
+/** The BB drill's bucket for an opener: each opener has its own chart. */
+export function bbBucketFor(format: Format, opener: Seat): BbBucket {
+  const bucket = `bb-${format}-${opener}`;
+  if (!(bucket in BUCKET_CHART)) throw new Error(`${opener} is not a BB-defence opener in ${format}`);
+  return bucket as BbBucket;
+}
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
 

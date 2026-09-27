@@ -57,7 +57,7 @@ describe('facing — shape', () => {
     expect(BUCKET_META.late.label).toBe('vs Late');
     for (const b of MTT_BUCKETS) {
       // A bucket's chart seat is one of its own openers.
-      expect(BUCKET_OF[BUCKET_META[b].chartSeat]).toBe(b);
+      expect(BUCKET_OF[BUCKET_META[b].chartSeat as Opener]).toBe(b);
     }
   });
 
@@ -83,7 +83,7 @@ describe('facing — bucket charts', () => {
 
   it('is the UTG+1 and LJ source chart, cell for cell', () => {
     for (const b of MTT_BUCKETS) {
-      const source = FACING_SOURCES[BUCKET_META[b].chartSeat];
+      const source = FACING_SOURCES[BUCKET_META[b].chartSeat as Opener];
       for (const hc of ALL_169) {
         expect(chartAction(BUCKET_CHART[b], hc), `${b} ${hc}`).toEqual(chartAction(source, hc));
       }
