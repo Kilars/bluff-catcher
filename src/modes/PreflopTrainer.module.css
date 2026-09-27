@@ -286,3 +286,10 @@
 }
 
 /* ── Phone tree — :root[data-layout="phone"] ─────────────────────────────── */
+
+/* "Space" under the Next-hand label. */
+.spaceHint {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: 4px;
+}

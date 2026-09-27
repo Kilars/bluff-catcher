@@ -48,7 +48,7 @@ import { useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
-import PhoneStatsSheet, { type PhoneStatsSheetProps } from './components/phone/PhoneStatsSheet';
+import PhoneStatsSheet from './components/phone/PhoneStatsSheet';
 import PhoneSheet from './components/phone/PhoneSheet';
 import PhoneRangeView from './components/phone/range/PhoneRangeView';
 import OddsTrainer from './modes/OddsTrainer';
@@ -183,91 +183,41 @@ export default function App() {
   // felt completely.
   const keysSuspended = rangesOpen || phoneSheet !== null;
 
-  let phoneStats: PhoneStatsPillProps;
-  switch (mode) {
-    case 'odds':
-      phoneStats = {
-        mode: 'odds',
-        streak: stats.streak,
-        bands: stats.bands,
-        onPress: () => setPhoneSheet('stats'),
-      };
-      break;
-    case 'preflop':
-      phoneStats = {
-        mode: 'preflop',
-        streak: preflopStats.streak,
-        accuracy: preflopStats.accuracy,
-        hands: preflopStats.hands,
-        onPress: () => setPhoneSheet('stats'),
-      };
-      break;
-    case 'facing':
-      phoneStats = {
-        mode: 'facing',
-        streak: facingStats.streak,
-        accuracy: facingStats.accuracy,
-        hands: facingStats.hands,
-        onPress: () => setPhoneSheet('stats'),
-      };
-      break;
-  }
+  // RFI and facing share a stats shape (hands / streak / accuracy), so the
+  // phone chrome only has to tell odds apart from "an accuracy drill".
+  const accuracyStats = mode === 'facing' ? facingStats : preflopStats;
+  const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 
-  // Which mode's reset() the phone chrome's Reset row/button should call —
-  // one switch, used by both the menu sheet and the stats sheet, instead of a
-  // two-way check that would silently reset RFI's stats from facing mode.
-  function resetStatsFor(m: typeof mode): () => void {
-    switch (m) {
-      case 'odds':
-        return stats.reset;
-      case 'preflop':
-        return preflopStats.reset;
-      case 'facing':
-        return facingStats.reset;
-    }
-  }
+  const phoneStats: PhoneStatsPillProps =
+    mode === 'odds'
+      ? { mode, streak: stats.streak, bands: stats.bands, onPress: () => setPhoneSheet('stats') }
+      : {
+          mode,
+          streak: accuracyStats.streak,
+          accuracy: accuracyStats.accuracy,
+          hands: accuracyStats.hands,
+          onPress: () => setPhoneSheet('stats'),
+        };
 
-  // A plain `Omit<PhoneStatsSheetProps, ...>` would collapse the union to its
-  // shared keys (keyof of a union, not per-member), so it is distributed over
-  // each variant explicitly instead.
-  function phoneStatsSheetProps(
-    m: typeof mode
-  ): PhoneStatsSheetProps extends infer V
-    ? V extends PhoneStatsSheetProps
-      ? Omit<V, 'onReset' | 'onClose'>
-      : never
-    : never {
-    switch (m) {
-      case 'odds':
-        return {
-          mode: 'odds',
+  const phoneStatsSheet =
+    mode === 'odds'
+      ? ({
+          mode,
           hands: stats.hands,
           streak: stats.streak,
           bestStreak: stats.bestStreak,
           errors: stats.errors,
           bands: stats.bands,
           perCategory: stats.perCategory,
-        };
-      case 'preflop':
-        return {
-          mode: 'preflop',
-          hands: preflopStats.hands,
-          correct: preflopStats.correct,
-          streak: preflopStats.streak,
-          bestStreak: preflopStats.bestStreak,
-          accuracy: preflopStats.accuracy,
-        };
-      case 'facing':
-        return {
-          mode: 'facing',
-          hands: facingStats.hands,
-          correct: facingStats.correct,
-          streak: facingStats.streak,
-          bestStreak: facingStats.bestStreak,
-          accuracy: facingStats.accuracy,
-        };
-    }
-  }
+        } as const)
+      : ({
+          mode,
+          hands: accuracyStats.hands,
+          correct: accuracyStats.correct,
+          streak: accuracyStats.streak,
+          bestStreak: accuracyStats.bestStreak,
+          accuracy: accuracyStats.accuracy,
+        } as const);
 
   return (
     <div className={styles.frame}>
@@ -367,15 +317,15 @@ export default function App() {
             setPhoneSheet(null);
             setRangesOpen(true);
           }}
-          onResetStats={resetStatsFor(mode)}
+          onResetStats={resetActiveStats}
           onClose={() => setPhoneSheet(null)}
         />
       )}
 
       {isPhone && phoneSheet === 'stats' && (
         <PhoneStatsSheet
-          {...phoneStatsSheetProps(mode)}
-          onReset={resetStatsFor(mode)}
+          {...phoneStatsSheet}
+          onReset={resetActiveStats}
           onClose={() => setPhoneSheet(null)}
         />
       )}

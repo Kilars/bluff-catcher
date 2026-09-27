@@ -182,7 +182,7 @@ export default function PreflopTrainer({
                   className={styles.btnNext}
                   onClick={handleNext}
                 >
-                  Next hand → <span style={{ fontSize: '11px', opacity: 0.6, marginLeft: 4 }}>Space</span>
+                  Next hand → <span className={styles.spaceHint}>Space</span>
                 </button>
               </div>
             </div>

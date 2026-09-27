@@ -1,8 +1,9 @@
 /**
  * useFacingDrill — all behaviour of the facing-open (fold / call / 3-bet)
  * drill, with no presentation. The facing twin of `usePreflopDrill`, and kept
- * deliberately shaped like it: same state machine, same double-record guard,
- * same sheet rules, same advance keys. See docs/PLAN-3bet.md (F2–F4).
+ * deliberately shaped like it: same state machine, same sheet rules, same
+ * advance keys. The double-record guard is one step stricter: handleCommit
+ * sets the ref itself, so two commits in the same tick cannot both record. See docs/PLAN-3bet.md (F2–F4).
  *
  * Owns spot state:
  *  - dealFacingSpot() on mount and on "next".

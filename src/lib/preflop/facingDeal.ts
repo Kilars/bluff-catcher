@@ -11,7 +11,7 @@
  */
 
 import type { Card } from '../odds.ts';
-import { type HandClass, ALL_169, combosForClass, expandCombos, handClass } from './hands.ts';
+import { type HandClass, ALL_169, expandCombos, handClass, sampleClassByCombos } from './hands.ts';
 import { cellClass } from './grid.ts';
 import {
   type Bucket,
@@ -165,20 +165,7 @@ export const ACTIVE_FACING_POOL: FacingPool = borderSkewFacingPool;
 
 /** Weighted pick over the 169 classes: pool weight × combo count. */
 function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): HandClass {
-  let total = 0;
-  const weights: number[] = new Array(ALL_169.length);
-  for (let i = 0; i < ALL_169.length; i++) {
-    const w = pool.weight(bucket, ALL_169[i]) * combosForClass(ALL_169[i]);
-    weights[i] = w;
-    total += w;
-  }
-
-  let pick = rng() * total;
-  for (let i = 0; i < ALL_169.length; i++) {
-    pick -= weights[i];
-    if (pick <= 0) return ALL_169[i];
-  }
-  return ALL_169[ALL_169.length - 1];
+  return sampleClassByCombos(ALL_169, (hc) => pool.weight(bucket, hc), rng);
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────

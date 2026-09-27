@@ -259,3 +259,29 @@ export function expandCombos(hc: HandClass): [Card, Card][] {
 
   return result;
 }
+
+/**
+ * Weighted pick over hand classes: `weightOf(hc)` × combo count (pairs 6,
+ * suited 4, offsuit 12). One rng() draw. Both preflop dealers sample through
+ * this, each with its own class order and pool weight.
+ */
+export function sampleClassByCombos(
+  classes: readonly HandClass[],
+  weightOf: (hc: HandClass) => number,
+  rng: () => number
+): HandClass {
+  let total = 0;
+  const weights: number[] = new Array(classes.length);
+  for (let i = 0; i < classes.length; i++) {
+    const w = weightOf(classes[i]) * combosForClass(classes[i]);
+    weights[i] = w;
+    total += w;
+  }
+
+  let pick = rng() * total;
+  for (let i = 0; i < classes.length; i++) {
+    pick -= weights[i];
+    if (pick <= 0) return classes[i];
+  }
+  return classes[classes.length - 1];
+}

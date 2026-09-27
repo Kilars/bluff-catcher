@@ -12,7 +12,7 @@ import {
   handClass,
   HAND_STRENGTH_RANKING,
   strengthRank,
-  combosForClass,
+  sampleClassByCombos,
 } from './hands.ts';
 import {
   type Depth,
@@ -182,36 +182,14 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
   return arr;
 }
 
-/**
- * Sample a hand class from the 169 classes weighted by the pool strategy.
- * Uses combo-count weighting (pairs 6x, suited 4x, offsuit 12x) combined with
- * the pool's per-class weight.
- */
+/** Sample a hand class weighted by the pool strategy × combo count. */
 function sampleHandClass(
   pos: Position,
   pool: Pool,
   rng: () => number,
   depth: Depth
 ): HandClass {
-  const total169 = HAND_STRENGTH_RANKING;
-
-  // Compute total weight
-  let totalWeight = 0;
-  const weights: number[] = new Array(total169.length);
-  for (let i = 0; i < total169.length; i++) {
-    const hc = total169[i];
-    const w = pool.weight(pos, hc, depth) * combosForClass(hc);
-    weights[i] = w;
-    totalWeight += w;
-  }
-
-  // Pick
-  let pick = rng() * totalWeight;
-  for (let i = 0; i < total169.length; i++) {
-    pick -= weights[i];
-    if (pick <= 0) return total169[i];
-  }
-  return total169[total169.length - 1];
+  return sampleClassByCombos(HAND_STRENGTH_RANKING, (hc) => pool.weight(pos, hc, depth), rng);
 }
 
 /**
