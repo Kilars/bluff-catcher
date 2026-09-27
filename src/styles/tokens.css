@@ -77,6 +77,16 @@
   --band-red: #c2686f;
   --pip-red: #a5474e; /* hearts & diamonds; spades & clubs use #292b31 */
   --pip-black: #292b31;
+
+  /* Range-grid 4-colour mode (value / bluff / call / fold) — PLAN-3bet F3.
+     Same low-chroma spirit as the band colours above; value and call reuse
+     the band red/green (the semantics line up: red = the aggressive/wrong-
+     leaning colour, green = continue), fold reuses the existing neutral
+     fold tint. Bluff is the one genuinely new hue, so it gets a token. */
+  --range-value: var(--band-red);
+  --range-bluff: #6f93c9;
+  --range-call: var(--band-green);
+  --range-fold: var(--color-neutral-900);
 }
 
 *,

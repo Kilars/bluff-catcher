@@ -83,6 +83,39 @@ describe('PreflopTable seats', () => {
   });
 });
 
+describe('PreflopTable opener (PLAN-3bet F2)', () => {
+  it('marks the opener seat and leaves the rest of the pre-hero seats folded', () => {
+    const seats = buildSeats('BTN', 'HJ');
+    expect(seats.filter((s) => s.type === 'folded').map((s) => s.label)).toEqual([
+      'UTG', 'UTG+1', 'UTG+2', 'LJ', 'CO',
+    ]);
+    expect(seats.find((s) => s.label === 'HJ')).toMatchObject({ type: 'opener', raiseBb: 2.5 });
+  });
+
+  it('defaults the raise to 2.5bb and lets it be overridden', () => {
+    expect(buildSeats('BTN', 'CO').find((s) => s.label === 'CO')?.raiseBb).toBe(2.5);
+    expect(buildSeats('BTN', 'CO', 3).find((s) => s.label === 'CO')?.raiseBb).toBe(3);
+  });
+
+  it('renders exactly as today when opener is omitted', () => {
+    expect(buildSeats('BTN')).toEqual(buildSeats('BTN', undefined));
+    expect(buildSeats('BTN').every((s) => s.type !== 'opener')).toBe(true);
+  });
+
+  it('renders the raise chip at the opener seat, on desktop', () => {
+    render(<PreflopTable hero={HERO} position="BTN" opener="UTG2" />);
+    const chip = screen.getByTestId('raise-chip');
+    expect(chip).toHaveTextContent('2.5');
+    // No other seat gets a raise-chip testid.
+    expect(screen.getAllByTestId('raise-chip')).toHaveLength(1);
+  });
+
+  it('does not render a raise chip when opener is omitted', () => {
+    render(<PreflopTable hero={HERO} position="BTN" />);
+    expect(screen.queryByTestId('raise-chip')).toBeNull();
+  });
+});
+
 describe('PreflopTable action counters', () => {
   it('shows 0 folded / 6 to act for UTG', () => {
     render(<PreflopTable hero={HERO} position="UTG" />);

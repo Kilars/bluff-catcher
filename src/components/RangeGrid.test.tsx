@@ -140,6 +140,64 @@ describe('RangeGrid', () => {
     });
   });
 
+  describe('4-colour mode (cellAction) — PLAN-3bet F3', () => {
+    const sample: Record<string, 'value' | 'bluff' | 'call' | 'fold'> = {
+      AA: 'value',
+      A8s: 'bluff',
+      JJ: 'call',
+      '72o': 'fold',
+    };
+    const cellAction = (hc: string) => sample[hc] ?? 'fold';
+
+    it('colours the sampled cells value / bluff / call / fold', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} />);
+      expect(getCell('AA')!.getAttribute('aria-label')).toBe('AA: 3-bet (value)');
+      expect(getCell('A8s')!.getAttribute('aria-label')).toBe('A8s: 3-bet (bluff)');
+      expect(getCell('JJ')!.getAttribute('aria-label')).toBe('JJ: call');
+      expect(getCell('72o')!.getAttribute('aria-label')).toBe('72o: fold');
+    });
+
+    it('marks the hero cell with "(your hand)" in 4-colour mode too', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} highlight="AA" />);
+      expect(getCell('AA')!.getAttribute('aria-label')).toBe('AA: 3-bet (value) (your hand)');
+    });
+
+    it('renders a legend by default when cellAction is given', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} />);
+      const legend = screen.getByTestId('range-legend');
+      expect(legend).toHaveTextContent('3-bet — value');
+      expect(legend).toHaveTextContent('3-bet — bluff');
+      expect(legend).toHaveTextContent('call');
+      expect(legend).toHaveTextContent('fold');
+    });
+
+    it('hides the legend when legend={false}', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} legend={false} />);
+      expect(screen.queryByTestId('range-legend')).toBeNull();
+    });
+
+    it('renders no legend without cellAction, even if legend is true', () => {
+      render(<RangeGrid position="BTN" />);
+      expect(screen.queryByTestId('range-legend')).toBeNull();
+    });
+
+    it('renders an optional footnote', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} footnote="A test footnote." />);
+      expect(screen.getByTestId('range-footnote')).toHaveTextContent('A test footnote.');
+    });
+
+    it('renders no footnote when none is given', () => {
+      render(<RangeGrid position="BTN" cellAction={cellAction} />);
+      expect(screen.queryByTestId('range-footnote')).toBeNull();
+    });
+
+    it('leaves the RFI (isOpen) path byte-identical when cellAction is omitted', () => {
+      render(<RangeGrid position="BTN" />);
+      expect(getCell('AKs')!.getAttribute('aria-label')).toBe('AKs: open');
+      expect(getCell('72o')!.getAttribute('aria-label')).toBe('72o: fold');
+    });
+  });
+
   describe('cell label text', () => {
     it('each cell contains its hand-class label as visible text', () => {
       render(<RangeGrid position="CO" />);

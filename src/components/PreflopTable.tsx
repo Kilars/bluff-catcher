@@ -83,12 +83,18 @@ const SEAT_POSITION_ORDER: Position[] = [
  *  folded — acted before hero and folded (no cards, dimmed plaque)
  *  toAct  — still to act behind hero (face-down card backs)
  *  sb/bb  — the posted blinds (cards + a chip out in front)
+ *  opener — acted before hero and raised (cards + a raise chip out in front).
+ *           Used by the facing-open drill (PLAN-3bet F2); a seat here never
+ *           also has `type: 'folded'` — the opener is the one seat before hero
+ *           that has not mucked.
  */
 export interface SeatInfo {
   label: string;
-  type: 'folded' | 'toAct' | 'sb' | 'bb';
+  type: 'folded' | 'toAct' | 'sb' | 'bb' | 'opener';
   /** The button seat — it gets the dealer button, not a colour treatment. */
   isBtn?: boolean;
+  /** The open size, in bb — only set when `type === 'opener'`. */
+  raiseBb?: number;
 }
 
 /** Display labels for the 7 non-blind seats, in action order. */
@@ -130,23 +136,38 @@ const SEAT_SLOTS: SeatSlot[] = [
 /** Hero's own plaque sits just above hero's cards, at the bottom of the felt. */
 const HERO_PLAQUE = { x: 410, y: 209 };
 
+/** Default open size for the opener seat (PLAN-3bet: 2.5bb). */
+export const DEFAULT_OPENER_RAISE_BB = 2.5;
+
 /**
  * Builds all 8 non-hero seats in action order: the six/seven non-blind seats
  * other than hero's own, then SB and BB.
  *
  * Seats before hero have folded; seats after hero are still to act (the BTN
  * among them — it must never disappear, it is the reference seat).
+ *
+ * `opener` (PLAN-3bet F2, optional): one of the seats before hero raised
+ * instead of folding. It must be a seat that acts before hero — the facing-
+ * open drill always seats hero on the BTN, so every opener seat qualifies.
+ * A seat after hero is never turned into an opener; that spot is reserved for
+ * the RFI drill's `toAct` seats and isn't a legal facing-open deal anyway.
  */
-export function buildSeats(heroPos: Position): SeatInfo[] {
+export function buildSeats(
+  heroPos: Position,
+  opener?: Position,
+  raiseBb: number = DEFAULT_OPENER_RAISE_BB
+): SeatInfo[] {
   const heroIdx = SEAT_POSITION_ORDER.indexOf(heroPos);
   const seats: SeatInfo[] = [];
 
   for (let i = 0; i < SEAT_LABELS.length; i++) {
     if (i === heroIdx) continue; // hero sits at the bottom, not in the ring loop
+    const isOpener = i < heroIdx && opener !== undefined && SEAT_POSITION_ORDER[i] === opener;
     seats.push({
       label: SEAT_LABELS[i],
-      type: i < heroIdx ? 'folded' : 'toAct',
+      type: isOpener ? 'opener' : i < heroIdx ? 'folded' : 'toAct',
       isBtn: i === SEAT_LABELS.length - 1,
+      raiseBb: isOpener ? raiseBb : undefined,
     });
   }
 
@@ -202,6 +223,14 @@ interface PreflopTableProps {
   position: Position;
   /** Stack tier — drives the figure written on every plaque. */
   depth?: Depth;
+  /**
+   * The facing-open drill's raiser (PLAN-3bet F2): a seat before hero that
+   * opened instead of folding. Omit it and the table renders exactly as the
+   * RFI drill always has — every seat before hero folded, no raise chip.
+   */
+  opener?: Position;
+  /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
+  raiseBb?: number;
 }
 
 /** Face-down pair shown at seats still holding cards. */
@@ -218,11 +247,13 @@ export default function PreflopTable({
   hero,
   position,
   depth = DEFAULT_DEPTH,
+  opener,
+  raiseBb = DEFAULT_OPENER_RAISE_BB,
 }: PreflopTableProps) {
   // Everyone at the table is on the same effective stack — that is the whole
   // premise of a single-depth chart, so one label covers every plaque.
   const stackLabel = DEPTH_META[depth].stackLabel;
-  const seats = buildSeats(position);
+  const seats = buildSeats(position, opener, raiseBb);
   const posLabel = POSITION_LABEL[position];
   const posLong = POSITION_LONG[position];
   const contextLine = buildContextLine(position);
@@ -242,6 +273,7 @@ export default function PreflopTable({
             const slot = SEAT_SLOTS[seatSlotIndex(position, seat.label)];
             const isFolded = seat.type === 'folded';
             const isBlind = seat.type === 'sb' || seat.type === 'bb';
+            const isOpener = seat.type === 'opener';
 
             return (
               <Fragment key={seat.label}>
@@ -249,25 +281,28 @@ export default function PreflopTable({
                   className={`${styles.seat}${isFolded ? ` ${styles.seatFolded}` : ''}`}
                   style={{ left: `${slot.x}px`, top: `${slot.y}px` }}
                 >
-                  {/* Folded players have mucked — no cards at the seat */}
+                  {/* Folded players have mucked — no cards at the seat.
+                      The opener is still in the hand, so it keeps its cards. */}
                   {!isFolded && <SeatCards />}
                   <div className={styles.plaque}>
                     <span className={styles.plaqueName}>{seat.label}</span>
                     <span className={styles.plaqueStack}>
-                      {isFolded ? 'folded' : stackLabel}
+                      {isFolded ? 'folded' : isOpener ? `raises ${seat.raiseBb}bb` : stackLabel}
                     </span>
                   </div>
                 </div>
 
-                {/* Posted blind — chip out in front of the seat */}
-                {isBlind && (
+                {/* Posted blind, or the opener's raise — a chip out in front of the seat.
+                    Same styling for both: a raise reads the same way a blind does. */}
+                {(isBlind || isOpener) && (
                   <div
                     className={styles.chipSpot}
                     style={{ left: `${slot.cx}px`, top: `${slot.cy}px` }}
+                    data-testid={isOpener ? 'raise-chip' : undefined}
                   >
                     <div className={styles.chip} />
                     <span className={styles.chipAmount}>
-                      {seat.type === 'sb' ? '0.5' : '1'}
+                      {isOpener ? seat.raiseBb : seat.type === 'sb' ? '0.5' : '1'}
                     </span>
                   </div>
                 )}

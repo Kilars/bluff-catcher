@@ -28,11 +28,14 @@
  *   depth       — the tier to open on (initial only; the sheet owns it after).
  *   highlight   — hero's current hand class; marked only on the hero's own chart.
  *   heroPosition— seat of the hand being drilled, dotted in the tab strip.
+ *   cellAction  — optional 4-colour mode, forwarded to RangeGrid as-is (PLAN-3bet F3).
+ *   legend      — forwarded to RangeGrid; only meaningful with `cellAction`.
+ *   footnote    — optional one-line note forwarded to RangeGrid, rendered under the chart.
  *   onClose     — called when the sheet should close.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import RangeGrid from './RangeGrid';
+import RangeGrid, { type CellAction } from './RangeGrid';
 import {
   DEFAULT_DEPTH,
   DEPTHS,
@@ -86,6 +89,9 @@ interface RangeSheetProps {
   depth?: Depth;
   highlight?: HandClass;
   heroPosition?: Position;
+  cellAction?: (hc: HandClass) => CellAction;
+  legend?: boolean;
+  footnote?: string;
   onClose: () => void;
 }
 
@@ -94,6 +100,9 @@ export default function RangeSheet({
   depth = DEFAULT_DEPTH,
   highlight,
   heroPosition,
+  cellAction,
+  legend,
+  footnote,
   onClose,
 }: RangeSheetProps) {
   // The chart currently on screen. Seeded from `position`, then owned here so
@@ -294,7 +303,14 @@ export default function RangeSheet({
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <RangeGrid position={viewPos} depth={viewDepth} highlight={gridHighlight} />
+            <RangeGrid
+              position={viewPos}
+              depth={viewDepth}
+              highlight={gridHighlight}
+              cellAction={cellAction}
+              legend={legend}
+              footnote={footnote}
+            />
           </div>
 
           {/* Footer */}
