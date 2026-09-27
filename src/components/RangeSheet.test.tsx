@@ -9,7 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import RangeSheet from './RangeSheet';
-import { DEPTHS, DEPTH_META, POSITIONS, rangeComboCount } from '../lib/preflop/ranges';
+import { CHART_KEYS, DEPTH_META, POSITIONS, rangeComboCount } from '../lib/preflop/ranges';
 
 function title() {
   return screen.getByRole('heading', { level: 1 }).textContent ?? '';
@@ -107,13 +107,13 @@ describe('RangeSheet navigation', () => {
 
   it('renders one tab per stack depth', () => {
     render(<RangeSheet position="UTG" onClose={() => {}} />);
-    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
-    expect(depths.getAllByRole('tab')).toHaveLength(DEPTHS.length);
+    const depths = within(screen.getByRole('tablist', { name: 'Chart' }));
+    expect(depths.getAllByRole('tab')).toHaveLength(CHART_KEYS.length);
   });
 
   it('opens on the depth it was handed, and switching redraws the chart', () => {
     render(<RangeSheet position="CO" depth="deep" onClose={() => {}} />);
-    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
+    const depths = within(screen.getByRole('tablist', { name: 'Chart' }));
 
     // Deep CO, and the chart is an *opening* range.
     expect(
@@ -135,7 +135,7 @@ describe('RangeSheet navigation', () => {
     fireEvent.click(screen.getByLabelText('Next position'));
     expect(title()).toContain('UTG+1');
 
-    const depths = within(screen.getByRole('tablist', { name: 'Stack depth' }));
+    const depths = within(screen.getByRole('tablist', { name: 'Chart' }));
     fireEvent.click(depths.getByRole('tab', { name: /20bb/ }));
     expect(title()).toContain('UTG+1');
     expect(

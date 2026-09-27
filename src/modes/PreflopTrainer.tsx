@@ -24,14 +24,14 @@ import { useLayoutMode } from '../hooks/useLayoutMode';
 import PhonePreflopTrainer from './phone/PhonePreflopTrainer';
 import PhoneSheet from '../components/phone/PhoneSheet';
 import PhoneRangeView from '../components/phone/range/PhoneRangeView';
-import { DEFAULT_DEPTH, type Depth } from '../lib/preflop/ranges';
+import { DEFAULT_DEPTH, type ChartKey } from '../lib/preflop/ranges';
 import styles from './PreflopTrainer.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface PreflopTrainerProps {
   /** Stack tier to drill. Default: the 60bb+ chart. */
-  depth?: Depth;
+  depth?: ChartKey;
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;
   /** True while an overlay owned by App is open — all game keys go inert. */

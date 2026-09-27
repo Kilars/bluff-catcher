@@ -1,6 +1,6 @@
 /**
  * useAppPrefs — the persisted root-level choices: which mode is running, which
- * stack tier the preflop trainer drills, and whether the odds drill names the
+ * stack tier the preflop trainer drills, tournament or cash for both preflop drills, and whether the odds drill names the
  * draw before you guess.
  *
  * Both used to live as module-local helpers inside App.tsx. That was fine until
@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { DEFAULT_DEPTH, DEPTHS, type Depth } from '../lib/preflop/ranges';
+import { DEFAULT_DEPTH, DEPTHS, FORMATS, type Depth, type Format } from '../lib/preflop/ranges';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,7 @@ export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing'];
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
 export const SHOW_DRAW_KEY = 'bluff-catcher:show-draw:v1';
+export const FORMAT_KEY = 'bluff-catcher:format:v1';
 
 export function loadMode(): AppMode {
   try {
@@ -73,6 +74,32 @@ export function saveDepth(depth: Depth): void {
   }
 }
 
+// ─── Format ───────────────────────────────────────────────────────────────────
+//
+// Tournament or cash, for both preflop drills (docs/PLAN-cash.md). Default
+// 'mtt', so nobody's app changes until they flip it. Kept apart from `depth`
+// rather than folded into it: a stored tier survives a spell in cash and comes
+// back on the return to tournament.
+
+export function loadFormat(): Format {
+  try {
+    if (typeof window === 'undefined') return 'mtt';
+    const raw = localStorage.getItem(FORMAT_KEY);
+    return (FORMATS as readonly string[]).includes(raw ?? '') ? (raw as Format) : 'mtt';
+  } catch {
+    return 'mtt';
+  }
+}
+
+export function saveFormat(format: Format): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(FORMAT_KEY, format);
+  } catch {
+    // localStorage might be disabled — silently fail
+  }
+}
+
 // ─── Show the draw ────────────────────────────────────────────────────────────
 //
 // Default ON. You cannot practise counting outs for a draw you have not
@@ -110,6 +137,9 @@ export interface AppPrefs {
   setMode: (next: AppMode) => void;
   depth: Depth;
   setDepth: (next: Depth) => void;
+  /** Preflop drills: tournament or cash. */
+  format: Format;
+  setFormat: (next: Format) => void;
   /** Odds drill: name the draw before the guess is committed. */
   showDraw: boolean;
   setShowDraw: (next: boolean) => void;
@@ -118,6 +148,7 @@ export interface AppPrefs {
 export function useAppPrefs(): AppPrefs {
   const [mode, setModeState] = useState<AppMode>(() => loadMode());
   const [depth, setDepthState] = useState<Depth>(() => loadDepth());
+  const [format, setFormatState] = useState<Format>(() => loadFormat());
   const [showDraw, setShowDrawState] = useState<boolean>(() => loadShowDraw());
 
   const setMode = useCallback((next: AppMode) => {
@@ -130,10 +161,15 @@ export function useAppPrefs(): AppPrefs {
     saveDepth(next);
   }, []);
 
+  const setFormat = useCallback((next: Format) => {
+    setFormatState(next);
+    saveFormat(next);
+  }, []);
+
   const setShowDraw = useCallback((next: boolean) => {
     setShowDrawState(next);
     saveShowDraw(next);
   }, []);
 
-  return { mode, setMode, depth, setDepth, showDraw, setShowDraw };
+  return { mode, setMode, depth, setDepth, format, setFormat, showDraw, setShowDraw };
 }

@@ -55,7 +55,8 @@ export default function PhoneFacingTrainer({
       <PhoneSeatLadder
         position="BTN"
         opener={spot.opener}
-        contextLine={`${openerLabel} raises ${DEFAULT_OPENER_RAISE_BB}bb · ${bucketMeta.label} · 50bb+`}
+        format={bucketMeta.format}
+        contextLine={`${openerLabel} raises ${DEFAULT_OPENER_RAISE_BB}bb · ${bucketMeta.label} · ${bucketMeta.stackLabel}`}
       />
 
       <div className={styles.gapAbove} />

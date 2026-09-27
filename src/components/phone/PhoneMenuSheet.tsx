@@ -11,7 +11,7 @@
  * docs/PLAN-3bet.md), so the group is left out entirely there.
  *
  * Both entry points render this same component; pass a `title` to say which
- * door it was ("Menu" from `⋯`, "Mode & depth" from the chip).
+ * door it was ("Menu" from `⋯`, "Mode & format" from the chip).
  *
  * Selecting anything closes the sheet, exactly as the desktop dropdown does —
  * the choice is the whole reason the sheet is open. Two rows are exceptions.
@@ -26,27 +26,46 @@
 
 import { useCallback, useState } from 'react';
 import type { AppMode } from '../../hooks/useAppPrefs';
-import { DEPTHS, DEPTH_META, type Depth } from '../../lib/preflop/ranges';
+import {
+  DEPTHS,
+  DEPTH_META,
+  FORMATS,
+  FORMAT_META,
+  type Depth,
+  type Format,
+} from '../../lib/preflop/ranges';
 import PhoneSheet from './PhoneSheet';
 import styles from './PhoneMenuSheet.module.css';
 
 // ─── Copy ─────────────────────────────────────────────────────────────────────
 
-const MODE_ITEMS: { mode: AppMode; label: string; note: string }[] = [
+/** A mode's note; the preflop drills name the format they are drilling. */
+const MODE_ITEMS: { mode: AppMode; label: string; note: string | Record<Format, string> }[] = [
   { mode: 'odds', label: 'Odds trainer', note: 'Chance you improve by the river' },
-  { mode: 'preflop', label: 'Preflop RFI', note: 'Open or fold, by seat and stack' },
-  { mode: 'facing', label: 'Facing open', note: 'Fold, call or 3-bet, vs open · 50bb+' },
+  {
+    mode: 'preflop',
+    label: 'Preflop RFI',
+    note: { mtt: 'Open or fold, by seat and stack', cash: 'Open or fold, by seat · cash 6-max' },
+  },
+  {
+    mode: 'facing',
+    label: 'Facing open',
+    note: { mtt: 'Fold, call or 3-bet, vs open · 50bb+', cash: 'Fold, call or 3-bet, vs open · cash 100bb' },
+  },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface PhoneMenuSheetProps {
-  /** Sheet title. 'Menu' from the ⋯ button, 'Mode & depth' from the context chip. */
+  /** Sheet title. 'Menu' from the ⋯ button, 'Mode & format' from the context chip. */
   title?: string;
   mode: AppMode;
   onModeChange: (mode: AppMode) => void;
   depth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Tournament or cash, for both preflop drills. */
+  format: Format;
+  onFormatChange: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -65,6 +84,8 @@ export default function PhoneMenuSheet({
   onModeChange,
   depth,
   onDepthChange,
+  format,
+  onFormatChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,
@@ -87,6 +108,14 @@ export default function PhoneMenuSheet({
       onClose();
     },
     [onDepthChange, onClose]
+  );
+
+  const selectFormat = useCallback(
+    (next: Format) => {
+      onFormatChange(next);
+      onClose();
+    },
+    [onFormatChange, onClose]
   );
 
   // No onClose: see the header note.
@@ -134,16 +163,41 @@ export default function PhoneMenuSheet({
             >
               <span className={styles.rowMain}>
                 {item.label}
-                <span className={styles.rowNote}>{item.note}</span>
+                <span className={styles.rowNote}>
+                  {typeof item.note === 'string' ? item.note : item.note[format]}
+                </span>
               </span>
               {item.mode === mode && <span className={styles.marker} aria-hidden="true" />}
             </button>
           ))}
         </div>
 
+        {mode !== 'odds' && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Format</span>
+            {FORMATS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                role="menuitemradio"
+                aria-checked={f === format}
+                className={`${styles.row} ${f === format ? styles.rowActive : ''}`}
+                onClick={() => selectFormat(f)}
+              >
+                <span className={styles.rowMain}>
+                  {FORMAT_META[f].label}
+                  <span className={styles.rowNote}>{FORMAT_META[f].note}</span>
+                </span>
+                {f === format && <span className={styles.marker} aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Facing mode has no depth picker — its source chart is one span,
-            50bb+, not a tier to switch between. See docs/PLAN-3bet.md. */}
-        {mode !== 'facing' && (
+            50bb+, not a tier to switch between (docs/PLAN-3bet.md) — and cash
+            has one depth, 100bb (docs/PLAN-cash.md). */}
+        {mode !== 'facing' && format === 'mtt' && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Stack depth</span>
             {DEPTHS.map((d) => (

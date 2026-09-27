@@ -321,17 +321,17 @@ describe('PhoneRangeView', () => {
     it('is a static chip in the trainer’s sheet (default)', () => {
       renderAt('phone', <PhoneRangeView position="HJ" depth="mid" />);
       expect(screen.getByTestId('depth-chip')).toHaveTextContent('20bb');
-      expect(screen.queryByRole('tablist', { name: 'Stack depth' })).toBeNull();
+      expect(screen.queryByRole('tablist', { name: 'Chart' })).toBeNull();
       expect(screen.queryByRole('tab', { name: /10bb/ })).toBeNull();
     });
 
-    it('is a 3-way strip in the standalone browser', () => {
+    it('is a strip of the three tiers plus Cash in the standalone browser', () => {
       renderAt('phone', <PhoneRangeView position="HJ" depthSwitchable />);
       expect(screen.queryByTestId('depth-chip')).toBeNull();
-      const strip = screen.getByRole('tablist', { name: 'Stack depth' });
+      const strip = screen.getByRole('tablist', { name: 'Chart' });
       const tabs = within(strip).getAllByRole('tab');
-      expect(tabs).toHaveLength(3);
-      expect(tabs.map((t) => t.textContent)).toEqual(['60bb+Deep', '20bbMid', '10bbShort']);
+      expect(tabs).toHaveLength(4);
+      expect(tabs.map((t) => t.textContent)).toEqual(['60bb+Deep', '20bbMid', '10bbShort', 'Cash6-max']);
       expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     });
 

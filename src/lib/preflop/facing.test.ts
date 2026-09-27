@@ -10,7 +10,8 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  BUCKETS,
+  bucketsFor,
+  bucketFor,
   BUCKET_CHART,
   BUCKET_META,
   BUCKET_OF,
@@ -19,6 +20,7 @@ import {
   LATE,
   OPENERS,
   type FacingChart,
+  type KindedChart,
   type Opener,
   bucketChartAction,
   chartAction,
@@ -28,6 +30,9 @@ import {
 import { FACING_SOURCES } from './facingSources';
 import { ALL_169, combosForClass } from './hands';
 import { POSITIONS } from './ranges';
+
+/** These suites cover the tournament charts; cash has its own below. */
+const MTT_BUCKETS = bucketsFor('mtt');
 
 /** Combos graded with a different fold / call / 3-bet action by two charts. */
 function comboDiff(a: FacingChart, b: FacingChart): number {
@@ -50,14 +55,14 @@ describe('facing — shape', () => {
     expect(BUCKET_META.late.openers).toEqual(['UTG2', 'LJ', 'HJ', 'CO']);
     expect(BUCKET_META.early.label).toBe('vs Early');
     expect(BUCKET_META.late.label).toBe('vs Late');
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       // A bucket's chart seat is one of its own openers.
       expect(BUCKET_OF[BUCKET_META[b].chartSeat]).toBe(b);
     }
   });
 
   it('keeps value, bluff and call disjoint in every chart', () => {
-    const charts: FacingChart[] = [EARLY, LATE, ...OPENERS.map((o) => FACING_SOURCES[o])];
+    const charts: KindedChart[] = [EARLY, LATE, ...OPENERS.map((o) => FACING_SOURCES[o])];
     for (const chart of charts) {
       for (const hc of chart.value) {
         expect(chart.bluff.has(hc) || chart.call.has(hc), hc).toBe(false);
@@ -77,7 +82,7 @@ describe('facing — bucket charts', () => {
   });
 
   it('is the UTG+1 and LJ source chart, cell for cell', () => {
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       const source = FACING_SOURCES[BUCKET_META[b].chartSeat];
       for (const hc of ALL_169) {
         expect(chartAction(BUCKET_CHART[b], hc), `${b} ${hc}`).toEqual(chartAction(source, hc));
@@ -111,7 +116,7 @@ describe('facing — bucket charts', () => {
   });
 
   it('carries a kind on 3-bets only', () => {
-    for (const b of BUCKETS) {
+    for (const b of MTT_BUCKETS) {
       for (const hc of ALL_169) {
         const { action, kind } = bucketChartAction(b, hc);
         expect(kind !== undefined, `${b} ${hc}`).toBe(action === '3bet');
@@ -131,7 +136,12 @@ describe('facingSources — the six source charts', () => {
       CO: [54, 92, 184],
     };
     for (const o of OPENERS) {
-      const { value, bluff, call, fold } = facingComboCounts(FACING_SOURCES[o]);
+      const { value, bluff, call, fold } = facingComboCounts(FACING_SOURCES[o]) as {
+        value: number;
+        bluff: number;
+        call: number;
+        fold: number;
+      };
       expect([value, bluff, call], o).toEqual(printed[o]);
       expect(value + bluff + call + fold).toBe(1326);
     }
@@ -164,5 +174,28 @@ describe('facing — bucket error', () => {
     // BTN vs LJ against each opener's real chart — the Late column.
     const lj = Object.fromEntries(OPENERS.map((o) => [o, comboDiff(FACING_SOURCES[o], LATE)]));
     expect(lj).toEqual({ UTG: 92, UTG1: 76, UTG2: 16, LJ: 0, HJ: 28, CO: 116 });
+  });
+});
+
+describe('facing — cash buckets', () => {
+  it('puts LJ and HJ in one bucket and CO in its own', () => {
+    expect(bucketFor('cash', 'LJ')).toBe('cashEarly');
+    expect(bucketFor('cash', 'HJ')).toBe('cashEarly');
+    expect(bucketFor('cash', 'CO')).toBe('cashCo');
+    expect(() => bucketFor('cash', 'UTG')).toThrow();
+    expect(bucketsFor('cash')).toEqual(['cashEarly', 'cashCo']);
+    expect(bucketsFor('mtt')).toEqual(['early', 'late']);
+  });
+
+  it('answers a bare 3-bet with no kind', () => {
+    const cash = (o: 'LJ' | 'HJ' | 'CO', hc: string) => bucketChartAction(bucketFor('cash', o), hc);
+    expect(cash('LJ', 'AA')).toEqual({ action: '3bet' });
+    expect(cash('CO', 'A2s')).toEqual({ action: '3bet' });
+    expect(cash('HJ', 'A2s')).toEqual({ action: 'fold' });
+    expect(cash('LJ', '99')).toEqual({ action: 'call' });
+  });
+
+  it('agrees with the tournament bucket map for tournament openers', () => {
+    for (const o of OPENERS) expect(bucketFor('mtt', o)).toBe(BUCKET_OF[o]);
   });
 });

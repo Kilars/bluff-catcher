@@ -39,15 +39,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealPreflopSpot, type PreflopSpot } from '../lib/preflop/deal';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
-import { DEFAULT_DEPTH, DEPTH_META, type Depth } from '../lib/preflop/ranges';
+import { CHART_META, DEFAULT_DEPTH, type ChartKey } from '../lib/preflop/ranges';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type CommittedAction = 'open' | 'fold';
 
 export interface UsePreflopDrillOptions {
-  /** Stack tier to drill. Default: the 60bb+ chart. */
-  depth?: Depth;
+  /** Chart to drill: a tournament tier or 'cash'. Default: the 60bb+ chart. */
+  depth?: ChartKey;
   /** Called once per committed hand with true = correct, false = wrong. */
   onRecord: (wasCorrect: boolean) => void;
   /** True while an overlay owned by App is open — all game keys go inert. */
@@ -74,7 +74,7 @@ export function usePreflopDrill({
   keysSuspended = false,
   briefOncePerTier = false,
 }: UsePreflopDrillOptions) {
-  const meta = DEPTH_META[depth];
+  const meta = CHART_META[depth];
 
   // Current spot — initialised on mount via lazy initialiser
   const [spot, setSpot] = useState<PreflopSpot>(() => dealPreflopSpot({ depth }));

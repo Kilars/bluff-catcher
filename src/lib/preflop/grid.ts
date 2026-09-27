@@ -38,23 +38,42 @@ export const RANK_LABELS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4
 // orientation convention, so `RangeGrid` and `PhoneRangeView` cannot disagree
 // on what a colour means or what to call it in an aria-label.
 
-export type CellAction = 'value' | 'bluff' | 'call' | 'fold';
+export type CellAction = 'value' | 'bluff' | 'threeBet' | 'call' | 'fold';
 
 /** Verdict-style label for a cell action, used in aria-labels and readouts. */
 export const CELL_ACTION_LABELS: Record<CellAction, string> = {
   value: '3-bet (value)',
   bluff: '3-bet (bluff)',
+  // A chart that does not split 3-bets by kind (cash) — no value/bluff claim.
+  threeBet: '3-bet',
   call: 'call',
   fold: 'fold',
 };
 
-/** Legend entries in a fixed, sensible reading order. */
+/**
+ * Legend entries in a fixed, sensible reading order. A grid shows only the
+ * entries its chart uses (`legendFor`), so a cash chart gets 3-bet / call /
+ * fold and a tournament one the value / bluff split.
+ */
 export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: string }> = [
   { action: 'value', label: '3-bet — value (V)' },
   { action: 'bluff', label: '3-bet — bluff (B)' },
+  { action: 'threeBet', label: '3-bet (3)' },
   { action: 'call', label: 'call' },
   { action: 'fold', label: 'fold' },
 ];
+
+/** The legend entries a chart actually uses, in legend order. */
+export function legendFor(
+  cellAction: (hc: HandClass) => CellAction
+): ReadonlyArray<{ action: CellAction; label: string }> {
+  const used = new Set<CellAction>();
+  for (let row = 0; row < RANK_LABELS.length; row++) {
+    for (let col = 0; col < RANK_LABELS.length; col++) used.add(cellAction(cellClass(row, col)));
+  }
+  // Fold stays even on a chart with no folds, so the key always reads the same.
+  return CELL_ACTION_LEGEND.filter((item) => used.has(item.action) || item.action === 'fold');
+}
 
 export function cellClass(row: number, col: number): HandClass {
   const rowRank = RANK_LABELS[row];

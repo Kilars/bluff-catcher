@@ -13,6 +13,12 @@
  *   source chart is one span, 50bb+ — see docs/PLAN-3bet.md, "Depth caveat"),
  *   so this is simply unused while mode === 'facing'.
  *
+ * format: 'mtt' | 'cash'   (docs/PLAN-cash.md)
+ *   Tournament or cash, for both preflop drills. Persisted to
+ *   bluff-catcher:format:v1, default 'mtt'. With `depth` it resolves to one
+ *   `chartKey` ('deep' | 'mid' | 'short' | 'cash'); cash keeps the stored tier
+ *   for the return to tournament.
+ *
  * Structure (odds mode):
  *   <div.frame>
  *     <Header>   ← shared, with hamburger menu + odds stats
@@ -25,9 +31,9 @@
  *     <PreflopTrainer> / <FacingTrainer>
  *   </div.frame>
  *
- * Facing mode reuses `usePreflopStats()` — same shape (hands/streak/accuracy)
- * — but as a **second instance**, keyed to its own storage key, so its numbers
- * never mix with RFI's. See `facingStats` below.
+ * RFI and facing share `usePreflopStats()` — same shape (hands/streak/accuracy)
+ * — as separate instances per drill and per format, each with its own storage
+ * key, so no numbers ever mix. See `STATS_KEY` below.
  *
  * layout: 'phone' | 'compact' | 'desktop'
  *   From useLayoutMode(), which is the app's only viewport read and publishes
@@ -39,10 +45,10 @@
 import { useEffect, useState } from 'react';
 import { useLayoutMode } from './hooks/useLayoutMode';
 import { useStats } from './hooks/useStats';
-import { usePreflopStats } from './hooks/usePreflopStats';
+import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
-import { DEPTH_META } from './lib/preflop/ranges';
+import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
 import { FACING_CHIP_LABEL } from './lib/facingMeta';
 import { useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
@@ -56,17 +62,28 @@ import PreflopTrainer from './modes/PreflopTrainer';
 import FacingTrainer from './modes/FacingTrainer';
 import styles from './App.module.css';
 
-const FACING_STATS_KEY = 'bluff-catcher:facing:v1';
+/**
+ * Stats keys per drill and format. RFI's tournament key predates the format
+ * (it is usePreflopStats' default); cash stats never mix with tournament ones.
+ */
+const STATS_KEY = {
+  preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
+  facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
+} as const;
 
 /** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
-function contextLabelFor(mode: ReturnType<typeof useAppPrefs>['mode'], depthLabel: string): string {
+function contextLabelFor(
+  mode: ReturnType<typeof useAppPrefs>['mode'],
+  depthLabel: string,
+  format: Format
+): string {
   switch (mode) {
     case 'odds':
       return 'Odds';
     case 'preflop':
       return depthLabel;
     case 'facing':
-      return FACING_CHIP_LABEL;
+      return FACING_CHIP_LABEL[format];
   }
 }
 
@@ -96,7 +113,11 @@ function clamp(value: number, min: number, max: number): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { mode, setMode, depth, setDepth, showDraw, setShowDraw } = useAppPrefs();
+  const { mode, setMode, depth, setDepth, format, setFormat, showDraw, setShowDraw } =
+    useAppPrefs();
+  // The RFI chart in play: the stored tier, or 'cash' (which ignores the tier
+  // but keeps it for the return to tournament).
+  const chartKey = chartKeyFor(format, depth);
 
   // Which component tree we are. Also stamps data-layout on <html>, which is
   // what every stylesheet keys off — see useLayoutMode for why this is a
@@ -104,8 +125,8 @@ export default function App() {
   const layout = useLayoutMode();
 
   // Standalone RFI range-chart browser, opened from the header menu.
-  // Independent of the trainer's own range sheet: it always opens on UTG and
-  // is browsable from any mode, without a hand in play.
+  // Independent of the trainer's own range sheet: it opens on the first seat
+  // of the chart in play and is browsable from any mode, without a hand in play.
   const [rangesOpen, setRangesOpen] = useState(false);
 
   // Which phone chrome overlay is up, if any. One at a time: the top bar has
@@ -113,9 +134,20 @@ export default function App() {
   // full-screen sheet, so a single slot is the whole state machine.
   const [phoneSheet, setPhoneSheet] = useState<'menu' | 'context' | 'stats' | null>(null);
   const stats = useStats();
-  const preflopStats = usePreflopStats();
-  // Facing mode's own instance: same shape, isolated storage key.
-  const facingStats = usePreflopStats(FACING_STATS_KEY);
+  // One instance per drill × format, picked below. Four instances rather than
+  // one with a changing key: usePreflopStats reads storage only on mount, so
+  // switching one instance's key would copy the tournament numbers into the
+  // cash key on its next save.
+  const preflopStatsByFormat = {
+    mtt: usePreflopStats(STATS_KEY.preflop.mtt),
+    cash: usePreflopStats(STATS_KEY.preflop.cash),
+  };
+  const facingStatsByFormat = {
+    mtt: usePreflopStats(STATS_KEY.facing.mtt),
+    cash: usePreflopStats(STATS_KEY.facing.cash),
+  };
+  const preflopStats = preflopStatsByFormat[format];
+  const facingStats = facingStatsByFormat[format];
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -223,7 +255,7 @@ export default function App() {
     <div className={styles.frame}>
       {isPhone ? (
         <PhoneTopBar
-          contextLabel={contextLabelFor(mode, DEPTH_META[depth].label)}
+          contextLabel={contextLabelFor(mode, CHART_META[chartKey].label, format)}
           onOpenContext={() => setPhoneSheet('context')}
           onOpenMenu={() => setPhoneSheet('menu')}
           stats={<PhoneStatsPill {...phoneStats} />}
@@ -234,6 +266,8 @@ export default function App() {
         onModeChange={setMode}
         depth={depth}
         onDepthChange={setDepth}
+        format={format}
+        onFormatChange={setFormat}
         showDraw={showDraw}
         onShowDrawChange={setShowDraw}
         onOpenRanges={() => setRangesOpen(true)}
@@ -273,19 +307,24 @@ export default function App() {
 
       {mode === 'odds' && <OddsTrainer stats={stats} showDraw={showDraw} />}
 
-      {/* key={depth}: changing tier re-deals and re-shows the briefing, rather
-          than leaving a 60bb+ spot on screen labelled 10bb. */}
+      {/* key={chartKey}: changing tier or format re-deals and re-shows the
+          briefing, rather than leaving a 60bb+ spot on screen labelled 10bb. */}
       {mode === 'preflop' && (
         <PreflopTrainer
-          key={depth}
-          depth={depth}
+          key={chartKey}
+          depth={chartKey}
           onRecord={preflopStats.record}
           keysSuspended={keysSuspended}
         />
       )}
 
       {mode === 'facing' && (
-        <FacingTrainer stats={facingStats} keysSuspended={keysSuspended} />
+        <FacingTrainer
+          key={format}
+          format={format}
+          stats={facingStats}
+          keysSuspended={keysSuspended}
+        />
       )}
 
       {/* The standalone chart browser. Unlike the trainer's own range sheet
@@ -294,23 +333,29 @@ export default function App() {
       {rangesOpen &&
         (isPhone ? (
           <PhoneSheet title="RFI range charts" onClose={() => setRangesOpen(false)}>
-            <PhoneRangeView position="UTG" depth={depth} depthSwitchable />
+            <PhoneRangeView
+              position={CHART_META[chartKey].seats[0]}
+              depth={chartKey}
+              depthSwitchable
+            />
           </PhoneSheet>
         ) : (
           <RangeSheet
-            position="UTG"
-            depth={depth}
+            position={CHART_META[chartKey].seats[0]}
+            depth={chartKey}
             onClose={() => setRangesOpen(false)}
           />
         ))}
 
       {isPhone && phoneSheet !== null && phoneSheet !== 'stats' && (
         <PhoneMenuSheet
-          title={phoneSheet === 'context' ? 'Mode & depth' : 'Menu'}
+          title={phoneSheet === 'context' ? 'Mode & format' : 'Menu'}
           mode={mode}
           onModeChange={setMode}
           depth={depth}
           onDepthChange={setDepth}
+          format={format}
+          onFormatChange={setFormat}
           showDraw={showDraw}
           onShowDrawChange={setShowDraw}
           onOpenRanges={() => {

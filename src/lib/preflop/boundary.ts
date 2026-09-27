@@ -10,7 +10,7 @@
  *
  * It needs no new data. Every chart in `ranges.ts` is a set of hand classes, so
  * each hi-rank row of the matrix is scanned for its lowest included lo-rank and
- * the standard "+"-shorthand falls out. The verb comes from `DEPTH_META`: the
+ * the standard "+"-shorthand falls out. The verb comes from `CHART_META`: the
  * 10bb tier jams, it does not open.
  *
  * Pure. No UI imports, no React.
@@ -20,31 +20,21 @@ import { RANKS } from '../odds.ts';
 import type { HandClass } from './hands.ts';
 import {
   DEFAULT_DEPTH,
-  DEPTH_META,
+  CHART_META,
+  SEAT_META,
   getRangeSet,
-  type Depth,
-  type Position,
+  type ChartKey,
+  type Seat,
 } from './ranges.ts';
 
 // ─── Seat labels ──────────────────────────────────────────────────────────────
 
 /**
- * Short seat names, as written in the sentence and on a phone tab.
- * `UTG1` is a position *id*; "UTG+1" is what a player calls the seat.
+ * The seat's short display name, as written in the sentence and on a phone
+ * tab: `UTG1` is a position *id*; "UTG+1" is what a player calls the seat.
  */
-const POSITION_LABELS: Record<Position, string> = {
-  UTG: 'UTG',
-  UTG1: 'UTG+1',
-  UTG2: 'UTG+2',
-  LJ: 'LJ',
-  HJ: 'HJ',
-  CO: 'CO',
-  BTN: 'BTN',
-};
-
-/** The seat's short display name, e.g. `UTG1` → "UTG+1". */
-export function positionLabel(pos: Position): string {
-  return POSITION_LABELS[pos];
+export function positionLabel(pos: Seat): string {
+  return SEAT_META[pos].short;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,8 +71,8 @@ export interface BoundaryRow {
 
 /** The full scan of one seat's chart at one depth. */
 export interface RangeBoundary {
-  position: Position;
-  depth: Depth;
+  position: Seat;
+  depth: ChartKey;
   /** "opens" at 60bb+/20bb, "jams" at 10bb. */
   verb: string;
   /** The pair row, or null when the range holds no pair. */
@@ -196,7 +186,7 @@ function headline(rows: BoundaryRow[]): BoundaryRow | null {
  * `depth` is trailing and optional, matching every other lookup in
  * `ranges.ts`: callers that predate the tiers read the 60bb+ chart.
  */
-export function rangeBoundary(pos: Position, depth: Depth = DEFAULT_DEPTH): RangeBoundary {
+export function rangeBoundary(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): RangeBoundary {
   const set = getRangeSet(pos, depth);
 
   const suited: BoundaryRow[] = [];
@@ -212,7 +202,7 @@ export function rangeBoundary(pos: Position, depth: Depth = DEFAULT_DEPTH): Rang
   const pairs = scanPairs(set);
   const suitedHeadline = headline(suited);
   const offsuitHeadline = headline(offsuit);
-  const verb = DEPTH_META[depth].action === 'jam' ? 'jams' : 'opens';
+  const verb = CHART_META[depth].action === 'jam' ? 'jams' : 'opens';
 
   // Suited leads: suited aces are the first hands into every RFI range and the
   // last ones out of it, so that clause is the one that moves seat to seat.
@@ -223,8 +213,8 @@ export function rangeBoundary(pos: Position, depth: Depth = DEFAULT_DEPTH): Rang
 
   const sentence =
     clauses.length === 0
-      ? `${POSITION_LABELS[pos]} folds everything`
-      : `${POSITION_LABELS[pos]} ${verb} ${clauses.join(', ')}`;
+      ? `${SEAT_META[pos].short} folds everything`
+      : `${SEAT_META[pos].short} ${verb} ${clauses.join(', ')}`;
 
   return {
     position: pos,
@@ -244,6 +234,6 @@ export function rangeBoundary(pos: Position, depth: Depth = DEFAULT_DEPTH): Rang
  *
  * This is what the phone range view prints under the scrub readout.
  */
-export function boundarySentence(pos: Position, depth: Depth = DEFAULT_DEPTH): string {
+export function boundarySentence(pos: Seat, depth: ChartKey = DEFAULT_DEPTH): string {
   return rangeBoundary(pos, depth).sentence;
 }

@@ -21,6 +21,8 @@ function baseProps() {
     onModeChange: noop,
     depth: 'deep' as const,
     onDepthChange: noop,
+    format: 'mtt' as const,
+    onFormatChange: noop,
     showDraw: true,
     onShowDrawChange: noop,
     onOpenRanges: noop,

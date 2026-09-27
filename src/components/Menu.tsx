@@ -5,11 +5,13 @@
  * the available modes; the active one is marked. Selecting a mode switches
  * it and closes the menu.
  *
- * Below the modes sits a "Stack depth" group — the three tournament tiers the
- * preflop trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group
- * with the RFI range charts, so the charts are reachable without playing a
- * hand first. The depth group is shown only in preflop mode, since it means
- * nothing to the odds trainer; the "Drill" group, holding the one odds
+ * Below the modes sits a "Format" group — tournament or cash, for both preflop
+ * drills — then a "Stack depth" group — the three tournament tiers the preflop
+ * trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group with the
+ * RFI range charts, so the charts are reachable without playing a hand first.
+ * The format group is shown in the two preflop modes; the depth group only in
+ * preflop mode with the tournament format, since cash has one depth and the
+ * odds trainer has none; the "Drill" group, holding the one odds
  * preference (name the draw before you guess), is shown only in odds mode for
  * the same reason.
  *
@@ -25,7 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppMode } from '../hooks/useAppPrefs';
-import { DEPTHS, DEPTH_META, type Depth } from '../lib/preflop/ranges';
+import { DEPTHS, DEPTH_META, FORMATS, FORMAT_META, type Depth, type Format } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
 interface MenuItem {
@@ -45,6 +47,9 @@ interface MenuProps {
   /** Stack tier the preflop trainer is drilling. */
   currentDepth: Depth;
   onDepthChange: (depth: Depth) => void;
+  /** Tournament or cash, for both preflop drills. */
+  currentFormat: Format;
+  onFormatChange: (format: Format) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -57,6 +62,8 @@ export default function Menu({
   onModeChange,
   currentDepth,
   onDepthChange,
+  currentFormat,
+  onFormatChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,
@@ -121,6 +128,15 @@ export default function Menu({
     [onDepthChange, close]
   );
 
+  const handleSelectFormat = useCallback(
+    (format: Format) => {
+      onFormatChange(format);
+      close();
+      buttonRef.current?.focus();
+    },
+    [onFormatChange, close]
+  );
+
   // Deliberately does not close: see the header note.
   const handleToggleShowDraw = useCallback(() => {
     onShowDrawChange(!showDraw);
@@ -168,7 +184,31 @@ export default function Menu({
             </button>
           ))}
 
-          {currentMode === 'preflop' && (
+          {(currentMode === 'preflop' || currentMode === 'facing') && (
+            <>
+              <div className={styles.separator} />
+              <span className={styles.groupLabel}>Format</span>
+              {FORMATS.map((f) => (
+                <button
+                  key={f}
+                  className={`${styles.item} ${f === currentFormat ? styles.itemActive : ''}`}
+                  role="menuitemradio"
+                  aria-checked={f === currentFormat}
+                  onClick={() => handleSelectFormat(f)}
+                >
+                  <span className={styles.itemMain}>
+                    {FORMAT_META[f].label}
+                    <span className={styles.itemNote}>{FORMAT_META[f].note}</span>
+                  </span>
+                  {f === currentFormat && (
+                    <span className={styles.activeMarker} aria-label="(active)" />
+                  )}
+                </button>
+              ))}
+            </>
+          )}
+
+          {currentMode === 'preflop' && currentFormat === 'mtt' && (
             <>
               <div className={styles.separator} />
               <span className={styles.groupLabel}>Stack depth</span>

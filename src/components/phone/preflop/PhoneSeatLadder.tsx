@@ -28,14 +28,14 @@
 
 import { buildLadderSlots, ladderContextLine, type LadderSlot } from './ladderSlots';
 import { DEFAULT_OPENER_RAISE_BB } from '../../PreflopTable';
-import type { Position } from '../../../lib/preflop/ranges';
+import type { Format, Seat } from '../../../lib/preflop/ranges';
 import styles from './PhoneSeatLadder.module.css';
 
 /** Screen-reader description for one slot: never just a bare position label. */
 function slotDescription(slot: LadderSlot): string {
   const parts: string[] = [slot.label];
   if (slot.state === 'folded') parts.push('folded');
-  else if (slot.state === 'hero') parts.push('you');
+  else if (slot.state === 'hero') parts.push(slot.blind === 'sb' ? 'you, small blind' : 'you');
   else if (slot.state === 'opener') parts.push(`raises ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
   else parts.push('to act');
   if (slot.isButton) parts.push('dealer button');
@@ -46,25 +46,38 @@ function slotDescription(slot: LadderSlot): string {
 
 export interface PhoneSeatLadderProps {
   /** Hero's seat. Everything else on the row is derived from it. */
-  position: Position;
+  position: Seat;
   /**
    * The facing-open drill's raiser (PLAN-3bet F2): a seat before hero that
    * opened instead of folding. Omit it and the row renders exactly as the RFI
    * drill always has.
    */
-  opener?: Position;
+  opener?: Seat;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
   /** Overrides the line under the row (default: "3 folded · 5 behind"). */
   contextLine?: string;
+  /** Tournament (9 seats, default) or cash (6 seats). */
+  format?: Format;
 }
 
-export default function PhoneSeatLadder({ position, opener, raiseBb, contextLine }: PhoneSeatLadderProps) {
-  const slots = buildLadderSlots(position, opener, raiseBb);
+export default function PhoneSeatLadder({
+  position,
+  opener,
+  raiseBb,
+  contextLine,
+  format,
+}: PhoneSeatLadderProps) {
+  const slots = buildLadderSlots(position, opener, raiseBb, format);
 
   return (
     <div className={styles.ladderBlock}>
-      <div className={styles.row} role="list" aria-label="Seats in action order">
+      <div
+        className={styles.row}
+        role="list"
+        aria-label="Seats in action order"
+        style={{ '--ladder-seats': slots.length } as React.CSSProperties}
+      >
         {slots.map((slot) => (
           <div
             key={slot.label}

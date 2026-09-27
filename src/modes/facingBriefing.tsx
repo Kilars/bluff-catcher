@@ -5,9 +5,10 @@
  */
 
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
+import type { Format } from '../lib/preflop/ranges';
 import styles from './FacingTrainer.module.css';
 
-export const FACING_BRIEFING: InfoSheetContent = {
+const MTT_BRIEFING: InfoSheetContent = {
   kicker: 'The situation',
   title: 'Fold, call or 3-bet on the button',
   subline: '9-handed tournament table · 50bb+ effective',
@@ -61,4 +62,57 @@ export const FACING_BRIEFING: InfoSheetContent = {
   ],
   keysNote: 'J means call here. In the RFI drill it means open.',
   cta: 'Start drilling',
+};
+
+/**
+ * Cash (6-max, 100bb, no ante). The chart facts are pinned by
+ * `lib/preflop/cashRanges.test.ts`.
+ */
+const CASH_BRIEFING: InfoSheetContent = {
+  ...MTT_BRIEFING,
+  subline: '6-max cash table · 100bb effective, no ante',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'LJ, HJ or CO opens to 2.5bb and everyone else folds to you on the button. Fold, call, or 3-bet to about 3× the open.',
+    },
+    {
+      title: 'Two charts',
+      body: (
+        <ul className={styles.briefList}>
+          <li>
+            <strong>vs LJ/HJ</strong> — the source uses one chart for both.
+          </li>
+          <li>
+            <strong>vs CO</strong> — the same, plus more 3-bets.
+          </li>
+        </ul>
+      ),
+    },
+    {
+      title: 'Three rules',
+      body: (
+        <ul className={styles.briefList}>
+          <li>
+            The button is almost 3-bet or fold. The chart only flats 66–99, A9s, A8s, QTs and
+            JTs.
+          </li>
+          <li>JJ and TT 3-bet here — they flat in the tournament chart.</li>
+          <li>
+            vs CO adds only 3-bets: more suited aces (A7s, A6s, A3s, A2s), suited connectors
+            (87s, 76s, 54s), K9s, AJo, ATo and KJo.
+          </li>
+        </ul>
+      ),
+    },
+    {
+      title: 'No value or bluff label',
+      body: 'The cash source does not split its 3-bets, so the verdict just says 3-bet.',
+    },
+  ],
+};
+
+export const FACING_BRIEFING: Record<Format, InfoSheetContent> = {
+  mtt: MTT_BRIEFING,
+  cash: CASH_BRIEFING,
 };
