@@ -19,8 +19,9 @@
  *  - Escape = close whichever sheet is open
  *  While a sheet is open the game keys are inert.
  *
- * The briefing opens the first time the player ever meets this drill (both
- * layouts), then only via Info / I — `needsBriefing('facing')`.
+ * The briefing opens the first time the player ever meets this drill in each
+ * format (both layouts), then only via Info / I — `needsBriefing('facing')` /
+ * `needsBriefing('facing-cash')`.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -35,28 +36,39 @@ import { CELL_ACTION_LABELS, type CellAction } from '../lib/preflop/grid';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { HandClass } from '../lib/preflop/hands';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
+import type { Format } from '../lib/preflop/ranges';
 
-/** The briefing id in `briefed.ts` — separate from every RFI tier. */
-export const FACING_BRIEFING_ID = 'facing';
+/** The briefing id in `briefed.ts` per format — separate from every RFI tier. */
+export const FACING_BRIEFING_ID: Record<Format, string> = { mtt: 'facing', cash: 'facing-cash' };
 
 // ─── Pure helpers (exported for the views and tests) ──────────────────────────
 
-/** A bucket chart's answer for a hand, as one of the grid's four colours. */
+/**
+ * A bucket chart's answer for a hand, as a grid colour. A chart without kinds
+ * (cash) colours its 3-bets plainly — never as "value".
+ */
 export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
   const { action, kind } = bucketChartAction(bucket, hc);
-  if (action === '3bet') return kind ?? 'value';
+  if (action === '3bet') return kind ?? 'threeBet';
   return action;
 }
 
-/** "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. */
+/**
+ * "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. Cash bucket
+ * labels already name their openers ("vs LJ/HJ", "vs CO"), so they stand alone.
+ */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
+  if (meta.format === 'cash') return `BTN ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
 
-/** The word the verdict uses for a spot's right answer: "call", "3-bet (bluff)". */
+/**
+ * The word the verdict uses for a spot's right answer: "call", "3-bet (bluff)",
+ * or a bare "3-bet" when the chart does not split them (cash).
+ */
 export function facingAnswerWord(spot: Pick<FacingSpot, 'correct' | 'kind'>): string {
-  if (spot.correct === '3bet') return `3-bet (${spot.kind ?? 'value'})`;
+  if (spot.correct === '3bet') return spot.kind ? `3-bet (${spot.kind})` : '3-bet';
   return spot.correct;
 }
 
@@ -76,18 +88,25 @@ export interface UseFacingDrillOptions {
   onRecord: (wasCorrect: boolean) => void;
   /** True while an overlay owned by App is open — all game keys go inert. */
   keysSuspended?: boolean;
+  /** Tournament (default) or cash. App remounts the drill on a change. */
+  format?: Format;
 }
 
-export function useFacingDrill({ onRecord, keysSuspended = false }: UseFacingDrillOptions) {
-  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot());
+export function useFacingDrill({
+  onRecord,
+  keysSuspended = false,
+  format = 'mtt',
+}: UseFacingDrillOptions) {
+  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format }));
   const [committed, setCommitted] = useState<FacingAction | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(() => needsBriefing(FACING_BRIEFING_ID));
+  const briefingId = FACING_BRIEFING_ID[format];
+  const [infoOpen, setInfoOpen] = useState(() => needsBriefing(briefingId));
 
   useEffect(() => {
     // Marked on open, not close: every dismissal route counts.
-    if (infoOpen) markBriefed(FACING_BRIEFING_ID);
-  }, [infoOpen]);
+    if (infoOpen) markBriefed(briefingId);
+  }, [infoOpen, briefingId]);
 
   const committedRef = useRef<FacingAction | null>(null);
   committedRef.current = committed;
@@ -107,11 +126,11 @@ export function useFacingDrill({ onRecord, keysSuspended = false }: UseFacingDri
   );
 
   const handleNext = useCallback(() => {
-    setSpot(dealFacingSpot());
+    setSpot(dealFacingSpot({ format }));
     committedRef.current = null;
     setCommitted(null);
     setRangeOpen(false);
-  }, []);
+  }, [format]);
 
   const openInfo = useCallback(() => {
     setRangeOpen(false);

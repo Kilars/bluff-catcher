@@ -15,10 +15,10 @@ import {
   sampleClassByCombos,
 } from './hands.ts';
 import {
-  type Depth,
-  type Position,
+  type ChartKey,
+  type Seat,
+  CHART_META,
   DEFAULT_DEPTH,
-  POSITIONS,
   isOpen,
   getRangeSet,
 } from './ranges.ts';
@@ -26,9 +26,9 @@ import {
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface PreflopSpot {
-  position: Position;
+  position: Seat;
   /** The stack tier this spot was dealt at. */
-  depth: Depth;
+  depth: ChartKey;
   cards: [Card, Card];
   handClass: HandClass;
   /**
@@ -46,7 +46,7 @@ export interface DealPreflopOpts {
   /** Override pool strategy. Default: ACTIVE_POOL. */
   pool?: Pool;
   /** Stack tier to deal for. Default: DEFAULT_DEPTH ('deep', the 60bb+ chart). */
-  depth?: Depth;
+  depth?: ChartKey;
 }
 
 // ─── Pool strategy interface ──────────────────────────────────────────────────
@@ -57,7 +57,7 @@ export interface DealPreflopOpts {
  */
 export interface Pool {
   readonly name: string;
-  weight(pos: Position, hc: HandClass, depth: Depth): number;
+  weight(pos: Seat, hc: HandClass, depth: ChartKey): number;
 }
 
 // ─── Built-in pool strategies ─────────────────────────────────────────────────
@@ -68,7 +68,7 @@ export interface Pool {
  */
 export const uniformPool: Pool = {
   name: 'uniform',
-  weight(_pos: Position, _hc: HandClass, _depth: Depth): number {
+  weight(_pos: Seat, _hc: HandClass, _depth: ChartKey): number {
     return 1;
   },
 };
@@ -108,7 +108,7 @@ const TRASH_WEIGHT = 0.25;
  *   among all excluded classes)
  * - boundaryMidRank: midpoint used to define the edge band
  */
-function computeBoundary(pos: Position, depth: Depth): {
+function computeBoundary(pos: Seat, depth: ChartKey): {
   weakestOpenRank: number;
   strongestFoldRank: number;
   boundaryMidRank: number;
@@ -136,7 +136,7 @@ function computeBoundary(pos: Position, depth: Depth): {
 /** Cached boundary data, keyed by depth + position — each tier has its own edge. */
 const BOUNDARY_CACHE = new Map<string, ReturnType<typeof computeBoundary>>();
 
-function getBoundary(pos: Position, depth: Depth): ReturnType<typeof computeBoundary> {
+function getBoundary(pos: Seat, depth: ChartKey): ReturnType<typeof computeBoundary> {
   const key = `${depth}:${pos}`;
   if (!BOUNDARY_CACHE.has(key)) {
     BOUNDARY_CACHE.set(key, computeBoundary(pos, depth));
@@ -146,7 +146,7 @@ function getBoundary(pos: Position, depth: Depth): ReturnType<typeof computeBoun
 
 export const edgeSkewPool: Pool = {
   name: 'edgeSkew',
-  weight(pos: Position, hc: HandClass, depth: Depth): number {
+  weight(pos: Seat, hc: HandClass, depth: ChartKey): number {
     const rank = strengthRank(hc);
     if (rank === -1) return 1; // shouldn't happen
 
@@ -184,10 +184,10 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
 
 /** Sample a hand class weighted by the pool strategy × combo count. */
 function sampleHandClass(
-  pos: Position,
+  pos: Seat,
   pool: Pool,
   rng: () => number,
-  depth: Depth
+  depth: ChartKey
 ): HandClass {
   return sampleClassByCombos(HAND_STRENGTH_RANKING, (hc) => pool.weight(pos, hc, depth), rng);
 }
@@ -254,8 +254,11 @@ export function dealPreflopSpot(opts?: DealPreflopOpts): PreflopSpot {
   const depth = opts?.depth ?? DEFAULT_DEPTH;
 
   // 1. Pick position uniformly
-  const posIdx = Math.floor(rng() * POSITIONS.length);
-  const position = POSITIONS[posIdx];
+  // The tournament tiers' seat list is POSITIONS itself, so a tournament deal
+  // makes exactly the rng() calls it always has (golden.test.ts pins this).
+  const seats = CHART_META[depth].seats;
+  const posIdx = Math.floor(rng() * seats.length);
+  const position = seats[posIdx];
 
   // 2. Sample hand class
   const hc = sampleHandClass(position, pool, rng, depth);

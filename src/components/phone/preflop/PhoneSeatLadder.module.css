@@ -19,7 +19,8 @@
 .row {
   height: 44px;
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
+  /* One column per seat: 9 at a tournament table, 6 in cash (set inline). */
+  grid-template-columns: repeat(var(--ladder-seats, 9), 1fr);
   gap: var(--space-1);
   align-items: stretch;
 }

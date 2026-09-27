@@ -223,3 +223,23 @@ describe('dealPreflopSpot() — stack depth', () => {
     expect([...bands.deep].some((hc) => !bands.short.has(hc))).toBe(true);
   });
 });
+
+describe('dealPreflopSpot() — cash chart', () => {
+  it('deals only cash seats, SB included, graded against the cash chart', () => {
+    const rng = makeRng(9);
+    const seats = new Set<string>();
+    for (let i = 0; i < 3000; i++) {
+      const spot = dealPreflopSpot({ rng, depth: 'cash' });
+      seats.add(spot.position);
+      expect(spot.depth).toBe('cash');
+      expect(spot.correct).toBe(isOpen(spot.position, spot.handClass, 'cash') ? 'open' : 'fold');
+    }
+    expect([...seats].sort()).toEqual(['BTN', 'CO', 'HJ', 'LJ', 'SB']);
+  });
+
+  it('reads the cash set, not the 9-max seat of the same name', () => {
+    // K5s opens from 9-max LJ but not from 6-max LJ.
+    expect(isOpen('LJ', 'K5s', 'deep')).not.toBe(isOpen('LJ', 'K5s', 'cash'));
+    expect(edgeSkewPool.weight('LJ', 'K5s', 'cash')).toBeGreaterThan(0);
+  });
+});

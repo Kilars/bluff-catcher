@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import PreflopTable, { buildSeats, seatSlotIndex } from './PreflopTable';
+import PreflopTable, { buildContextLine, buildSeats, seatSlotIndex } from './PreflopTable';
 import type { Card as CardCode } from '../lib/odds';
 
 const HERO: [CardCode, CardCode] = ['As', 'Kh'];
@@ -138,5 +138,49 @@ describe('PreflopTable action counters', () => {
     render(<PreflopTable hero={HERO} position="BTN" />);
     expect(screen.getByText(/you're on the button/i)).toBeInTheDocument();
     expect(screen.getByText(/6 players folded before you/i)).toBeInTheDocument();
+  });
+});
+
+describe('cash (6-max) ring', () => {
+  it('seats five others around hero, blinds last', () => {
+    expect(buildSeats('LJ', undefined, 2.5, 'cash').map((s) => [s.label, s.type])).toEqual([
+      ['HJ', 'toAct'],
+      ['CO', 'toAct'],
+      ['BTN', 'toAct'],
+      ['SB', 'sb'],
+      ['BB', 'bb'],
+    ]);
+  });
+
+  it('seats hero on the SB without a second SB seat, BTN folded but still the button', () => {
+    const seats = buildSeats('SB', undefined, 2.5, 'cash');
+    expect(seats.map((s) => [s.label, s.type])).toEqual([
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'folded'],
+      ['BTN', 'folded'],
+      ['BB', 'bb'],
+    ]);
+    expect(seats.find((s) => s.label === 'BTN')?.isBtn).toBe(true);
+    expect(buildContextLine('SB', 'cash')).toBe('4 players folded before you · only the BB behind you');
+  });
+
+  it('counts slots round a six-seat ring', () => {
+    expect(seatSlotIndex('CO', 'BTN', 'cash')).toBe(1);
+    expect(seatSlotIndex('CO', 'BB', 'cash')).toBe(3);
+    expect(seatSlotIndex('CO', 'HJ', 'cash')).toBe(5);
+    expect(seatSlotIndex('SB', 'SB', 'cash')).toBe(0);
+  });
+
+  it('draws the 6-max felt with hero\'s own blind chip on the SB', () => {
+    render(<PreflopTable hero={['As', 'Kd']} position="SB" depth="cash" />);
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent('0.5');
+    expect(screen.queryByText('UTG')).not.toBeInTheDocument();
+    expect(screen.getAllByText('SB')).toHaveLength(1);
+  });
+
+  it('puts the facing opener\'s raise chip on a cash seat', () => {
+    render(<PreflopTable hero={['As', 'Kd']} position="BTN" opener="HJ" format="cash" />);
+    expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
   });
 });

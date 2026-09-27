@@ -133,7 +133,9 @@
  * `.fold` is shared between both modes — a fold cell looks the same either way.
  */
 
-.value {
+/* A cash 3-bet (no value/bluff split) wears the value colour; its corner mark differs. */
+.value,
+.threeBet {
   background: color-mix(in srgb, var(--range-value) 28%, #241618);
   color: var(--range-value);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-value) 42%, transparent);
@@ -157,10 +159,12 @@
 
 /*
  * Value and call are red and green — the pair colour-blind players confuse
- * most — so 3-bet cells also carry a corner letter: V (value), B (bluff).
+ * most — so 3-bet cells also carry a corner mark: V (value), B (bluff), or 3
+ * on a chart that does not split them (cash).
  */
 .value::after,
-.bluff::after {
+.bluff::after,
+.threeBet::after {
   position: absolute;
   top: 1px;
   right: 2px;
@@ -177,6 +181,10 @@
 
 .bluff::after {
   content: 'B';
+}
+
+.threeBet::after {
+  content: '3';
 }
 
 /* ── Legend + footnote ─────────────────────────────────────────────────── */

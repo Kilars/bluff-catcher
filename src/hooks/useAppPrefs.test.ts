@@ -14,6 +14,9 @@ import {
   MODE_KEY,
   DEPTH_KEY,
   SHOW_DRAW_KEY,
+  FORMAT_KEY,
+  loadFormat,
+  saveFormat,
   loadMode,
   saveMode,
   loadDepth,
@@ -133,5 +136,38 @@ describe('"show the draw" persistence', () => {
     saveShowDraw(false);
     expect(SHOW_DRAW_KEY).toBe('bluff-catcher:show-draw:v1');
     expect(localStorage.getItem('bluff-catcher:show-draw:v1')).toBe('off');
+  });
+});
+
+describe('format persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults to tournament, so nobody\'s app changes until they flip it', () => {
+    expect(loadFormat()).toBe('mtt');
+  });
+
+  it('falls back to tournament for an unrecognised value', () => {
+    localStorage.setItem(FORMAT_KEY, 'spins');
+    expect(loadFormat()).toBe('mtt');
+  });
+
+  it('round-trips cash', () => {
+    saveFormat('cash');
+    expect(localStorage.getItem(FORMAT_KEY)).toBe('cash');
+    expect(loadFormat()).toBe('cash');
+  });
+
+  it('falls back to tournament when storage throws', () => {
+    const orig = Storage.prototype.getItem;
+    Storage.prototype.getItem = () => {
+      throw new Error('blocked');
+    };
+    try {
+      expect(loadFormat()).toBe('mtt');
+    } finally {
+      Storage.prototype.getItem = orig;
+    }
   });
 });

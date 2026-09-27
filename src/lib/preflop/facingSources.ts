@@ -19,9 +19,9 @@
  */
 
 import type { HandClass } from './hands.ts';
-import type { FacingChart, Opener } from './facing.ts';
+import type { KindedChart, Opener } from './facing.ts';
 
-export const FACING_SOURCES: Record<Opener, FacingChart> = {
+export const FACING_SOURCES: Record<Opener, KindedChart> = {
   /** BTN vs UTG — value 34 / bluff 48 / call 108. */
   UTG: {
     value: new Set<HandClass>(['AA', 'KK', 'QQ', 'AKs', 'AKo']),

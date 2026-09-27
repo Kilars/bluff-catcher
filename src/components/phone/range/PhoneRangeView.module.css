@@ -370,7 +370,8 @@
 /* Only reached via `cellAction` (the facing-open drill); `[data-open]` above
    stays the only colour path for the RFI usage. */
 
-.cell[data-action='value'] {
+.cell[data-action='value'],
+.cell[data-action='threeBet'] {
   background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
 }
 
@@ -388,12 +389,14 @@
 
 /* Colour-blind cue: value (red) and call (green) also differ by a corner letter. */
 .cell[data-action='value'],
-.cell[data-action='bluff'] {
+.cell[data-action='bluff'],
+.cell[data-action='threeBet'] {
   position: relative;
 }
 
 .cell[data-action='value']::after,
-.cell[data-action='bluff']::after {
+.cell[data-action='bluff']::after,
+.cell[data-action='threeBet']::after {
   position: absolute;
   top: 2px;
   right: 3px;
@@ -411,6 +414,10 @@
 
 .cell[data-action='bluff']::after {
   content: 'B';
+}
+
+.cell[data-action='threeBet']::after {
+  content: '3';
 }
 
 .cell[data-action='fold'] {
@@ -467,6 +474,7 @@
 
 .legendSwatch[data-action='value'] { background: var(--range-value); }
 .legendSwatch[data-action='bluff'] { background: var(--range-bluff); }
+.legendSwatch[data-action='threeBet'] { background: var(--range-value); }
 .legendSwatch[data-action='call'] { background: var(--range-call); }
 .legendSwatch[data-action='fold'] { background: var(--color-neutral-800); }
 

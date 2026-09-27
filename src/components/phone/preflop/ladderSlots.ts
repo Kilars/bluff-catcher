@@ -1,5 +1,5 @@
 /**
- * ladderSlots — the nine-slot model behind PhoneSeatLadder.
+ * ladderSlots — the slot model behind PhoneSeatLadder (9-max or 6-max).
  *
  * Split out of the component so the file that renders the row exports only a
  * component (and so this is importable without pulling in a stylesheet).
@@ -10,7 +10,7 @@
  */
 
 import { buildSeats, DEFAULT_OPENER_RAISE_BB, POSITION_LABEL } from '../../PreflopTable';
-import type { Position } from '../../../lib/preflop/ranges';
+import type { Format, Seat } from '../../../lib/preflop/ranges';
 
 export type SlotState = 'folded' | 'hero' | 'behind' | 'opener';
 
@@ -27,9 +27,9 @@ export interface LadderSlot {
 }
 
 /**
- * The nine slots in action order, hero included.
+ * Every slot in action order, hero included (nine at 9-max, six at 6-max).
  *
- * `buildSeats` returns the eight seats that are not hero, already in action
+ * `buildSeats` returns the seats that are not hero, already in action
  * order: the folded/opener ones first, then the seats behind, then SB and BB.
  * Hero therefore belongs at exactly the fold boundary.
  *
@@ -37,11 +37,12 @@ export interface LadderSlot {
  * there for the constraint that the opener must be a seat before hero.
  */
 export function buildLadderSlots(
-  position: Position,
-  opener?: Position,
-  raiseBb: number = DEFAULT_OPENER_RAISE_BB
+  position: Seat,
+  opener?: Seat,
+  raiseBb: number = DEFAULT_OPENER_RAISE_BB,
+  format: Format = 'mtt'
 ): LadderSlot[] {
-  const seats = buildSeats(position, opener, raiseBb);
+  const seats = buildSeats(position, opener, raiseBb, format);
   const beforeCount = seats.filter((s) => s.type === 'folded' || s.type === 'opener').length;
 
   const before: LadderSlot[] = seats.slice(0, beforeCount).map((s) => ({
@@ -58,6 +59,8 @@ export function buildLadderSlots(
     // never vanish from the row (it has done, once, and it is the seat every
     // other seat is read relative to).
     isButton: position === 'BTN',
+    // Cash only: hero on the SB has posted, so the slot carries the blind.
+    blind: position === 'SB' ? 'sb' : undefined,
   };
 
   const after: LadderSlot[] = seats.slice(beforeCount).map((s) => ({

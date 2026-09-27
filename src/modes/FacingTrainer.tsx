@@ -4,7 +4,7 @@
  *
  * Presentation only, in the same split as PreflopTrainer: the spot, commit,
  * sheets, keys and verdict copy all live in `hooks/useFacingDrill`, and this
- * file picks the tree — the nine-seat felt plus dock on desktop, the
+ * file picks the tree — the felt (9-max, or 6-max in cash) plus dock on desktop, the
  * PhoneFacingTrainer flashcard on phone. The dock reuses
  * PreflopTrainer.module.css so the two drills look like one app.
  *
@@ -14,6 +14,7 @@
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
+import { useCallback } from 'react';
 import PreflopTable, { DEFAULT_OPENER_RAISE_BB } from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
@@ -28,6 +29,7 @@ import {
 } from '../hooks/useFacingDrill';
 import { FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import type { HandClass } from '../lib/preflop/hands';
+import type { Format } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
 import { FACING_BRIEFING } from './facingBriefing';
 import styles from './PreflopTrainer.module.css';
@@ -38,11 +40,14 @@ export interface FacingTrainerProps {
   stats: ReturnType<typeof usePreflopStats>;
   /** True while an overlay owned by App is open — all game keys go inert. */
   keysSuspended?: boolean;
+  /** Tournament (default) or cash. App keys the trainer on it, so a switch re-deals. */
+  format?: Format;
 }
 
-export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerProps) {
+export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: FacingTrainerProps) {
   const layout = useLayoutMode();
-  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended });
+  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format });
+  const contextLabel = FACING_CONTEXT_LABEL[format];
 
   const {
     spot,
@@ -62,16 +67,17 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
     closeRange,
   } = drill;
 
-  const cellAction = (hc: HandClass) => facingCellAction(spot.bucket, hc);
+  // Stable per chart, so the grids can memoise their legend on it.
+  const cellAction = useCallback((hc: HandClass) => facingCellAction(spot.bucket, hc), [spot.bucket]);
   const chartTitle = facingChartTitle(spot.bucket);
-  const info = <PreflopInfoSheet content={FACING_BRIEFING} onClose={closeInfo} />;
+  const info = <PreflopInfoSheet content={FACING_BRIEFING[format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
     return (
       <PhoneFacingTrainer
         {...drill}
         renderRange={() => (
-          <PhoneSheet title={chartTitle} subtitle={FACING_CONTEXT_LABEL} onClose={closeRange}>
+          <PhoneSheet title={chartTitle} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
               key={spot.bucket}
               position="BTN"
@@ -96,9 +102,10 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
         opener={spot.opener}
         raiseBb={DEFAULT_OPENER_RAISE_BB}
         openerTag={bucketMeta.label}
-        stackLabel="50bb+"
+        format={format}
+        stackLabel={bucketMeta.stackLabel}
         centreTitle={`${openerLabel} opens · ${bucketMeta.label}`}
-        centreLine={`Folds to you on the button · ${FACING_CONTEXT_LABEL}`}
+        centreLine={`Folds to you on the button · ${contextLabel}`}
       />
 
       <div className={styles.dock}>
@@ -184,7 +191,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
           legend
           footnote={bucketMeta.footnote}
           fixedChart={{
-            kicker: `Facing an open · ${FACING_CONTEXT_LABEL}`,
+            kicker: `Facing an open · ${contextLabel}`,
             title: chartTitle,
             subline: `Graded on the ${bucketMeta.chartName} chart`,
           }}
