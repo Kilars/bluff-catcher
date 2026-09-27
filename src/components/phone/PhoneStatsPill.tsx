@@ -44,7 +44,7 @@ export type PhoneStatsPillProps = CommonProps &
         bands: Bands;
       }
     | ({ mode: 'preflop' } & AccuracyVariant)
-    | ({ mode: 'facing' } & AccuracyVariant)
+    | ({ mode: 'facing' | 'bbdefend' } & AccuracyVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export type PhoneStatsPillProps = CommonProps &
 export default function PhoneStatsPill(props: PhoneStatsPillProps) {
   const { streak, onPress } = props;
 
-  const isAccuracyMode = props.mode === 'preflop' || props.mode === 'facing';
+  const isAccuracyMode = props.mode !== 'odds';
   const accuracyText = isAccuracyMode
     ? props.hands === 0
       ? '—'

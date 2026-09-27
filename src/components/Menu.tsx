@@ -26,7 +26,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppMode } from '../hooks/useAppPrefs';
+import { MODES, MODE_LABEL, type AppMode } from '../hooks/useAppPrefs';
 import { DEPTHS, DEPTH_META, FORMATS, FORMAT_META, type Depth, type Format } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
@@ -35,11 +35,7 @@ interface MenuItem {
   label: string;
 }
 
-const MENU_ITEMS: MenuItem[] = [
-  { mode: 'odds', label: 'Odds trainer' },
-  { mode: 'preflop', label: 'Preflop RFI' },
-  { mode: 'facing', label: 'Facing open' },
-];
+const MENU_ITEMS: MenuItem[] = MODES.map((mode) => ({ mode, label: MODE_LABEL[mode] }));
 
 interface MenuProps {
   currentMode: AppMode;
@@ -184,7 +180,7 @@ export default function Menu({
             </button>
           ))}
 
-          {(currentMode === 'preflop' || currentMode === 'facing') && (
+          {currentMode !== 'odds' && (
             <>
               <div className={styles.separator} />
               <span className={styles.groupLabel}>Format</span>

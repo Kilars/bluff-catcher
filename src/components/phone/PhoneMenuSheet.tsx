@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import type { AppMode } from '../../hooks/useAppPrefs';
+import { FACING_DRILL_OF, MODE_LABEL, type AppMode } from '../../hooks/useAppPrefs';
 import {
   DEPTHS,
   DEPTH_META,
@@ -40,17 +40,19 @@ import styles from './PhoneMenuSheet.module.css';
 // ─── Copy ─────────────────────────────────────────────────────────────────────
 
 /** A mode's note; the preflop drills name the format they are drilling. */
-const MODE_ITEMS: { mode: AppMode; label: string; note: string | Record<Format, string> }[] = [
-  { mode: 'odds', label: 'Odds trainer', note: 'Chance you improve by the river' },
+const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
+  { mode: 'odds', note: 'Chance you improve by the river' },
   {
     mode: 'preflop',
-    label: 'Preflop RFI',
     note: { mtt: 'Open or fold, by seat and stack', cash: 'Open or fold, by seat · cash 6-max' },
   },
   {
     mode: 'facing',
-    label: 'Facing open',
     note: { mtt: 'Fold, call or 3-bet, vs open · 50bb+', cash: 'Fold, call or 3-bet, vs open · cash 100bb' },
+  },
+  {
+    mode: 'bbdefend',
+    note: { mtt: 'Fold, call or 3-bet in the big blind · 40bb', cash: 'Fold, call or 3-bet in the big blind · cash 100bb' },
   },
 ];
 
@@ -162,7 +164,7 @@ export default function PhoneMenuSheet({
               onClick={() => selectMode(item.mode)}
             >
               <span className={styles.rowMain}>
-                {item.label}
+                {MODE_LABEL[item.mode]}
                 <span className={styles.rowNote}>
                   {typeof item.note === 'string' ? item.note : item.note[format]}
                 </span>
@@ -197,7 +199,7 @@ export default function PhoneMenuSheet({
         {/* Facing mode has no depth picker — its source chart is one span,
             50bb+, not a tier to switch between (docs/PLAN-3bet.md) — and cash
             has one depth, 100bb (docs/PLAN-cash.md). */}
-        {mode !== 'facing' && format === 'mtt' && (
+        {!FACING_DRILL_OF[mode] && format === 'mtt' && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Stack depth</span>
             {DEPTHS.map((d) => (

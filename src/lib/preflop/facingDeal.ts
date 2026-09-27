@@ -15,18 +15,19 @@ import { type HandClass, ALL_169, expandCombos, handClass, sampleClassByCombos }
 import { cellClass } from './grid.ts';
 import {
   type Bucket,
+  type Drill,
   type FacingAction,
-  type Opener,
   type ThreeBetKind,
   type FacingChart,
   BUCKETS,
+  BUCKET_CHART,
   BUCKET_META,
   OPENERS,
   bucketChartAction,
   bucketsFor,
   chartAction,
 } from './facing.ts';
-import type { Format } from './ranges.ts';
+import type { Format, Seat } from './ranges.ts';
 import { CASH_VS_CO, CASH_VS_EARLY } from './cashRanges.ts';
 import { FACING_SOURCES } from './facingSources.ts';
 
@@ -34,8 +35,8 @@ import { FACING_SOURCES } from './facingSources.ts';
 
 export interface FacingSpot {
   /** The seat that opened. The felt shows the real seat. */
-  opener: Opener;
-  /** The chart hero is graded against: `bucketFor(format, opener)`. */
+  opener: Seat;
+  /** The chart hero is graded against (BTN drill: `bucketFor`; BB drill: the opener's own). */
   bucket: Bucket;
   cards: [Card, Card];
   handClass: HandClass;
@@ -61,6 +62,8 @@ export interface DealFacingOpts {
   pool?: FacingPool;
   /** Tournament (default) or cash. Picks the buckets, openers and charts. */
   format?: Format;
+  /** Hero on the button (default) or in the big blind. */
+  drill?: Drill;
 }
 
 // ─── Grid neighbours ──────────────────────────────────────────────────────────
@@ -125,7 +128,11 @@ function computeTier(bucket: Bucket, hc: HandClass): FacingTier {
   const own = bucketChartAction(bucket, hc).action;
   const near = neighbours(hc);
   if (near.some((n) => bucketChartAction(bucket, n).action !== own)) return 'border';
-  const sources = SOURCE_CHARTS[BUCKET_META[bucket].format];
+  // The BB drill grades every opener on its own chart, so its trash tier is
+  // measured against that chart alone — BB defends so wide vs the late seats
+  // that almost nothing folds in all of them.
+  const meta = BUCKET_META[bucket];
+  const sources = meta.drill === 'bb' ? [BUCKET_CHART[bucket]] : SOURCE_CHARTS[meta.format];
   const foldsEverywhere = (c: HandClass) =>
     sources.every((chart) => chartAction(chart, c).action === 'fold');
   if (foldsEverywhere(hc) && near.every(foldsEverywhere)) return 'trash';
@@ -193,7 +200,7 @@ function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): H
 export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const rng = opts?.rng ?? Math.random;
   const pool = opts?.pool ?? ACTIVE_FACING_POOL;
-  const buckets = bucketsFor(opts?.format ?? 'mtt');
+  const buckets = bucketsFor(opts?.format ?? 'mtt', opts?.drill);
 
   // 1. Bucket, then opener within it
   const bucket = buckets[Math.floor(rng() * buckets.length)];

@@ -1,7 +1,7 @@
 /**
  * App — root shell. Holds mode state and routes to the active mode.
  *
- * mode: 'odds' | 'preflop' | 'facing'
+ * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend'
  *   Persisted to localStorage key bluff-catcher:mode:v1.
  *   Default 'odds' on first load or corrupt value.
  *
@@ -49,8 +49,8 @@ import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopSt
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
-import { FACING_CHIP_LABEL } from './lib/facingMeta';
-import { useAppPrefs } from './hooks/useAppPrefs';
+import { BB_CHIP_LABEL, FACING_CHIP_LABEL } from './lib/facingMeta';
+import { FACING_DRILL_OF, useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
@@ -69,6 +69,7 @@ import styles from './App.module.css';
 const STATS_KEY = {
   preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
   facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
+  bbdefend: { mtt: 'bluff-catcher:bbdefend:v1', cash: 'bluff-catcher:bbdefend-cash:v1' },
 } as const;
 
 /** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
@@ -84,6 +85,8 @@ function contextLabelFor(
       return depthLabel;
     case 'facing':
       return FACING_CHIP_LABEL[format];
+    case 'bbdefend':
+      return BB_CHIP_LABEL[format];
   }
 }
 
@@ -146,8 +149,13 @@ export default function App() {
     mtt: usePreflopStats(STATS_KEY.facing.mtt),
     cash: usePreflopStats(STATS_KEY.facing.cash),
   };
+  const bbStatsByFormat = {
+    mtt: usePreflopStats(STATS_KEY.bbdefend.mtt),
+    cash: usePreflopStats(STATS_KEY.bbdefend.cash),
+  };
   const preflopStats = preflopStatsByFormat[format];
   const facingStats = facingStatsByFormat[format];
+  const bbStats = bbStatsByFormat[format];
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -215,9 +223,11 @@ export default function App() {
   // felt completely.
   const keysSuspended = rangesOpen || phoneSheet !== null;
 
-  // RFI and facing share a stats shape (hands / streak / accuracy), so the
-  // phone chrome only has to tell odds apart from "an accuracy drill".
-  const accuracyStats = mode === 'facing' ? facingStats : preflopStats;
+  // RFI and both facing drills share a stats shape (hands / streak /
+  // accuracy), so the phone chrome only has to tell odds apart from "an
+  // accuracy drill".
+  const accuracyStats = { odds: preflopStats, preflop: preflopStats, facing: facingStats, bbdefend: bbStats }[mode];
+  const facingDrill = FACING_DRILL_OF[mode];
   const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 
   const phoneStats: PhoneStatsPillProps =
@@ -293,12 +303,12 @@ export default function App() {
             : undefined
         }
         facingStats={
-          mode === 'facing'
+          facingDrill
             ? {
-                hands: facingStats.hands,
-                streak: facingStats.streak,
-                accuracy: facingStats.accuracy,
-                onResetStats: facingStats.reset,
+                hands: accuracyStats.hands,
+                streak: accuracyStats.streak,
+                accuracy: accuracyStats.accuracy,
+                onResetStats: accuracyStats.reset,
               }
             : undefined
         }
@@ -318,11 +328,12 @@ export default function App() {
         />
       )}
 
-      {mode === 'facing' && (
+      {facingDrill && (
         <FacingTrainer
-          key={format}
+          key={`${facingDrill}-${format}`}
+          drill={facingDrill}
           format={format}
-          stats={facingStats}
+          stats={accuracyStats}
           keysSuspended={keysSuspended}
         />
       )}

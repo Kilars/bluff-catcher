@@ -6,8 +6,9 @@
  * The right-side content slot is mode-aware:
  *   mode='odds'    → shows odds stat pairs
  *   mode='preflop' → shows preflop RFI stat pairs (hands/streak/accuracy)
- *   mode='facing'  → shows facing-open stat pairs, same shape as preflop's,
- *                    backed by a separate `usePreflopStats()` instance
+ *   mode='facing' / 'bbdefend' → that drill's stat pairs, same shape as
+ *                    preflop's, fed through `facingStats` from the drill's
+ *                    own `usePreflopStats()` instance
  *
  * Every mode branch below is a `switch`/lookup on `mode`, deliberately, rather
  * than a two-way `mode === 'odds' ? … : …` check — the latter silently treats
@@ -15,9 +16,9 @@
  */
 
 import Menu from './Menu';
-import type { AppMode } from '../hooks/useAppPrefs';
+import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
-import { FACING_CONTEXT_LABEL } from '../lib/facingMeta';
+import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -50,7 +51,7 @@ interface HeaderProps {
   onShowDrawChange: (next: boolean) => void;
   oddsStats?: OddsStatsProps;
   preflopStats?: PreflopLikeStatsProps;
-  /** Facing-open mode's own stats — a separate `usePreflopStats()` instance. */
+  /** The active facing drill's stats (BTN or BB) — its own `usePreflopStats()` instance. */
   facingStats?: PreflopLikeStatsProps;
   /** Opens the standalone RFI range-chart browser from the menu. */
   onOpenRanges: () => void;
@@ -64,6 +65,8 @@ function brandSub(mode: AppMode, depth: Depth, format: Format): string {
       return `Preflop RFI · ${CHART_META[chartKeyFor(format, depth)].label}`;
     case 'facing':
       return `Facing open · ${FACING_CONTEXT_LABEL[format]}`;
+    case 'bbdefend':
+      return BB_CONTEXT_LABEL[format];
   }
 }
 
@@ -81,10 +84,11 @@ export default function Header({
   facingStats,
   onOpenRanges,
 }: HeaderProps) {
-  // 'preflop' and 'facing' render an identical stat block (hands/streak/
-  // accuracy); this picks which props feed it without a two-way check.
-  const preflopLikeStats = mode === 'preflop' ? preflopStats : mode === 'facing' ? facingStats : undefined;
-  const preflopLikeLabel = mode === 'facing' ? 'facing' : 'preflop';
+  // 'preflop' and both facing drills render an identical stat block
+  // (hands/streak/accuracy); this picks which props feed it.
+  const isFacingDrill = FACING_DRILL_OF[mode] !== undefined;
+  const preflopLikeStats = mode === 'preflop' ? preflopStats : isFacingDrill ? facingStats : undefined;
+  const preflopLikeLabel = mode === 'bbdefend' ? 'BB defend' : isFacingDrill ? 'facing' : 'preflop';
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`
@@ -155,7 +159,7 @@ export default function Header({
             )}
           </>
         )}
-        {(mode === 'preflop' || mode === 'facing') && preflopLikeStats && (
+        {mode !== 'odds' && preflopLikeStats && (
           <>
             <div className={styles.statPair}>
               <span>Hands</span>

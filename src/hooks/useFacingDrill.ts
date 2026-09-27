@@ -28,8 +28,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealFacingSpot, type FacingSpot } from '../lib/preflop/facingDeal';
 import {
   BUCKET_META,
+  DRILL_HERO,
   bucketChartAction,
   type Bucket,
+  type Drill,
   type FacingAction,
 } from '../lib/preflop/facing';
 import { CELL_ACTION_LABELS, type CellAction } from '../lib/preflop/grid';
@@ -38,8 +40,11 @@ import type { HandClass } from '../lib/preflop/hands';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
 import type { Format } from '../lib/preflop/ranges';
 
-/** The briefing id in `briefed.ts` per format — separate from every RFI tier. */
-export const FACING_BRIEFING_ID: Record<Format, string> = { mtt: 'facing', cash: 'facing-cash' };
+/** The briefing id in `briefed.ts` per drill and format — separate from every RFI tier. */
+export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
+  btn: { mtt: 'facing', cash: 'facing-cash' },
+  bb: { mtt: 'bbdefend', cash: 'bbdefend-cash' },
+};
 
 // ─── Pure helpers (exported for the views and tests) ──────────────────────────
 
@@ -55,11 +60,13 @@ export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
 
 /**
  * "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. Cash bucket
- * labels already name their openers ("vs LJ/HJ", "vs CO"), so they stand alone.
+ * labels already name their openers ("vs LJ/HJ", "vs CO"), and so does every
+ * BB bucket ("BB vs CO"), so those stand alone.
  */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
-  if (meta.format === 'cash') return `BTN ${meta.label}`;
+  const hero = DRILL_HERO[meta.drill];
+  if (meta.drill === 'bb' || meta.format === 'cash') return `${hero} ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
 
@@ -90,17 +97,20 @@ export interface UseFacingDrillOptions {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App remounts the drill on a change. */
   format?: Format;
+  /** Hero on the button (default) or in the big blind. */
+  drill?: Drill;
 }
 
 export function useFacingDrill({
   onRecord,
   keysSuspended = false,
   format = 'mtt',
+  drill = 'btn',
 }: UseFacingDrillOptions) {
-  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format }));
+  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, drill }));
   const [committed, setCommitted] = useState<FacingAction | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
-  const briefingId = FACING_BRIEFING_ID[format];
+  const briefingId = FACING_BRIEFING_ID[drill][format];
   const [infoOpen, setInfoOpen] = useState(() => needsBriefing(briefingId));
 
   useEffect(() => {
@@ -126,11 +136,11 @@ export function useFacingDrill({
   );
 
   const handleNext = useCallback(() => {
-    setSpot(dealFacingSpot({ format }));
+    setSpot(dealFacingSpot({ format, drill }));
     committedRef.current = null;
     setCommitted(null);
     setRangeOpen(false);
-  }, [format]);
+  }, [format, drill]);
 
   const openInfo = useCallback(() => {
     setRangeOpen(false);
@@ -205,10 +215,13 @@ export function useFacingDrill({
   const correctWord = facingAnswerWord(spot);
   const verdictText = committed !== null ? facingVerdictText(spot, committed) : null;
   const openerLabel = positionLabel(spot.opener);
-  /** Post-commit detail line: "A8s vs HJ: 3-bet (bluff) on the vs Late chart". */
-  const detailText = `${spot.handClass} vs ${openerLabel}: ${
-    CELL_ACTION_LABELS[facingCellAction(spot.bucket, spot.handClass)]
-  } on the ${bucketMeta.label} chart`;
+  /**
+   * Post-commit detail line: "A8s vs HJ: 3-bet (bluff) on the vs Late chart".
+   * A per-opener chart (no `openerTag`) stops at the answer.
+   */
+  const answerLabel = CELL_ACTION_LABELS[facingCellAction(spot.bucket, spot.handClass)];
+  const chartPart = bucketMeta.openerTag ? ` on the ${bucketMeta.openerTag} chart` : '';
+  const detailText = `${spot.handClass} vs ${openerLabel}: ${answerLabel}${chartPart}`;
 
   return {
     spot,

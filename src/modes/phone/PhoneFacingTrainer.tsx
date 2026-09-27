@@ -16,9 +16,8 @@ import PhonePreflopStage from '../../components/phone/preflop/PhonePreflopStage'
 import PhoneDecisionPanel, {
   type DecisionButtonConfig,
 } from '../../components/phone/preflop/PhoneDecisionPanel';
-import { DEFAULT_OPENER_RAISE_BB } from '../../components/PreflopTable';
 import type { UseFacingDrillReturn } from '../../hooks/useFacingDrill';
-import type { FacingAction } from '../../lib/preflop/facing';
+import { DRILL_HERO, type FacingAction } from '../../lib/preflop/facing';
 import styles from './PhonePreflopTrainer.module.css';
 
 const PHONE_ACTIONS: DecisionButtonConfig<FacingAction>[] = [
@@ -53,10 +52,13 @@ export default function PhoneFacingTrainer({
       <div className={styles.topPad} />
 
       <PhoneSeatLadder
-        position="BTN"
+        position={DRILL_HERO[bucketMeta.drill]}
         opener={spot.opener}
+        raiseBb={bucketMeta.raiseBb}
         format={bucketMeta.format}
-        contextLine={`${openerLabel} raises ${DEFAULT_OPENER_RAISE_BB}bb · ${bucketMeta.label} · ${bucketMeta.stackLabel}`}
+        contextLine={[`${openerLabel} raises ${bucketMeta.raiseBb}bb`, bucketMeta.openerTag, bucketMeta.stackLabel]
+          .filter(Boolean)
+          .join(' · ')}
       />
 
       <div className={styles.gapAbove} />

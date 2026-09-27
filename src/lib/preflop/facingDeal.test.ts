@@ -15,7 +15,7 @@ import {
   neighbours,
   type FacingTier,
 } from './facingDeal';
-import { bucketsFor, bucketFor, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket } from './facing';
+import { bucketsFor, bucketFor, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket, type Opener } from './facing';
 import { ALL_169, combosForClass, handClass as computeHandClass } from './hands';
 
 /** These suites cover the tournament charts; cash has its own below. */
@@ -83,11 +83,11 @@ describe('dealFacingSpot() — what every spot must be', () => {
       const spot = dealFacingSpot({ rng });
 
       expect(OPENERS).toContain(spot.opener);
-      expect(spot.bucket).toBe(BUCKET_OF[spot.opener]);
+      expect(spot.bucket).toBe(BUCKET_OF[spot.opener as Opener]);
       expect(spot.cards[0]).not.toBe(spot.cards[1]);
       expect(spot.handClass).toBe(computeHandClass(spot.cards[0], spot.cards[1]));
 
-      const answer = facingAction(spot.opener, spot.handClass);
+      const answer = facingAction(spot.opener as Opener, spot.handClass);
       expect(spot.correct).toBe(answer.action);
       expect(spot.kind).toBe(answer.kind);
     }
@@ -169,7 +169,7 @@ describe('dealFacingSpot() — cash format', () => {
     expect(Object.keys(openerCounts).sort()).toEqual(['CO', 'HJ', 'LJ']);
     expect(Object.keys(bucketCounts).sort()).toEqual(['cashCo', 'cashEarly']);
     for (const s of spots.slice(0, 2000)) {
-      expect(s.bucket).toBe(bucketFor('cash', s.opener));
+      expect(s.bucket).toBe(bucketFor('cash', s.opener as Opener));
       expect(s.correct).toBe(bucketChartAction(s.bucket, s.handClass).action);
       expect(s.kind).toBeUndefined();
     }

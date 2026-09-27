@@ -1,6 +1,7 @@
 /**
- * FacingTrainer — the facing-open drill: someone opens, it folds to hero on
- * the button, and hero chooses Fold / Call / 3-bet. See docs/PLAN-3bet.md.
+ * FacingTrainer — the facing-open drills: someone opens, it folds to hero on
+ * the button (docs/PLAN-3bet.md) or in the big blind (`drill="bb"`,
+ * docs/PLAN-bb-defend.md), and hero chooses Fold / Call / 3-bet.
  *
  * Presentation only, in the same split as PreflopTrainer: the spot, commit,
  * sheets, keys and verdict copy all live in `hooks/useFacingDrill`, and this
@@ -10,12 +11,13 @@
  *
  * Props:
  *   stats — this mode's own `usePreflopStats()` instance
- *     (`bluff-catcher:facing:v1`), separate from RFI's.
+ *     (`bluff-catcher:facing:v1`, `bluff-catcher:bbdefend:v1`, …), separate from RFI's.
+ *   drill — 'btn' (default) or 'bb': hero's seat, charts, copy and briefing.
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
 import { useCallback } from 'react';
-import PreflopTable, { DEFAULT_OPENER_RAISE_BB } from '../components/PreflopTable';
+import PreflopTable from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
 import PhoneSheet from '../components/phone/PhoneSheet';
@@ -27,11 +29,12 @@ import {
   facingChartTitle,
   useFacingDrill,
 } from '../hooks/useFacingDrill';
-import { FACING_CONTEXT_LABEL } from '../lib/facingMeta';
+import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
+import { DRILL_HERO, type Drill } from '../lib/preflop/facing';
 import type { HandClass } from '../lib/preflop/hands';
 import type { Format } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
-import { FACING_BRIEFING } from './facingBriefing';
+import { BB_BRIEFING, FACING_BRIEFING } from './facingBriefing';
 import styles from './PreflopTrainer.module.css';
 import own from './FacingTrainer.module.css';
 
@@ -42,12 +45,37 @@ export interface FacingTrainerProps {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App keys the trainer on it, so a switch re-deals. */
   format?: Format;
+  /** Hero on the button (default) or in the big blind. */
+  drill?: Drill;
 }
 
-export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: FacingTrainerProps) {
+/** What differs on screen between the two drills. */
+const DRILL_VIEW = {
+  btn: {
+    contextLabel: FACING_CONTEXT_LABEL,
+    briefing: FACING_BRIEFING,
+    kicker: 'Facing an open',
+    where: 'Folds to you on the button',
+  },
+  bb: {
+    contextLabel: BB_CONTEXT_LABEL,
+    briefing: BB_BRIEFING,
+    kicker: 'Defending the big blind',
+    where: 'Folds to you in the big blind',
+  },
+} as const;
+
+export function FacingTrainer({
+  stats,
+  keysSuspended = false,
+  format = 'mtt',
+  drill: drillKind = 'btn',
+}: FacingTrainerProps) {
   const layout = useLayoutMode();
-  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format });
-  const contextLabel = FACING_CONTEXT_LABEL[format];
+  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind });
+  const view = DRILL_VIEW[drillKind];
+  const hero = DRILL_HERO[drillKind];
+  const contextLabel = view.contextLabel[format];
 
   const {
     spot,
@@ -70,7 +98,7 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
   // Stable per chart, so the grids can memoise their legend on it.
   const cellAction = useCallback((hc: HandClass) => facingCellAction(spot.bucket, hc), [spot.bucket]);
   const chartTitle = facingChartTitle(spot.bucket);
-  const info = <PreflopInfoSheet content={FACING_BRIEFING[format]} onClose={closeInfo} />;
+  const info = <PreflopInfoSheet content={view.briefing[format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
     return (
@@ -80,7 +108,7 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
           <PhoneSheet title={chartTitle} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
               key={spot.bucket}
-              position="BTN"
+              position={spot.opener}
               highlight={spot.handClass}
               cellAction={cellAction}
               legend
@@ -98,14 +126,14 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
     <>
       <PreflopTable
         hero={spot.cards}
-        position="BTN"
+        position={hero}
         opener={spot.opener}
-        raiseBb={DEFAULT_OPENER_RAISE_BB}
-        openerTag={bucketMeta.label}
+        raiseBb={bucketMeta.raiseBb}
+        openerTag={bucketMeta.openerTag}
         format={format}
         stackLabel={bucketMeta.stackLabel}
-        centreTitle={`${openerLabel} opens · ${bucketMeta.label}`}
-        centreLine={`Folds to you on the button · ${contextLabel}`}
+        centreTitle={[`${openerLabel} opens`, bucketMeta.openerTag].filter(Boolean).join(' · ')}
+        centreLine={`${view.where} · ${contextLabel}`}
       />
 
       <div className={styles.dock}>
@@ -124,7 +152,7 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
           {!isCommitted ? (
             <>
               <p className={styles.prompt}>
-                {openerLabel} opens {DEFAULT_OPENER_RAISE_BB}bb. Fold, call or 3-bet?
+                {openerLabel} opens {bucketMeta.raiseBb}bb. Fold, call or 3-bet?
                 <span className={styles.promptHint}>
                   Keys: F = Fold · J = Call · K = 3-bet · {bucketMeta.label} chart
                 </span>
@@ -185,13 +213,13 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
       {rangeOpen && (
         <RangeSheet
           key={spot.bucket}
-          position="BTN"
+          position={spot.opener}
           highlight={spot.handClass}
           cellAction={cellAction}
           legend
           footnote={bucketMeta.footnote}
           fixedChart={{
-            kicker: `Facing an open · ${contextLabel}`,
+            kicker: `${view.kicker} · ${contextLabel}`,
             title: chartTitle,
             subline: `Graded on the ${bucketMeta.chartName} chart`,
           }}
