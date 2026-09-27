@@ -28,6 +28,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealFacingSpot, type FacingSpot } from '../lib/preflop/facingDeal';
 import {
   BUCKET_META,
+  DRILL_HERO,
   bucketChartAction,
   type Bucket,
   type Drill,
@@ -64,8 +65,8 @@ export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
  */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
-  if (meta.drill === 'bb') return `BB ${meta.label}`;
-  if (meta.format === 'cash') return `BTN ${meta.label}`;
+  const hero = DRILL_HERO[meta.drill];
+  if (meta.drill === 'bb' || meta.format === 'cash') return `${hero} ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
 
@@ -216,13 +217,11 @@ export function useFacingDrill({
   const openerLabel = positionLabel(spot.opener);
   /**
    * Post-commit detail line: "A8s vs HJ: 3-bet (bluff) on the vs Late chart".
-   * A BB chart is the opener's own, so there it stops at the answer.
+   * A per-opener chart (no `openerTag`) stops at the answer.
    */
   const answerLabel = CELL_ACTION_LABELS[facingCellAction(spot.bucket, spot.handClass)];
-  const detailText =
-    bucketMeta.drill === 'bb'
-      ? `${spot.handClass} vs ${openerLabel}: ${answerLabel}`
-      : `${spot.handClass} vs ${openerLabel}: ${answerLabel} on the ${bucketMeta.label} chart`;
+  const chartPart = bucketMeta.openerTag ? ` on the ${bucketMeta.openerTag} chart` : '';
+  const detailText = `${spot.handClass} vs ${openerLabel}: ${answerLabel}${chartPart}`;
 
   return {
     spot,

@@ -30,7 +30,7 @@ import {
   useFacingDrill,
 } from '../hooks/useFacingDrill';
 import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
-import type { Drill } from '../lib/preflop/facing';
+import { DRILL_HERO, type Drill } from '../lib/preflop/facing';
 import type { HandClass } from '../lib/preflop/hands';
 import type { Format } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
@@ -52,14 +52,12 @@ export interface FacingTrainerProps {
 /** What differs on screen between the two drills. */
 const DRILL_VIEW = {
   btn: {
-    hero: 'BTN',
     contextLabel: FACING_CONTEXT_LABEL,
     briefing: FACING_BRIEFING,
     kicker: 'Facing an open',
     where: 'Folds to you on the button',
   },
   bb: {
-    hero: 'BB',
     contextLabel: BB_CONTEXT_LABEL,
     briefing: BB_BRIEFING,
     kicker: 'Defending the big blind',
@@ -76,6 +74,7 @@ export function FacingTrainer({
   const layout = useLayoutMode();
   const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind });
   const view = DRILL_VIEW[drillKind];
+  const hero = DRILL_HERO[drillKind];
   const contextLabel = view.contextLabel[format];
 
   const {
@@ -105,7 +104,6 @@ export function FacingTrainer({
     return (
       <PhoneFacingTrainer
         {...drill}
-        hero={view.hero}
         renderRange={() => (
           <PhoneSheet title={chartTitle} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
@@ -128,13 +126,13 @@ export function FacingTrainer({
     <>
       <PreflopTable
         hero={spot.cards}
-        position={view.hero}
+        position={hero}
         opener={spot.opener}
         raiseBb={bucketMeta.raiseBb}
-        openerTag={drillKind === 'btn' ? bucketMeta.label : undefined}
+        openerTag={bucketMeta.openerTag}
         format={format}
         stackLabel={bucketMeta.stackLabel}
-        centreTitle={drillKind === 'btn' ? `${openerLabel} opens · ${bucketMeta.label}` : `${openerLabel} opens`}
+        centreTitle={[`${openerLabel} opens`, bucketMeta.openerTag].filter(Boolean).join(' · ')}
         centreLine={`${view.where} · ${contextLabel}`}
       />
 

@@ -36,7 +36,7 @@ import { FACING_SOURCES } from './facingSources.ts';
 export interface FacingSpot {
   /** The seat that opened. The felt shows the real seat. */
   opener: Seat;
-  /** The chart hero is graded against: `bucketFor` / `bbBucketFor`. */
+  /** The chart hero is graded against (BTN drill: `bucketFor`; BB drill: the opener's own). */
   bucket: Bucket;
   cards: [Card, Card];
   handClass: HandClass;

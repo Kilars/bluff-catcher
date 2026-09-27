@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { borderSkewFacingPool, dealFacingSpot, facingTier, TIER_WEIGHT, type FacingSpot } from './facingDeal';
-import { BUCKET_META, bbBucketFor, bucketChartAction, bucketsFor } from './facing';
+import { BUCKET_META, bucketChartAction, bucketsFor } from './facing';
 import { BB_CASH_OPENERS, BB_MTT_OPENERS } from './bbDefendRanges';
 import { ALL_169 } from './hands';
 import type { Format } from './ranges';
@@ -39,9 +39,18 @@ describe.each([
 
   it('grades every deal on the opener’s own chart, with no 3-bet kind', () => {
     for (const s of spots.slice(0, 2000)) {
-      expect(s.bucket).toBe(bbBucketFor(format, s.opener));
+      expect(s.bucket).toBe(`bb-${format}-${s.opener}`);
       expect(s.correct).toBe(bucketChartAction(s.bucket, s.handClass).action);
       expect(s.kind).toBeUndefined();
+    }
+  });
+
+  it('faces the source open sizes: 2.3bb (SB 3.5bb) at 40bb, 2.5bb (SB 3bb) in cash', () => {
+    const [open, sbOpen] = format === 'mtt' ? [2.3, 3.5] : [2.5, 3];
+    for (const b of bucketsFor(format, 'bb')) {
+      const meta = BUCKET_META[b];
+      expect(meta.raiseBb, b).toBe(meta.chartSeat === 'SB' ? sbOpen : open);
+      expect(meta.openerTag, b).toBeUndefined();
     }
   });
 
@@ -75,7 +84,16 @@ describe('BB defence spot checks', () => {
     expect(facingTier('bb-mtt-UTG', '72o')).toBe('trash');
   });
 
-  it('rejects an opener that cannot open into the BB', () => {
-    expect(() => bbBucketFor('cash', 'UTG')).toThrow();
+  it('measures trash against the opener’s own chart, not every chart', () => {
+    // Q2s and J5s fold vs a cash LJ open (as do their neighbours) but defend
+    // vs the SB — an all-charts rule (the BTN drill's) would never call them trash.
+    for (const hc of ['Q2s', 'J5s']) {
+      expect(facingTier('bb-cash-LJ', hc), hc).toBe('trash');
+      expect(bucketChartAction('bb-cash-SB', hc).action, hc).not.toBe('fold');
+    }
+  });
+
+  it('has no bucket for a seat that cannot open into the BB in 6-max', () => {
+    expect(bucketsFor('cash', 'bb').map((b) => BUCKET_META[b].chartSeat)).not.toContain('UTG');
   });
 });

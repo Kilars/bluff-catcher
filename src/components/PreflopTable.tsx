@@ -21,6 +21,7 @@ import { Fragment } from 'react';
 import Card from './Card';
 import styles from './PreflopTable.module.css';
 import type { Card as CardCode } from '../lib/odds';
+import { BTN_DRILL_RAISE_BB } from '../lib/preflop/facing';
 import {
   CHART_META,
   DEFAULT_DEPTH,
@@ -147,7 +148,7 @@ const SEAT_SLOTS: Record<Format, SeatSlot[]> = { mtt: MTT_SLOTS, cash: CASH_SLOT
 const HERO_PLAQUE = { x: 410, y: 209 };
 
 /** Default open size for the opener seat (PLAN-3bet: 2.5bb). */
-export const DEFAULT_OPENER_RAISE_BB = 2.5;
+export const DEFAULT_OPENER_RAISE_BB = BTN_DRILL_RAISE_BB;
 
 /**
  * Builds every non-hero seat in action order: the non-blind seats other than

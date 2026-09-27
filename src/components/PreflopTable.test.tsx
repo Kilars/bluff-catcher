@@ -210,9 +210,18 @@ describe('hero in the big blind (docs/PLAN-bb-defend.md)', () => {
 
   it('draws hero\'s 1bb chip, the SB\'s dead 0.5 and the opener\'s raise', () => {
     render(<PreflopTable hero={['As', 'Kd']} position="BB" opener="BTN" raiseBb={2.3} />);
-    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent('1');
-    expect(screen.getByTestId('raise-chip')).toHaveTextContent('2.3');
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent(/^1$/);
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^2\.3$/);
     expect(screen.getByText('0.5')).toBeInTheDocument();
     expect(screen.getAllByText('BB')).toHaveLength(1);
+    // The BTN's raise chip takes the button's spot, so the D steps 30px aside.
+    expect(screen.getByLabelText('Dealer button').style.top).toBe('220px');
+  });
+
+  it('draws an SB open as a raise chip, with no dead blind left behind', () => {
+    render(<PreflopTable hero={['As', 'Kd']} position="BB" opener="SB" raiseBb={3.5} />);
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^3\.5$/);
+    expect(screen.getByText('raises 3.5bb')).toBeInTheDocument();
+    expect(screen.queryByText('0.5')).not.toBeInTheDocument();
   });
 });

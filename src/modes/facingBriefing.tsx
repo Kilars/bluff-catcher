@@ -128,7 +128,7 @@ const BB_MTT_BRIEFING: InfoSheetContent = {
   steps: [
     {
       title: 'The spot',
-      body: 'One player opens to 2.3bb (the SB to 3.5bb) and everyone else folds to you in the big blind. Fold, call, or 3-bet to about 4× the open.',
+      body: 'One player opens to 2.3bb (the SB to 3.5bb) and everyone else folds to you in the big blind. Fold, call, or 3-bet (about 4× the open when out of position).',
     },
     {
       title: 'One chart per opener',
@@ -138,9 +138,9 @@ const BB_MTT_BRIEFING: InfoSheetContent = {
       title: 'Why the BB defends so wide',
       body: (
         <ul className={styles.briefList}>
-          <li>You already have 1bb in, plus the ante in the pot, and you close the action.</li>
-          <li>That price means calling far wider than the button: 44% of hands vs UTG, up to 78% vs the BTN.</li>
-          <li>3-bets are bigger out of position, and every chart 3-bets AA.</li>
+          <li>You already have 1bb in, the BB ante is in the pot, and you close the action.</li>
+          <li>That price means defending (call or 3-bet) 44% of hands vs UTG, up to 78% vs the BTN.</li>
+          <li>You're out of position against everyone but the SB, so 3-bets are big. Every chart 3-bets AA.</li>
         </ul>
       ),
     },
@@ -165,8 +165,8 @@ const BB_CASH_BRIEFING: InfoSheetContent = {
       title: 'Tighter than tournaments',
       body: (
         <ul className={styles.briefList}>
-          <li>No ante means less dead money: 22% of hands vs LJ, up to 52% vs the SB.</li>
-          <li>Rake taxes the small pots flats play for, so marginal calls fold.</li>
+          <li>No ante, deeper stacks and bigger opens: you defend 22% of hands vs LJ, up to 52% vs the SB.</li>
+          <li>The source doesn't state its rake. Real rake would push marginal calls further toward folding.</li>
         </ul>
       ),
     },

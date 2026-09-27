@@ -50,7 +50,7 @@ import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
 import { BB_CHIP_LABEL, FACING_CHIP_LABEL } from './lib/facingMeta';
-import { useAppPrefs } from './hooks/useAppPrefs';
+import { FACING_DRILL_OF, useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
@@ -226,7 +226,8 @@ export default function App() {
   // RFI and both facing drills share a stats shape (hands / streak /
   // accuracy), so the phone chrome only has to tell odds apart from "an
   // accuracy drill".
-  const accuracyStats = mode === 'facing' ? facingStats : mode === 'bbdefend' ? bbStats : preflopStats;
+  const accuracyStats = { odds: preflopStats, preflop: preflopStats, facing: facingStats, bbdefend: bbStats }[mode];
+  const facingDrill = FACING_DRILL_OF[mode];
   const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 
   const phoneStats: PhoneStatsPillProps =
@@ -302,7 +303,7 @@ export default function App() {
             : undefined
         }
         facingStats={
-          mode === 'facing' || mode === 'bbdefend'
+          facingDrill
             ? {
                 hands: accuracyStats.hands,
                 streak: accuracyStats.streak,
@@ -327,21 +328,12 @@ export default function App() {
         />
       )}
 
-      {mode === 'facing' && (
+      {facingDrill && (
         <FacingTrainer
-          key={format}
+          key={`${facingDrill}-${format}`}
+          drill={facingDrill}
           format={format}
-          stats={facingStats}
-          keysSuspended={keysSuspended}
-        />
-      )}
-
-      {mode === 'bbdefend' && (
-        <FacingTrainer
-          key={format}
-          drill="bb"
-          format={format}
-          stats={bbStats}
+          stats={accuracyStats}
           keysSuspended={keysSuspended}
         />
       )}

@@ -206,7 +206,7 @@ describe('hero in the big blind', () => {
     expect(sb).toHaveAttribute('data-state', 'folded');
     expect(sb).toHaveAttribute('data-blind', 'sb');
     expect(btn).toHaveAttribute('data-state', 'opener');
-    expect(btn).toHaveTextContent('2.3');
+    expect(btn.querySelector('[aria-hidden]')).toHaveTextContent(/^2\.3$/);
     expect(screen.getByTestId('ladder-context')).toHaveTextContent('7 folded · 0 behind');
   });
 });

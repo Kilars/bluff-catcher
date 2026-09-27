@@ -16,7 +16,7 @@
  */
 
 import Menu from './Menu';
-import type { AppMode } from '../hooks/useAppPrefs';
+import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
 import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
@@ -84,11 +84,11 @@ export default function Header({
   facingStats,
   onOpenRanges,
 }: HeaderProps) {
-  // 'preflop' and 'facing' render an identical stat block (hands/streak/
-  // accuracy); this picks which props feed it without a two-way check.
-  const isFacingDrill = mode === 'facing' || mode === 'bbdefend';
+  // 'preflop' and both facing drills render an identical stat block
+  // (hands/streak/accuracy); this picks which props feed it.
+  const isFacingDrill = FACING_DRILL_OF[mode] !== undefined;
   const preflopLikeStats = mode === 'preflop' ? preflopStats : isFacingDrill ? facingStats : undefined;
-  const preflopLikeLabel = isFacingDrill ? 'facing' : 'preflop';
+  const preflopLikeLabel = mode === 'bbdefend' ? 'BB defend' : isFacingDrill ? 'facing' : 'preflop';
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`

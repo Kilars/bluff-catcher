@@ -56,7 +56,7 @@ describe('PhoneMenuSheet', () => {
     expect(menu().getByRole('menuitem', { name: /RFI range charts/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitem', { name: /Reset stats/ })).toBeInTheDocument();
 
-    // Three modes + three depths + the draw toggle + charts + reset, and nothing else.
+    // Every mode + three depths + the draw toggle + charts + reset, and nothing else.
     expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + DEPTHS.length);
     expect(menu().getAllByRole('menuitemcheckbox')).toHaveLength(1);
     expect(menu().getAllByRole('menuitem')).toHaveLength(2);

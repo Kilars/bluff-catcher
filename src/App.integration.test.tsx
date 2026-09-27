@@ -289,7 +289,7 @@ describe('BB defend mode (docs/PLAN-bb-defend.md)', () => {
 
     expect(screen.getByText('BB defend · 40bb')).toBeInTheDocument();
     expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
-    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent('1');
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent(/^1$/);
     expect(screen.getByText(/Folds to you in the big blind/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^Call$/ }));
@@ -304,6 +304,8 @@ describe('BB defend mode (docs/PLAN-bb-defend.md)', () => {
     localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['bbdefend-cash']));
     renderAt('desktop', <App />);
 
+    expect(screen.getByText('BB defend · Cash 100bb')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent(/^1$/);
     expect(screen.queryByText('UTG')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Fold$/ }));
     expect(JSON.parse(localStorage.getItem('bluff-catcher:bbdefend-cash:v1')!).hands).toBe(1);
@@ -327,5 +329,6 @@ describe('BB defend mode (docs/PLAN-bb-defend.md)', () => {
     fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: /BB defend/ }));
     expect(localStorage.getItem('bluff-catcher:mode:v1')).toBe('bbdefend');
+    expect(screen.getByText('Fold, call or 3-bet in the big blind')).toBeInTheDocument();
   });
 });

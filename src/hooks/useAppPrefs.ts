@@ -19,6 +19,7 @@
 
 import { useCallback, useState } from 'react';
 import { DEFAULT_DEPTH, DEPTHS, FORMATS, type Depth, type Format } from '../lib/preflop/ranges';
+import type { Drill } from '../lib/preflop/facing';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,9 @@ export const MODE_LABEL: Record<AppMode, string> = {
   facing: 'Facing open',
   bbdefend: 'BB defend',
 };
+
+/** The facing drill each facing mode runs; the other modes have none. */
+export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = { facing: 'btn', bbdefend: 'bb' };
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
