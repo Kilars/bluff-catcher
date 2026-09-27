@@ -72,7 +72,12 @@ export default function PhoneSeatLadder({
 
   return (
     <div className={styles.ladderBlock}>
-      <div className={styles.row} role="list" aria-label="Seats in action order">
+      <div
+        className={styles.row}
+        role="list"
+        aria-label="Seats in action order"
+        style={{ '--ladder-seats': slots.length } as React.CSSProperties}
+      >
         {slots.map((slot) => (
           <div
             key={slot.label}

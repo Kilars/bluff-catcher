@@ -14,6 +14,7 @@
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
+import { useCallback } from 'react';
 import PreflopTable, { DEFAULT_OPENER_RAISE_BB } from '../components/PreflopTable';
 import RangeSheet from '../components/RangeSheet';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
@@ -66,7 +67,8 @@ export function FacingTrainer({ stats, keysSuspended = false, format = 'mtt' }: 
     closeRange,
   } = drill;
 
-  const cellAction = (hc: HandClass) => facingCellAction(spot.bucket, hc);
+  // Stable per chart, so the grids can memoise their legend on it.
+  const cellAction = useCallback((hc: HandClass) => facingCellAction(spot.bucket, hc), [spot.bucket]);
   const chartTitle = facingChartTitle(spot.bucket);
   const info = <PreflopInfoSheet content={FACING_BRIEFING[format]} onClose={closeInfo} />;
 

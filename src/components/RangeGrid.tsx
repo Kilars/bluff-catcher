@@ -18,6 +18,7 @@
  *   footnote   — optional one-line note rendered under the grid (and legend, if shown).
  */
 
+import { useMemo } from 'react';
 import {
   DEFAULT_DEPTH,
   CHART_META,
@@ -56,6 +57,8 @@ export default function RangeGrid({
   legend = true,
   footnote,
 }: RangeGridProps) {
+  // Built once per chart rather than per render: it walks all 169 cells.
+  const legendItems = useMemo(() => (cellAction ? legendFor(cellAction) : []), [cellAction]);
   // "open" at 60bb+/20bb, "jam" at 10bb — the cell colour means the same
   // thing either way, only the word for it changes.
   const actionWord = CHART_META[depth].action;
@@ -130,7 +133,7 @@ export default function RangeGrid({
 
       {cellAction && legend && (
         <div className={styles.legend} data-testid="range-legend">
-          {legendFor(cellAction).map((item) => (
+          {legendItems.map((item) => (
             <span key={item.action} className={styles.legendItem}>
               <span className={`${styles.legendSwatch} ${styles[item.action]}`} />
               {item.label}

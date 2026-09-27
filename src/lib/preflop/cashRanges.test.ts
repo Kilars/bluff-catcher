@@ -15,7 +15,7 @@ import {
   CASH_VS_EARLY,
   type CashOpener,
 } from './cashRanges';
-import { chartAction, facingComboCounts, type FacingChart } from './facing';
+import { chartAction, facingComboCounts, hasKinds, type FacingChart } from './facing';
 
 type SourceKey = string;
 const SOURCE = JSON.parse(
@@ -83,8 +83,8 @@ describe('cash BTN facing charts', () => {
 
   it('never list a class under two actions', () => {
     for (const chart of [CASH_VS_EARLY, CASH_VS_CO]) {
-      for (const hc of chart.value) expect(chart.call.has(hc), hc).toBe(false);
-      expect(chart.bluff.size).toBe(0);
+      for (const hc of chart.threeBet) expect(chart.call.has(hc), hc).toBe(false);
+      expect(hasKinds(chart)).toBe(false);
     }
   });
 
@@ -94,8 +94,8 @@ describe('cash BTN facing charts', () => {
   });
 
   it('pin the combo counts', () => {
-    expect(facingComboCounts(CASH_VS_EARLY)).toEqual({ value: 110, bluff: 0, call: 40, fold: 1176 });
-    expect(facingComboCounts(CASH_VS_CO)).toEqual({ value: 178, bluff: 0, call: 40, fold: 1108 });
+    expect(facingComboCounts(CASH_VS_EARLY)).toEqual({ threeBet: 110, call: 40, fold: 1176 });
+    expect(facingComboCounts(CASH_VS_CO)).toEqual({ threeBet: 178, call: 40, fold: 1108 });
   });
 
   it('vs CO only adds 3-bets', () => {

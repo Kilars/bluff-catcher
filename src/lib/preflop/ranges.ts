@@ -231,7 +231,11 @@ export function seatOnChart(seat: Seat, key: ChartKey): Seat {
 }
 
 /** The tournament tiers' meta — the subset of `CHART_META` that `Depth` indexes. */
-export const DEPTH_META: Record<Depth, DepthMeta> = CHART_META;
+export const DEPTH_META: Record<Depth, DepthMeta> = {
+  deep: CHART_META.deep,
+  mid: CHART_META.mid,
+  short: CHART_META.short,
+};
 
 // ─── Range expansion helpers ─────────────────────────────────────────────────
 

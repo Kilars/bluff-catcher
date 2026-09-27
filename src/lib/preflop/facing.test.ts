@@ -12,7 +12,6 @@ import { describe, it, expect } from 'vitest';
 import {
   bucketsFor,
   bucketFor,
-  facingActionIn,
   BUCKET_CHART,
   BUCKET_META,
   BUCKET_OF,
@@ -21,6 +20,7 @@ import {
   LATE,
   OPENERS,
   type FacingChart,
+  type KindedChart,
   type Opener,
   bucketChartAction,
   chartAction,
@@ -62,7 +62,7 @@ describe('facing — shape', () => {
   });
 
   it('keeps value, bluff and call disjoint in every chart', () => {
-    const charts: FacingChart[] = [EARLY, LATE, ...OPENERS.map((o) => FACING_SOURCES[o])];
+    const charts: KindedChart[] = [EARLY, LATE, ...OPENERS.map((o) => FACING_SOURCES[o])];
     for (const chart of charts) {
       for (const hc of chart.value) {
         expect(chart.bluff.has(hc) || chart.call.has(hc), hc).toBe(false);
@@ -136,7 +136,12 @@ describe('facingSources — the six source charts', () => {
       CO: [54, 92, 184],
     };
     for (const o of OPENERS) {
-      const { value, bluff, call, fold } = facingComboCounts(FACING_SOURCES[o]);
+      const { value, bluff, call, fold } = facingComboCounts(FACING_SOURCES[o]) as {
+        value: number;
+        bluff: number;
+        call: number;
+        fold: number;
+      };
       expect([value, bluff, call], o).toEqual(printed[o]);
       expect(value + bluff + call + fold).toBe(1326);
     }
@@ -183,15 +188,14 @@ describe('facing — cash buckets', () => {
   });
 
   it('answers a bare 3-bet with no kind', () => {
-    expect(facingActionIn('cash', 'LJ', 'AA')).toEqual({ action: '3bet' });
-    expect(facingActionIn('cash', 'CO', 'A2s')).toEqual({ action: '3bet' });
-    expect(facingActionIn('cash', 'HJ', 'A2s')).toEqual({ action: 'fold' });
-    expect(facingActionIn('cash', 'LJ', '99')).toEqual({ action: 'call' });
+    const cash = (o: 'LJ' | 'HJ' | 'CO', hc: string) => bucketChartAction(bucketFor('cash', o), hc);
+    expect(cash('LJ', 'AA')).toEqual({ action: '3bet' });
+    expect(cash('CO', 'A2s')).toEqual({ action: '3bet' });
+    expect(cash('HJ', 'A2s')).toEqual({ action: 'fold' });
+    expect(cash('LJ', '99')).toEqual({ action: 'call' });
   });
 
-  it('leaves the tournament path unchanged', () => {
-    for (const o of ['UTG', 'LJ', 'CO'] as const) {
-      expect(facingActionIn('mtt', o, 'A5s')).toEqual(facingAction(o, 'A5s'));
-    }
+  it('agrees with the tournament bucket map for tournament openers', () => {
+    for (const o of OPENERS) expect(bucketFor('mtt', o)).toBe(BUCKET_OF[o]);
   });
 });

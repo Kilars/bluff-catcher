@@ -15,7 +15,7 @@ import {
   neighbours,
   type FacingTier,
 } from './facingDeal';
-import { bucketsFor, bucketFor, facingActionIn, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket } from './facing';
+import { bucketsFor, bucketFor, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket } from './facing';
 import { ALL_169, combosForClass, handClass as computeHandClass } from './hands';
 
 /** These suites cover the tournament charts; cash has its own below. */
@@ -170,7 +170,7 @@ describe('dealFacingSpot() — cash format', () => {
     expect(Object.keys(bucketCounts).sort()).toEqual(['cashCo', 'cashEarly']);
     for (const s of spots.slice(0, 2000)) {
       expect(s.bucket).toBe(bucketFor('cash', s.opener));
-      expect(s.correct).toBe(facingActionIn('cash', s.opener, s.handClass).action);
+      expect(s.correct).toBe(bucketChartAction(s.bucket, s.handClass).action);
       expect(s.kind).toBeUndefined();
     }
   });

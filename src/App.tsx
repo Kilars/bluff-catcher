@@ -45,7 +45,7 @@
 import { useEffect, useState } from 'react';
 import { useLayoutMode } from './hooks/useLayoutMode';
 import { useStats } from './hooks/useStats';
-import { usePreflopStats } from './hooks/usePreflopStats';
+import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
@@ -67,7 +67,7 @@ import styles from './App.module.css';
  * (it is usePreflopStats' default); cash stats never mix with tournament ones.
  */
 const STATS_KEY = {
-  preflop: { mtt: 'bluff-catcher:preflop:v1', cash: 'bluff-catcher:preflop-cash:v1' },
+  preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
   facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
 } as const;
 

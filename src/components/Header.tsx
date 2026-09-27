@@ -61,9 +61,7 @@ function brandSub(mode: AppMode, depth: Depth, format: Format): string {
     case 'odds':
       return 'Odds trainer';
     case 'preflop':
-      return format === 'cash'
-        ? 'Preflop RFI · Cash 100bb'
-        : `Preflop RFI · ${CHART_META[chartKeyFor(format, depth)].label}`;
+      return `Preflop RFI · ${CHART_META[chartKeyFor(format, depth)].label}`;
     case 'facing':
       return `Facing open · ${FACING_CONTEXT_LABEL[format]}`;
   }

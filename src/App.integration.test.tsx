@@ -242,7 +242,7 @@ describe('cash format', () => {
     // Cash briefing, then a hand graded into the cash key only.
     expect(screen.getByText(/6-max cash table/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
-    expect(screen.getByText('Preflop RFI · Cash 100bb')).toBeInTheDocument();
+    expect(screen.getByText('Preflop RFI · Cash')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Fold$/ }));
     expect(JSON.parse(localStorage.getItem('bluff-catcher:preflop-cash:v1')!).hands).toBe(1);
     expect(localStorage.getItem('bluff-catcher:preflop:v1')).toBeNull();

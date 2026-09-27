@@ -370,16 +370,13 @@
 /* Only reached via `cellAction` (the facing-open drill); `[data-open]` above
    stays the only colour path for the RFI usage. */
 
-.cell[data-action='value'] {
+.cell[data-action='value'],
+.cell[data-action='threeBet'] {
   background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
 }
 
 .cell[data-action='bluff'] {
   background: color-mix(in srgb, var(--range-bluff) 55%, var(--color-bg));
-}
-
-.cell[data-action='threeBet'] {
-  background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
 }
 
 .cell[data-action='call'] {

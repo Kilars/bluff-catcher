@@ -24,14 +24,13 @@
  *   vs LJ/HJ — 3-bet 110 / call 40 (11.3% continue)
  *   vs CO    — 3-bet 178 / call 40 (16.4% continue)
  * Cash BTN is almost 3-bet or fold. The source does not split 3-bets into
- * value and bluff, so these charts put every 3-bet in `value`, leave `bluff`
- * empty, and the bucket meta marks them `kinds: false`.
+ * value and bluff, so these are plain charts: one `threeBet` set, no kind.
  *
  * Hands not listed fold.
  */
 
 import type { HandClass } from './hands.ts';
-import type { FacingChart } from './facing.ts';
+import type { PlainChart } from './facing.ts';
 
 /** The five cash seats that can open, in action order. */
 export const CASH_SEATS = ['LJ', 'HJ', 'CO', 'BTN', 'SB'] as const;
@@ -112,14 +111,13 @@ const CASH_BTN_CALL = new Set<HandClass>([
  * BTN vs LJ and vs HJ — the source's two charts are identical.
  * 3-bet 110 + call 40 = 150 combos = 11.3% continue.
  */
-export const CASH_VS_EARLY: FacingChart = {
-  value: new Set<HandClass>([
+export const CASH_VS_EARLY: PlainChart = {
+  threeBet: new Set<HandClass>([
     'AA', 'KK', 'QQ', 'JJ', 'TT',
     'AKs', 'AQs', 'AJs', 'ATs', 'A5s', 'A4s', 'KQs', 'KJs', 'KTs', 'QJs',
     '65s',
     'AKo', 'AQo', 'KQo',
   ]),
-  bluff: new Set<HandClass>(),
   call: CASH_BTN_CALL,
 };
 
@@ -128,13 +126,12 @@ export const CASH_VS_EARLY: FacingChart = {
  * Only 3-bets are added vs the LJ/HJ chart: 54s, 76s, 87s, A7s, A6s, A3s,
  * A2s, K9s, AJo, ATo, KJo go from fold to 3-bet.
  */
-export const CASH_VS_CO: FacingChart = {
-  value: new Set<HandClass>([
+export const CASH_VS_CO: PlainChart = {
+  threeBet: new Set<HandClass>([
     'AA', 'KK', 'QQ', 'JJ', 'TT',
     'AKs', 'AQs', 'AJs', 'ATs', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
     'KQs', 'KJs', 'KTs', 'K9s', 'QJs', '87s', '76s', '65s', '54s',
     'AKo', 'AQo', 'AJo', 'ATo', 'KQo', 'KJo',
   ]),
-  bluff: new Set<HandClass>(),
   call: CASH_BTN_CALL,
 };

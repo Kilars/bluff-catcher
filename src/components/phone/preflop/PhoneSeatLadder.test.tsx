@@ -185,4 +185,10 @@ describe('cash (6-max)', () => {
     expect(hero).toHaveAttribute('data-blind', 'sb');
     expect(screen.getByTestId('ladder-context')).toHaveTextContent('4 folded · 1 behind');
   });
+
+  it('sizes the grid to six columns, so the row fills the width', () => {
+    renderAt('phone', <PhoneSeatLadder position="CO" format="cash" />);
+    const row = screen.getByRole('list', { name: 'Seats in action order' });
+    expect(row.style.getPropertyValue('--ladder-seats')).toBe('6');
+  });
 });

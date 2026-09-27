@@ -133,7 +133,9 @@
  * `.fold` is shared between both modes — a fold cell looks the same either way.
  */
 
-.value {
+/* A cash 3-bet (no value/bluff split) wears the value colour; its corner mark differs. */
+.value,
+.threeBet {
   background: color-mix(in srgb, var(--range-value) 28%, #241618);
   color: var(--range-value);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-value) 42%, transparent);
@@ -143,12 +145,6 @@
   background: color-mix(in srgb, var(--range-bluff) 26%, #151f2b);
   color: var(--range-bluff);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-bluff) 40%, transparent);
-}
-
-.threeBet {
-  background: color-mix(in srgb, var(--range-value) 28%, #241618);
-  color: var(--range-value);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-value) 42%, transparent);
 }
 
 .call {

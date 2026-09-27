@@ -32,7 +32,7 @@
  * commit, no persistence — a parent mounts this and owns all of that.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   CHART_KEYS,
   CHART_META,
@@ -273,6 +273,8 @@ export default function PhoneRangeView({
   // ── Readout copy ──────────────────────────────────────────────────────────
 
   const scrubHand = scrub ? cellClass(scrub.row, scrub.col) : null;
+  // Built once per chart, not on every scrub move: it walks all 169 cells.
+  const legendItems = useMemo(() => (cellAction ? legendFor(cellAction) : []), [cellAction]);
   const scrubAction = scrubHand ? cellAction?.(scrubHand) : undefined;
   const scrubOpen = scrubHand ? isOpen(viewPos, scrubHand, viewDepth) : false;
 
@@ -425,7 +427,7 @@ export default function PhoneRangeView({
 
       {cellAction && legend && (
         <div className={styles.legend} data-testid="range-legend">
-          {legendFor(cellAction).map((item) => (
+          {legendItems.map((item) => (
             <span key={item.action} className={styles.legendItem}>
               <span className={styles.legendSwatch} data-action={item.action} />
               {item.label}

@@ -53,9 +53,13 @@ export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
   return action;
 }
 
-/** "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. */
+/**
+ * "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. Cash bucket
+ * labels already name their openers ("vs LJ/HJ", "vs CO"), so they stand alone.
+ */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
+  if (meta.format === 'cash') return `BTN ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
 

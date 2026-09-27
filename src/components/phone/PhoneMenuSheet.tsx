@@ -39,12 +39,9 @@ import styles from './PhoneMenuSheet.module.css';
 
 // ─── Copy ─────────────────────────────────────────────────────────────────────
 
-const MODE_ITEMS: { mode: AppMode; label: string; note: Record<Format, string> }[] = [
-  {
-    mode: 'odds',
-    label: 'Odds trainer',
-    note: { mtt: 'Chance you improve by the river', cash: 'Chance you improve by the river' },
-  },
+/** A mode's note; the preflop drills name the format they are drilling. */
+const MODE_ITEMS: { mode: AppMode; label: string; note: string | Record<Format, string> }[] = [
+  { mode: 'odds', label: 'Odds trainer', note: 'Chance you improve by the river' },
   {
     mode: 'preflop',
     label: 'Preflop RFI',
@@ -166,7 +163,9 @@ export default function PhoneMenuSheet({
             >
               <span className={styles.rowMain}>
                 {item.label}
-                <span className={styles.rowNote}>{item.note[format]}</span>
+                <span className={styles.rowNote}>
+                  {typeof item.note === 'string' ? item.note : item.note[format]}
+                </span>
               </span>
               {item.mode === mode && <span className={styles.marker} aria-hidden="true" />}
             </button>
