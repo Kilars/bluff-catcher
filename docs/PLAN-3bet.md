@@ -303,8 +303,10 @@ Adding a third mode is real work, because the app treats mode as two-way today.
 - **Briefing** opens once per browser on *both* layouts (`needsBriefing('facing')`), unlike RFI
   desktop, which still briefs on every mount. `PreflopInfoSheet` takes a `content` prop (plus an
   optional `keysNote` under the key card, used for "J means call here"); RFI copy is unchanged.
-- **Range sheet** uses the existing `RangeSheet` / `PhoneRangeView` with a new `fixedChart`
-  prop: one bucket chart, no seat/depth navigator, no RFI boundary sentence or combo summary.
+- **Range sheet** uses the existing `RangeSheet` / `PhoneRangeView` with a `pages` prop: every
+  bucket chart of the drill (BB defend: every opener), stepped with the same arrows, tabs,
+  ←/→ keys and swipe as the RFI seats, opening on hero's chart (the only one with the hand
+  marked). No depth strip, RFI boundary sentence or combo summary.
 - **Table**: `PreflopTable` gained optional `openerTag` (the bucket, as a third line on the
   opener's plaque), `stackLabel`, `centreTitle` and `centreLine`; `PhoneSeatLadder` gained
   `contextLine`. All default to the RFI rendering.

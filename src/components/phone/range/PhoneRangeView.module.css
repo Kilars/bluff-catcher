@@ -149,6 +149,12 @@
   transition: background 90ms ease, color 90ms ease;
 }
 
+/* Eight chart tabs (BB defend at 9-max) only fit a 360px phone at 36px. */
+.seats[data-dense] .seatTab {
+  min-width: 36px;
+  font-size: 12px;
+}
+
 .seatTab[data-active='true'] {
   background: var(--color-accent-800);
   color: var(--color-accent-100);

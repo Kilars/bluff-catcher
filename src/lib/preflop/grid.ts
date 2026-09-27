@@ -40,6 +40,27 @@ export const RANK_LABELS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4
 
 export type CellAction = 'value' | 'bluff' | 'threeBet' | 'call' | 'fold';
 
+/**
+ * One page of a paged chart sheet (the facing drills' range view): a chart
+ * that is not an RFI seat, so it carries its own colouring and copy. The
+ * sheet steps through a list of these the way the RFI sheet steps seats.
+ */
+export interface ChartPage {
+  /** Stable id, e.g. the bucket. */
+  id: string;
+  /** Short strip label: "vs Early", or a seat ("UTG+1"). */
+  tab: string;
+  /** Header lines (desktop). */
+  kicker: string;
+  title: string;
+  subline?: string;
+  /** The chart's name in the phone readout and grid label, e.g. "vs Late". */
+  name: string;
+  cellAction: (hc: HandClass) => CellAction;
+  /** One-line note under the grid. */
+  footnote?: string;
+}
+
 /** Verdict-style label for a cell action, used in aria-labels and readouts. */
 export const CELL_ACTION_LABELS: Record<CellAction, string> = {
   value: '3-bet (value)',

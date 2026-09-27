@@ -9,6 +9,7 @@ import { renderAt } from '../test/renderAt';
 import FacingTrainer from './FacingTrainer';
 import * as dealModule from '../lib/preflop/facingDeal';
 import type { FacingSpot } from '../lib/preflop/facingDeal';
+import { bucketChartAction } from '../lib/preflop/facing';
 import { BRIEFED_KEY } from '../lib/preflop/briefed';
 import type { usePreflopStats } from '../hooks/usePreflopStats';
 
@@ -176,5 +177,79 @@ describe('FacingTrainer', () => {
       renderAt('phone', <FacingTrainer stats={fakeStats()} />);
       expect(screen.queryByText(/JJ and TT always call/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('FacingTrainer range sheet paging', () => {
+  let dealSpy: MockInstance<typeof dealModule.dealFacingSpot>;
+  const BB_SPOT: FacingSpot = {
+    opener: 'CO',
+    bucket: 'bb-mtt-CO',
+    cards: ['As', 'Ks'],
+    handClass: 'AKs',
+    correct: bucketChartAction('bb-mtt-CO', 'AKs').action,
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['facing', 'bbdefend']));
+  });
+
+  afterEach(() => {
+    cleanup();
+    dealSpy.mockRestore();
+  });
+
+  function openRange(layout: 'desktop' | 'phone', spot: FacingSpot, drill: 'btn' | 'bb') {
+    dealSpy = vi.spyOn(dealModule, 'dealFacingSpot').mockReturnValue(spot);
+    renderAt(layout, <FacingTrainer stats={fakeStats()} drill={drill} />);
+    if (layout === 'phone') {
+      fireEvent.click(screen.getByTestId('decision-call'));
+      fireEvent.click(screen.getByRole('button', { name: /See range/ }));
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: /^Call$/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Range/ }));
+    }
+  }
+
+  it('desktop BTN: arrows and ←/→ step between the opener groups; the hand shows on its own chart only', () => {
+    openRange('desktop', SPOT, 'btn');
+    const tabs = within(screen.getByRole('tablist', { name: 'Chart' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['vs Early', 'vs Late']);
+    expect(within(tabs[1]).getByLabelText('(your chart)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next chart' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous chart' }));
+    expect(screen.getByRole('heading', { name: 'BTN vs Early (UTG, UTG+1)' })).toBeInTheDocument();
+    expect(screen.getByLabelText('AQo: 3-bet (bluff)')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/your hand/)).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByRole('heading', { name: 'BTN vs Late (UTG+2, LJ, HJ, CO)' })).toBeInTheDocument();
+    expect(screen.getByLabelText('A8s: 3-bet (bluff) (your hand)')).toBeInTheDocument();
+  });
+
+  it('desktop BB: one tab per opener, opening on the opener that raised', () => {
+    openRange('desktop', BB_SPOT, 'bb');
+    const tabs = within(screen.getByRole('tablist', { name: 'Chart' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB',
+    ]);
+    expect(screen.getByRole('heading', { name: 'BB vs CO' })).toBeInTheDocument();
+
+    fireEvent.click(tabs[7]);
+    expect(screen.getByRole('heading', { name: 'BB vs SB' })).toBeInTheDocument();
+    expect(screen.getByLabelText('AA: 3-bet')).toBeInTheDocument();
+  });
+
+  it('phone BB: the chart strip pages, and the title follows', () => {
+    openRange('phone', BB_SPOT, 'bb');
+    expect(screen.getByTestId('chart-title')).toHaveTextContent('BB vs CO');
+    const strip = screen.getByRole('tablist', { name: 'Chart' });
+    expect(strip).toHaveAttribute('data-dense');
+
+    fireEvent.click(within(strip).getByRole('tab', { name: 'UTG' }));
+    expect(screen.getByTestId('chart-title')).toHaveTextContent('BB vs UTG');
+    expect(screen.queryByLabelText(/your hand/)).not.toBeInTheDocument();
   });
 });
