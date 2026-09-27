@@ -50,8 +50,8 @@ export const CELL_ACTION_LABELS: Record<CellAction, string> = {
 
 /** Legend entries in a fixed, sensible reading order. */
 export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: string }> = [
-  { action: 'value', label: '3-bet — value' },
-  { action: 'bluff', label: '3-bet — bluff' },
+  { action: 'value', label: '3-bet — value (V)' },
+  { action: 'bluff', label: '3-bet — bluff (B)' },
   { action: 'call', label: 'call' },
   { action: 'fold', label: 'fold' },
 ];

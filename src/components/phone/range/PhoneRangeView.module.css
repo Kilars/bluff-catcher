@@ -386,6 +386,33 @@
   background: color-mix(in srgb, var(--range-call) 78%, var(--color-bg));
 }
 
+/* Colour-blind cue: value (red) and call (green) also differ by a corner letter. */
+.cell[data-action='value'],
+.cell[data-action='bluff'] {
+  position: relative;
+}
+
+.cell[data-action='value']::after,
+.cell[data-action='bluff']::after {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.cell[data-action='value']::after {
+  content: 'V';
+}
+
+.cell[data-action='bluff']::after {
+  content: 'B';
+}
+
 .cell[data-action='fold'] {
   background: var(--color-neutral-900);
   box-shadow: inset 0 0 0 1px var(--color-neutral-800);

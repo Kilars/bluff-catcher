@@ -155,6 +155,30 @@
   background: color-mix(in srgb, var(--range-call) 38%, #1a2820);
 }
 
+/*
+ * Value and call are red and green — the pair colour-blind players confuse
+ * most — so 3-bet cells also carry a corner letter: V (value), B (bluff).
+ */
+.value::after,
+.bluff::after {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.value::after {
+  content: 'V';
+}
+
+.bluff::after {
+  content: 'B';
+}
+
 /* ── Legend + footnote ─────────────────────────────────────────────────── */
 
 .legend {

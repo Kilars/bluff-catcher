@@ -80,7 +80,7 @@ describe('FacingTrainer', () => {
       briefed();
       const stats = fakeStats();
       renderAt('desktop', <FacingTrainer stats={stats} />);
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^[FJK] ${label}$`) }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}$`) }));
       expect(stats.record).toHaveBeenCalledTimes(1);
       expect(stats.record).toHaveBeenCalledWith(correct);
       expect(screen.getByTestId('verdict')).toHaveTextContent(

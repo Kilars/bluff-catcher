@@ -108,7 +108,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
             <span className={styles.handClass}>{spot.handClass}</span>
           </div>
           <button type="button" className={styles.btnInfo} onClick={openInfo}>
-            <span className={styles.keyHint}>I</span>
+            <span className={styles.keyHint} aria-hidden="true">I</span>
             Info
           </button>
         </div>
@@ -128,7 +128,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
                   className={styles.btnFold}
                   onClick={() => handleCommit('fold')}
                 >
-                  <span className={styles.keyHint}>F</span>
+                  <span className={styles.keyHint} aria-hidden="true">F</span>
                   Fold
                 </button>
                 <button
@@ -136,7 +136,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
                   className={`${own.btnAction} ${own.btnCall}`}
                   onClick={() => handleCommit('call')}
                 >
-                  <span className={styles.keyHint}>J</span>
+                  <span className={styles.keyHint} aria-hidden="true">J</span>
                   Call
                 </button>
                 <button
@@ -144,7 +144,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
                   className={`${own.btnAction} ${own.btnRaise}`}
                   onClick={() => handleCommit('3bet')}
                 >
-                  <span className={styles.keyHint}>K</span>
+                  <span className={styles.keyHint} aria-hidden="true">K</span>
                   3-bet
                 </button>
               </div>
@@ -162,7 +162,7 @@ export function FacingTrainer({ stats, keysSuspended = false }: FacingTrainerPro
               </div>
               <div className={styles.postCommitActions}>
                 <button type="button" className={styles.btnRange} onClick={openRange}>
-                  <span className={styles.keyHint}>R</span>
+                  <span className={styles.keyHint} aria-hidden="true">R</span>
                   Range
                 </button>
                 <button type="button" className={styles.btnNext} onClick={handleNext}>

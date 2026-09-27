@@ -102,7 +102,7 @@ describe('facing mode', () => {
     expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
     expect(screen.queryByText('Villain')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^K 3-bet$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^3-bet$/ }));
     expect(screen.getByTestId('verdict')).toHaveTextContent(/^(Correct|Wrong) — /);
     expect(JSON.parse(localStorage.getItem('bluff-catcher:facing:v1')!).hands).toBe(1);
     expect(localStorage.getItem('bluff-catcher:preflop:v1')).toBeNull();
@@ -125,7 +125,7 @@ describe('facing mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Facing open/ }));
 
-    expect(screen.getByRole('button', { name: /^J Call$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Call$/ })).toBeInTheDocument();
     expect(localStorage.getItem('bluff-catcher:mode:v1')).toBe('facing');
   });
 
