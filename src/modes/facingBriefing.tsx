@@ -116,3 +116,65 @@ export const FACING_BRIEFING: Record<Format, InfoSheetContent> = {
   mtt: MTT_BRIEFING,
   cash: CASH_BRIEFING,
 };
+
+/**
+ * BB defence (docs/PLAN-bb-defend.md). The defend percentages are pinned by
+ * `lib/preflop/bbDefendRanges.test.ts`.
+ */
+const BB_MTT_BRIEFING: InfoSheetContent = {
+  ...MTT_BRIEFING,
+  title: 'Fold, call or 3-bet in the big blind',
+  subline: '9-handed tournament table · 40bb effective, BB ante',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'One player opens to 2.3bb (the SB to 3.5bb) and everyone else folds to you in the big blind. Fold, call, or 3-bet to about 4× the open.',
+    },
+    {
+      title: 'One chart per opener',
+      body: 'BB defence changes a lot from seat to seat, so every opener has its own chart. The table shows who opened.',
+    },
+    {
+      title: 'Why the BB defends so wide',
+      body: (
+        <ul className={styles.briefList}>
+          <li>You already have 1bb in, plus the ante in the pot, and you close the action.</li>
+          <li>That price means calling far wider than the button: 44% of hands vs UTG, up to 78% vs the BTN.</li>
+          <li>3-bets are bigger out of position, and every chart 3-bets AA.</li>
+        </ul>
+      ),
+    },
+    {
+      title: 'Pure charts',
+      body: 'The source rounds the solver to one answer per hand, with no value/bluff split. Hands on a border are close decisions.',
+    },
+  ],
+  keysNote: 'J means call here. In the RFI drill it means open.',
+};
+
+const BB_CASH_BRIEFING: InfoSheetContent = {
+  ...BB_MTT_BRIEFING,
+  subline: '6-max cash table · 100bb effective, no ante',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'LJ, HJ, CO, BTN or SB opens (2.5bb, the SB 3bb) and everyone else folds to you in the big blind. Fold, call, or 3-bet.',
+    },
+    BB_MTT_BRIEFING.steps[1],
+    {
+      title: 'Tighter than tournaments',
+      body: (
+        <ul className={styles.briefList}>
+          <li>No ante means less dead money: 22% of hands vs LJ, up to 52% vs the SB.</li>
+          <li>Rake taxes the small pots flats play for, so marginal calls fold.</li>
+        </ul>
+      ),
+    },
+    BB_MTT_BRIEFING.steps[3],
+  ],
+};
+
+export const BB_BRIEFING: Record<Format, InfoSheetContent> = {
+  mtt: BB_MTT_BRIEFING,
+  cash: BB_CASH_BRIEFING,
+};

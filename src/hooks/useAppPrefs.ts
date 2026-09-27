@@ -22,10 +22,18 @@ import { DEFAULT_DEPTH, DEPTHS, FORMATS, type Depth, type Format } from '../lib/
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop' | 'facing';
+export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend';
 
 /** Every valid mode, in menu order. Same list `loadMode` validates against. */
-export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing'];
+export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend'];
+
+/** Each mode's name in menus and sheet subtitles. */
+export const MODE_LABEL: Record<AppMode, string> = {
+  odds: 'Odds trainer',
+  preflop: 'Preflop RFI',
+  facing: 'Facing open',
+  bbdefend: 'BB defend',
+};
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';

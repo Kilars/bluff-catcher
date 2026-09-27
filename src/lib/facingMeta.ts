@@ -26,3 +26,15 @@ export const FACING_CHIP_LABEL: Record<Format, string> = {
   mtt: 'vs open',
   cash: 'Cash',
 };
+
+/** BB-defence mode's context string (docs/PLAN-bb-defend.md): one depth per format. */
+export const BB_CONTEXT_LABEL: Record<Format, string> = {
+  mtt: 'BB defend · 40bb',
+  cash: 'BB defend · Cash 100bb',
+};
+
+/** BB-defence mode's phone chip — kept to ~7 characters for the 390px bar. */
+export const BB_CHIP_LABEL: Record<Format, string> = {
+  mtt: 'BB 40bb',
+  cash: 'BB cash',
+};

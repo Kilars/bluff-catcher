@@ -277,3 +277,55 @@ describe('cash format', () => {
     expect(screen.getAllByTestId('seat-slot')).toHaveLength(6);
   });
 });
+
+describe('BB defend mode (docs/PLAN-bb-defend.md)', () => {
+  it('restores on reload, briefs once, seats hero in the BB and keeps its own stats', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'bbdefend');
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Fold, call or 3-bet in the big blind')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:briefed:v1')!)).toContain('bbdefend');
+
+    expect(screen.getByText('BB defend · 40bb')).toBeInTheDocument();
+    expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent('1');
+    expect(screen.getByText(/Folds to you in the big blind/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Call$/ }));
+    expect(screen.getByTestId('verdict')).toHaveTextContent(/^(Correct|Wrong) — /);
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:bbdefend:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:facing:v1')).toBeNull();
+  });
+
+  it('deals cash on a 6-max ring with its own stats key', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'bbdefend');
+    localStorage.setItem('bluff-catcher:format:v1', 'cash');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['bbdefend-cash']));
+    renderAt('desktop', <App />);
+
+    expect(screen.queryByText('UTG')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Fold$/ }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:bbdefend-cash:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:bbdefend:v1')).toBeNull();
+  });
+
+  it('renders the phone tree with hero last on the ladder and a short chip', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'bbdefend');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['bbdefend']));
+    renderAt('phone', <App />);
+
+    expect(screen.getByTestId('phone-facing-trainer')).toBeInTheDocument();
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.at(-1)).toHaveAttribute('data-label', 'BB');
+    expect(slots.at(-1)).toHaveAttribute('data-state', 'hero');
+    expect(screen.getByText('BB 40bb')).toBeInTheDocument();
+  });
+
+  it('is reachable from the desktop menu, and switching to it persists', () => {
+    renderAt('desktop', <App />);
+    fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /BB defend/ }));
+    expect(localStorage.getItem('bluff-catcher:mode:v1')).toBe('bbdefend');
+  });
+});

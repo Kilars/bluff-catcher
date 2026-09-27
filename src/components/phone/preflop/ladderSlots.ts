@@ -9,7 +9,7 @@
  * blinds here and not on desktop.
  */
 
-import { buildSeats, DEFAULT_OPENER_RAISE_BB, POSITION_LABEL } from '../../PreflopTable';
+import { buildSeats, DEFAULT_OPENER_RAISE_BB, tableSeatLabel, type TableSeat } from '../../PreflopTable';
 import type { Format, Seat } from '../../../lib/preflop/ranges';
 
 export type SlotState = 'folded' | 'hero' | 'behind' | 'opener';
@@ -37,7 +37,7 @@ export interface LadderSlot {
  * there for the constraint that the opener must be a seat before hero.
  */
 export function buildLadderSlots(
-  position: Seat,
+  position: TableSeat,
   opener?: Seat,
   raiseBb: number = DEFAULT_OPENER_RAISE_BB,
   format: Format = 'mtt'
@@ -50,17 +50,18 @@ export function buildLadderSlots(
     state: s.type === 'opener' ? ('opener' as const) : ('folded' as const),
     isButton: s.isBtn === true,
     raiseBb: s.type === 'opener' ? s.raiseBb : undefined,
+    blind: s.posted,
   }));
 
   const hero: LadderSlot = {
-    label: POSITION_LABEL[position],
+    label: tableSeatLabel(position),
     state: 'hero',
     // When hero has the button no other seat carries it — the button must
     // never vanish from the row (it has done, once, and it is the seat every
     // other seat is read relative to).
     isButton: position === 'BTN',
-    // Cash only: hero on the SB has posted, so the slot carries the blind.
-    blind: position === 'SB' ? 'sb' : undefined,
+    // Hero in a blind has posted, so the slot carries it.
+    blind: position === 'SB' ? 'sb' : position === 'BB' ? 'bb' : undefined,
   };
 
   const after: LadderSlot[] = seats.slice(beforeCount).map((s) => ({

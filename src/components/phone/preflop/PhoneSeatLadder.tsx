@@ -27,7 +27,7 @@
  */
 
 import { buildLadderSlots, ladderContextLine, type LadderSlot } from './ladderSlots';
-import { DEFAULT_OPENER_RAISE_BB } from '../../PreflopTable';
+import { DEFAULT_OPENER_RAISE_BB, type TableSeat } from '../../PreflopTable';
 import type { Format, Seat } from '../../../lib/preflop/ranges';
 import styles from './PhoneSeatLadder.module.css';
 
@@ -35,7 +35,8 @@ import styles from './PhoneSeatLadder.module.css';
 function slotDescription(slot: LadderSlot): string {
   const parts: string[] = [slot.label];
   if (slot.state === 'folded') parts.push('folded');
-  else if (slot.state === 'hero') parts.push(slot.blind === 'sb' ? 'you, small blind' : 'you');
+  else if (slot.state === 'hero')
+    parts.push(slot.blind === 'sb' ? 'you, small blind' : slot.blind === 'bb' ? 'you, big blind' : 'you');
   else if (slot.state === 'opener') parts.push(`raises ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
   else parts.push('to act');
   if (slot.isButton) parts.push('dealer button');
@@ -46,7 +47,7 @@ function slotDescription(slot: LadderSlot): string {
 
 export interface PhoneSeatLadderProps {
   /** Hero's seat. Everything else on the row is derived from it. */
-  position: Seat;
+  position: TableSeat;
   /**
    * The facing-open drill's raiser (PLAN-3bet F2): a seat before hero that
    * opened instead of folding. Omit it and the row renders exactly as the RFI
@@ -91,7 +92,8 @@ export default function PhoneSeatLadder({
             aria-label={slotDescription(slot)}
           >
             <span className={styles.mark} aria-hidden="true">
-              {slot.isButton ? 'D' : slot.state === 'opener' ? (slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB) : ''}
+              {/* A raise outranks the D: when the BTN opens, the size is what matters. */}
+              {slot.state === 'opener' ? (slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB) : slot.isButton ? 'D' : ''}
             </span>
             <span className={styles.label}>{slot.label}</span>
           </div>

@@ -52,6 +52,11 @@ const MODE_ITEMS: { mode: AppMode; label: string; note: string | Record<Format, 
     label: 'Facing open',
     note: { mtt: 'Fold, call or 3-bet, vs open · 50bb+', cash: 'Fold, call or 3-bet, vs open · cash 100bb' },
   },
+  {
+    mode: 'bbdefend',
+    label: 'BB defend',
+    note: { mtt: 'Fold, call or 3-bet in the big blind · 40bb', cash: 'Fold, call or 3-bet in the big blind · cash 100bb' },
+  },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -197,7 +202,7 @@ export default function PhoneMenuSheet({
         {/* Facing mode has no depth picker — its source chart is one span,
             50bb+, not a tier to switch between (docs/PLAN-3bet.md) — and cash
             has one depth, 100bb (docs/PLAN-cash.md). */}
-        {mode !== 'facing' && format === 'mtt' && (
+        {mode !== 'facing' && mode !== 'bbdefend' && format === 'mtt' && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Stack depth</span>
             {DEPTHS.map((d) => (

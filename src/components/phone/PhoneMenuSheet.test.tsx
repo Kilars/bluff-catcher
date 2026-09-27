@@ -12,6 +12,7 @@ import { screen, fireEvent, within } from '@testing-library/react';
 import { renderAt } from '../../test/renderAt';
 import { DEPTHS, DEPTH_META } from '../../lib/preflop/ranges';
 import PhoneMenuSheet from './PhoneMenuSheet';
+import { MODES } from '../../hooks/useAppPrefs';
 
 function setup(overrides: Partial<Parameters<typeof PhoneMenuSheet>[0]> = {}) {
   const props = {
@@ -43,6 +44,7 @@ describe('PhoneMenuSheet', () => {
     expect(menu().getByRole('menuitemradio', { name: /Odds trainer/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitemradio', { name: /Preflop RFI/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitemradio', { name: /Facing open/ })).toBeInTheDocument();
+    expect(menu().getByRole('menuitemradio', { name: /BB defend/ })).toBeInTheDocument();
 
     for (const depth of DEPTHS) {
       expect(
@@ -55,7 +57,7 @@ describe('PhoneMenuSheet', () => {
     expect(menu().getByRole('menuitem', { name: /Reset stats/ })).toBeInTheDocument();
 
     // Three modes + three depths + the draw toggle + charts + reset, and nothing else.
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3 + DEPTHS.length);
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + DEPTHS.length);
     expect(menu().getAllByRole('menuitemcheckbox')).toHaveLength(1);
     expect(menu().getAllByRole('menuitem')).toHaveLength(2);
   });
@@ -79,13 +81,13 @@ describe('PhoneMenuSheet', () => {
 
   it('lists the stack depths in both modes — the context chip opens this sheet too', () => {
     setup({ mode: 'odds' });
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(3 + DEPTHS.length);
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + DEPTHS.length);
   });
 
-  it('leaves out the depth group in facing mode — it has no depth picker', () => {
-    setup({ mode: 'facing' });
-    // Three modes and the two formats, and none of the depth radios.
-    expect(menu().getAllByRole('menuitemradio')).toHaveLength(5);
+  it.each(['facing', 'bbdefend'] as const)('leaves out the depth group in %s mode — it has no depth picker', (mode) => {
+    setup({ mode });
+    // Every mode and the two formats, and none of the depth radios.
+    expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + 2);
     for (const depth of DEPTHS) {
       expect(
         menu().queryByRole('menuitemradio', {

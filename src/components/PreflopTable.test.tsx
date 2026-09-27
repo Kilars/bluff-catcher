@@ -184,3 +184,35 @@ describe('cash (6-max) ring', () => {
     expect(screen.getByTestId('raise-chip')).toBeInTheDocument();
   });
 });
+
+describe('hero in the big blind (docs/PLAN-bb-defend.md)', () => {
+  it('has every other seat act first; a folded SB leaves its blind', () => {
+    const seats = buildSeats('BB', 'CO', 2.3);
+    expect(seats.map((s) => [s.label, s.type])).toEqual([
+      ['UTG', 'folded'],
+      ['UTG+1', 'folded'],
+      ['UTG+2', 'folded'],
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'opener'],
+      ['BTN', 'folded'],
+      ['SB', 'folded'],
+    ]);
+    expect(seats.find((s) => s.label === 'SB')?.posted).toBe('sb');
+    expect(buildContextLine('BB')).toBe('8 players acted before you · you close the action');
+  });
+
+  it('lets the SB be the opener, with no dead blind', () => {
+    const sb = buildSeats('BB', 'SB', 3, 'cash').find((s) => s.label === 'SB');
+    expect(sb).toMatchObject({ type: 'opener', raiseBb: 3 });
+    expect(sb?.posted).toBeUndefined();
+  });
+
+  it('draws hero\'s 1bb chip, the SB\'s dead 0.5 and the opener\'s raise', () => {
+    render(<PreflopTable hero={['As', 'Kd']} position="BB" opener="BTN" raiseBb={2.3} />);
+    expect(screen.getByTestId('hero-blind-chip')).toHaveTextContent('1');
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent('2.3');
+    expect(screen.getByText('0.5')).toBeInTheDocument();
+    expect(screen.getAllByText('BB')).toHaveLength(1);
+  });
+});

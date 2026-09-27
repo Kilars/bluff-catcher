@@ -192,3 +192,21 @@ describe('cash (6-max)', () => {
     expect(row.style.getPropertyValue('--ladder-seats')).toBe('6');
   });
 });
+
+describe('hero in the big blind', () => {
+  it('puts hero last with the blind, the SB folded before, and a BTN raise over the D', () => {
+    renderAt('phone', <PhoneSeatLadder position="BB" opener="BTN" raiseBb={2.3} />);
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.map((s) => s.getAttribute('data-label'))).toEqual([
+      'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB',
+    ]);
+    const [btn, sb, bb] = slots.slice(-3);
+    expect(bb).toHaveAttribute('data-state', 'hero');
+    expect(bb).toHaveAttribute('data-blind', 'bb');
+    expect(sb).toHaveAttribute('data-state', 'folded');
+    expect(sb).toHaveAttribute('data-blind', 'sb');
+    expect(btn).toHaveAttribute('data-state', 'opener');
+    expect(btn).toHaveTextContent('2.3');
+    expect(screen.getByTestId('ladder-context')).toHaveTextContent('7 folded · 0 behind');
+  });
+});

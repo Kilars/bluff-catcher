@@ -39,10 +39,10 @@ already vendor (`research/cash-100-pto.json`, owner decision in `PLAN-cash.md`).
   CO BTN SB`.
 - **Cash:** `Cash_100_PTO.json` (6-max, 100bb, 2.5bb opens, SB 3bb). Add the BB keys for
   LJ/HJ/CO/BTN/SB to the existing vendored subset.
-- **Tournament:** `MTT_<N>_PTO.json`. The pack has 100 / 40 / 20bb. **Default: 40bb, labelled
-  "40bb"** — the RFI drill's deep chart is also solved at 40bb, and 40bb is a common MTT stack.
-  (Owner can pick 100bb instead; it's a one-file swap.) Vendored as
-  `research/mtt-40-pto-bb.json` (BB keys only, with a `_source` block like the cash file).
+- **Tournament:** `MTT_40_PTO.json` (owner pick, 2026-09-27; the pack also has 100 / 20bb).
+  Labelled "40bb" — honest, though the RFI drill labels its 40bb solve "60bb+" and the BTN
+  drill labels its 100bb solve "50bb+".
+- Both vendored in `research/bb-defend-pto.json` (BB keys only, with a `_source` block).
 - **Validation in B0:** for every chart, assert the two sets are disjoint, the combo totals are
   pinned in tests, and defend % rises monotonically-ish from UTG → BTN (sanity, not a hard rule
   — SB is its own shape). Record the combo counts in this doc once extracted.
@@ -52,103 +52,72 @@ already vendor (`research/cash-100-pto.json`, owner decision in `PLAN-cash.md`).
 
 ---
 
-## Buckets: decided from the data in B0
+## Buckets: none — one chart per opener (decided from the data)
 
-BB defend changes far more across openers than BTN defend (vs UTG is tight, vs BTN / SB is very
-wide), so the PLAN-3bet bucket choice can't be copied.
+The plan was to bucket openers like the BTN drill (≤ ~26 combos of error). The data rules it out:
 
-- **Method (same as PLAN-3bet):** build the opener × opener distance table (combos with a
-  different answer, of 1326), try every contiguous split into 2, 3 and 4 buckets, and weight by
-  how often each seat is the opener into the BB.
-- **Rule:** pick the fewest buckets where the real-weighted average error is **≤ ~2% of combos
-  (≈ 26)**, with **SB always its own bucket** (BvB is a different game: wider opens, SB is OOP
-  postflop, and no one else is left).
-- Cash has 5 openers: if 5 exact charts ≤ 4 buckets + error, just ship **exact charts per
-  opener** in cash (zero bucket error).
-- `BUCKET_OF_IN` stays a table, so any later split is a data change.
-- The chosen split, its error table and "what the shapes teach" (3-5 bullets) go into this doc
-  at the end of B0 before B1 starts.
+| | Nearest neighbour gap | Widest gap |
+|---|---|---|
+| Tournament 40bb (8 openers) | 74 combos (UTG ↔ UTG+1) | 570 (UTG ↔ BTN) |
+| Cash 100bb (5 openers) | 52 combos (LJ ↔ HJ) | 482 (LJ ↔ SB) |
 
----
+- Even the closest pair is 3× over the error budget, so every opener gets its **exact chart**
+  (13 charts). Openers are picked uniformly: SB gets 1/8 of tournament deals, 1/5 of cash.
+- Defend % (3-bet / call combos):
 
-## Architecture: generalize, don't copy
+| Opener | 40bb MTT | Cash 100bb |
+|---|---|---|
+| UTG | 44.2% (76 / 510) | — |
+| UTG+1 | 48.1% (86 / 552) | — |
+| UTG+2 | 52.9% (98 / 604) | — |
+| LJ | 56.6% (90 / 660) | 21.9% (86 / 204) |
+| HJ | 60.2% (128 / 670) | 25.8% (86 / 256) |
+| CO | 66.5% (166 / 716) | 30.6% (118 / 288) |
+| BTN | 78.3% (218 / 820) | 40.0% (188 / 342) |
+| SB | 72.5% (208 / 754) | 52.3% (236 / 458) |
 
-The BTN facing drill already has almost everything: `PlainChart`, `chartAction`,
-`facingComboCounts`, the border/mid/trash pool, `useFacingDrill`, `FacingTrainer`,
-`PhoneFacingTrainer`, `RangeGrid`'s `threeBet` colour, `fixedChart` range sheets, the `opener`
-seat state. The new drill should be the same machinery with a different **spot spec**, not a
-second copy.
-
-- **`FacingSpec`** (new, `lib/preflop/facingSpec.ts`): everything that differs between the two
-  drills, as data:
-  - `hero: Seat` (`'BTN'` or `'BB'`)
-  - `openersIn: Record<Format, readonly OpenerSeat[]>`
-  - `bucketOfIn: Record<Format, Partial<Record<OpenerSeat, Bucket>>>`
-  - `bucketChart: Record<Bucket, FacingChart>`, `bucketMeta: Record<Bucket, BucketMeta>`
-  - `sources` (per format, the per-opener exact charts, for the pool's trash tier and tests)
-  - `briefingId: Record<Format, string>`, `statsKey: Record<Format, string>`
-  - `chipLabel` / `contextLabel` per format
-- **Bucket ids become spec-local.** Today `Bucket` is one global union
-  (`'early' | 'late' | 'cashEarly' | 'cashCo'`). Add the BB buckets to that union with a `bb`
-  prefix (`bbEarly`, `bbSb`, …) rather than making `Bucket` generic — less type churn, and
-  `BUCKET_META` / `BUCKET_CHART` stay single records. `bucketsFor(format)` becomes
-  `bucketsFor(spec, format)`.
-- **Opener type:** `Opener` today is `UTG…CO` (no BTN, no SB). Add `OpenerSeat = Opener | 'BTN' |
-  'SB'` for the BB spec; the BTN spec keeps using `Opener`.
-- **Dealer:** `dealFacingSpot({ rng, pool, format, spec })`, `spec` defaulting to the BTN spec so
-  every existing caller and **golden.test.ts deal sequences are unchanged**. Bucket first
-  (uniform over the format's buckets), then opener uniform within it — same as today.
-- **Hook / views:** `useFacingDrill(format, spec)` and `FacingTrainer` / `PhoneFacingTrainer`
-  take the spec. The BTN spec is the default, so the `facing` mode renders byte-identical.
-- **Table:** `buildSeats(heroPos, opener)` already supports any hero seat and an opener before
-  hero. Two gaps for hero = BB:
-  - **SB as opener:** SB is rendered as a blind (`type: 'sb'`). When SB is the opener it must
-    render as `opener` with the raise chip (SB open = 3bb in cash, per source; MTT size from
-    the source file's metadata or 2.5bb if unstated). Folded SB (any other opener) keeps its
-    dead 0.5bb blind chip, since the blind is posted.
-  - **Hero is the BB:** hero's own plaque shows the posted 1bb; no separate BB seat in the ring.
-  - Phone ladder (`PhoneSeatLadder` / `ladderSlots.ts`): same two cases.
-- **App wiring:** `AppMode` gains `'bbdefend'`; `MODES`, `loadMode`, `contextLabelFor`,
-  `STATS_KEY`, Header, PhoneTopBar, PhoneStatsPill, PhoneStatsSheet, Menu, PhoneMenuSheet all
-  get the fourth case (switches, no `mode === 'facing'` two-way checks left behind).
-  - Stats keys: `bluff-catcher:bbdefend:v1`, `bluff-catcher:bbdefend-cash:v1`.
-  - Briefing ids: `bbdefend`, `bbdefend-cash`.
+- **Sizes and ante (source metadata):** MTT 40bb opens 2.3bb, SB 3.5bb, 1bb BB ante, 3-bet
+  OOP 4×. Cash opens 2.5bb, SB 3bb, no ante. The SB never limps in the 40bb file
+  (`LimpSB` empty, pinned by a test), so vs SB is always facing a raise. No jam keys exist.
+- The 40bb charts are patchy (lone offsuit folds among calls), so ~90% of their grid is
+  "border" and the dealer's skew there is close to uniform. Harmless; noted in the test.
 
 ---
 
-## Phases
+## Review round (5 reviewers, before build)
 
-### Phase B0 — Data + charts
-- Vendor the BB keys (cash + MTT 40bb) into `research/`, with `_source` blocks.
-- Distance table + bucket choice (rule above); write results into this doc.
-- `lib/preflop/bbDefend.ts`: the bucket charts (`PlainChart`), `BB_SOURCES` per format.
-- **Tests (`bbDefend.test.ts`):** TS sets == JSON cell for cell; sets disjoint; combo counts
-  pinned per chart; per-opener bucket error pinned (like `facing.test.ts`); spot checks from
-  the data (e.g. AA 3-bets vs every opener; 72o folds vs UTG).
+Findings that changed the build:
 
-### Phase B1 — Spec + dealer
-- `FacingSpec`, BTN spec extracted from current constants (no behaviour change), BB spec added.
-- `dealFacingSpot` takes `spec`. Pool generalised to take `spec` (border from the bucket
-  chart, trash = folds in every source chart of that spec+format).
-- **Tests:** existing facing / facingDeal / golden tests pass unchanged; BB deals: `correct`
-  matches the chart, every opener reachable, SB only in its bucket, bucket split uniform ±2%,
-  all 169 classes reachable, weight ratios within ±15%.
+- **Buckets leaked into the BTN drill:** `bucketsFor(format)` filtered by format only. Fixed
+  with a `drill: 'btn' | 'bb'` field on `BucketMeta`; `bucketsFor(format, drill = 'btn')`.
+  Golden deals unchanged.
+- **Hero can't be BB as typed:** BB isn't a `Seat`. Added `TableSeat = Seat | 'BB'` for the
+  table and ladder only.
+- **SB rendered after hero / couldn't open:** `buildSeats` always drew SB as a posted blind.
+  Blinds before hero are now the opener or a folded seat with a dead 0.5bb chip.
+- **BTN raise chip hid under the dealer button:** the D steps aside on desktop; on phone the
+  raise size outranks the D.
+- **Trash tier empty for BB:** BB buckets measure trash against their own chart.
+- **Stats key mixing:** two fixed `usePreflopStats` instances in App, as the file warns.
+- **Two-way mode checks** in Header, Menu, PhoneMenuSheet, PhoneStatsPill, PhoneStatsSheet
+  replaced; menu items come from `MODES` + `MODE_LABEL`.
+- **Cut:** the `FacingSpec` layer (a `drill` field + a small view table in `FacingTrainer`
+  covers it), the bucket search, the generator script (lists are checked in, and a test
+  checks them against the JSON cell for cell, like `cashRanges.ts`).
 
-### Phase B2 — Mode, table, UI
-- `bbdefend` mode through App / prefs / menus / header / phone chrome.
-- Table + ladder: hero on BB, SB-as-opener, folded SB keeps its blind.
-- Hook + trainers take the spec; briefing content for BB (see B3).
-- **Tests:** reload restores `bbdefend`; header + stats pill per mode; F/J/K commit; SB opener
-  renders a raise chip; existing mode tests unchanged.
+---
 
-### Phase B3 — Range sheet, briefing, verify
-- Range sheet titles e.g. "BB vs Late (CO, BTN)", hero cell marked, legend 3-bet / call / fold,
-  one-line footnote per bucket on where it's off.
-- Briefing (short): which seats map to which chart; BB gets a price (closing the action, 1bb
-  already in) so it defends far wider than the BTN; 3-bets are bigger OOP; SB vs BB is its own
-  chart; J = call. Depth caveat for MTT: "solved at 40bb".
-- `tsc`, lint, tests green; run the app at desktop + 390×844 and click through deal → commit →
-  verdict → range → next in both formats.
+## As built
+
+- `research/bb-defend-pto.json` — vendored BB keys, `_source` block with commit.
+- `lib/preflop/bbDefendRanges.ts` (+ test) — 13 `PlainChart`s.
+- `lib/preflop/facing.ts` — `Drill`, `BbBucket` ids (`bb-mtt-CO`, `bb-cash-SB`, …),
+  `raiseBb` per bucket, `bbBucketFor()`.
+- `facingDeal.ts` — `drill` option; `FacingSpot.opener` widened to `Seat`.
+- `PreflopTable` / ladder — hero in BB, SB as opener, folded SB's dead blind.
+- `useFacingDrill` / `FacingTrainer` / `PhoneFacingTrainer` — `drill` prop.
+- App: mode `bbdefend` ("BB defend"), stats `bluff-catcher:bbdefend(-cash):v1`, briefings
+  `bbdefend(-cash)`, chip "BB 40bb" / "BB cash".
 
 ---
 

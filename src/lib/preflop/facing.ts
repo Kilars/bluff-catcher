@@ -185,6 +185,7 @@ function bbMeta(format: Format, openers: readonly (BbMttOpener | BbCashOpener)[]
         chartSeat: o,
         raiseBb: o === 'SB' ? BB_RAISE_BB[format].sb : BB_RAISE_BB[format].open,
         chartName: `BB vs ${SEAT_NAME[o]} (${format === 'mtt' ? '40bb' : 'cash'})`,
+        footnote: 'Pure chart: the solver mixes many border hands, so those are close.',
       };
       return [id, meta];
     })
