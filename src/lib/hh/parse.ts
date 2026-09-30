@@ -31,6 +31,10 @@ export type Street = 'preflop' | 'flop' | 'turn' | 'river';
 
 export const STREETS = ['preflop', 'flop', 'turn', 'river'] as const;
 
+/** Which game a hand is from. Tournaments and Rush & Cash share this parser and
+ * every downstream stage; only the header grammar and the money format differ. */
+export type GameVariant = 'mtt' | 'cash';
+
 export type ActionKind =
   | 'ante'
   | 'sb'
@@ -75,6 +79,8 @@ export interface Shown {
 
 export interface Hand {
   id: string;
+  variant: GameVariant;
+  /** '' for cash — Rush & Cash reseats every hand, so there is no tournament. */
   tournamentId: string;
   gameName: string;
   level: number;
@@ -121,16 +127,51 @@ export interface ParseResult {
 
 const HEADER =
   /^Poker Hand #([^:]+): Tournament #(\d+), (.+?) - Level(\d+)\(([\d,]+)\/([\d,]+)(?:\(([\d,]+)\))?\) - (.+)$/;
+// Cash header: `Poker Hand #RC…: Hold'em No Limit ($0.25/$0.5) - <timestamp>`.
+// No tournament, level, or ante; blinds are the only stake, in dollars.
+const CASH_HEADER = /^Poker Hand #(\S+): Hold'em No Limit \(\$([\d.]+)\/\$([\d.]+)\) - (.+)$/;
 const TABLE = /^Table '(.+?)' (\d+)-max Seat #(\d+) is the button$/;
-const SEAT = /^Seat (\d+): (.+?) \(([\d,]+) in chips\)$/;
+// Amounts carry an optional `$` and decimals in cash, comma-grouped integers in
+// tournaments; `num` normalises both (see below).
+const SEAT = /^Seat (\d+): (.+?) \((\$?[\d,.]+) in chips\)$/;
 const DEALT = /^Dealt to (.+?)(?: \[([^\]]+)\])?\s*$/;
-const UNCALLED = /^Uncalled bet \(([\d,]+)\) returned to (.+)$/;
-const COLLECTED = /^(.+?) collected ([\d,]+) from pot$/;
-const TOTAL_POT = /^Total pot ([\d,]+)/;
+const UNCALLED = /^Uncalled bet \((\$?[\d,.]+)\) returned to (.+)$/;
+const COLLECTED = /^(.+?) collected (\$?[\d,.]+) from pot$/;
+const TOTAL_POT = /^Total pot (\$?[\d,.]+)/;
+// Promotional dead money seeded into the pot before the blinds (Rush & Cash).
+const CASH_DROP = /^Cash Drop to Pot : total (\$?[\d,.]+)/;
+// Run-it-twice all-ins print these per-run street markers; we skip such hands.
+const RUN_IT_TWICE = /^\*\*\* (FIRST|SECOND) /;
 const CARDS_GROUP = /\[([^\]]+)\]/g;
 
+/** Splits an export into hand blocks. Exported so the split-hands sorter and the
+ * parser agree on where one hand ends and the next begins. */
+export const HAND_BLOCK_SPLIT = /\r?\n(?=Poker Hand #)/;
+
+/** Dollars (as a bare decimal string) to whole cents: `0.5`→50, `117.77`→11777. */
+function cents(dollars: string): number {
+  return Math.round(parseFloat(dollars) * 100);
+}
+
+/**
+ * A money token to its minor unit as an integer: tournament chips stay whole
+ * chips, cash dollars become whole cents. Keyed on the `$` GGPoker prints only
+ * in cash, which keeps every downstream sum — and the exact-equality pot
+ * reconciliation — on integers. Comma grouping is stripped either way.
+ */
 function num(s: string): number {
-  return Number(s.replace(/,/g, ''));
+  const t = s.replace(/,/g, '');
+  return t.includes('$') ? cents(t.slice(1)) : Number(t);
+}
+
+/**
+ * Which game a hand's header describes, or null if it is neither. Shared by the
+ * parser and the `split-hands` sorter so both read the format the same way.
+ */
+export function detectVariant(headerLine: string): GameVariant | null {
+  if (HEADER.test(headerLine)) return 'mtt';
+  if (CASH_HEADER.test(headerLine)) return 'cash';
+  return null;
 }
 
 function cards(s: string): string[] {
@@ -180,17 +221,17 @@ function parseActionBody(rest: string): RawAction | null {
   if (body === 'folds') return { kind: 'fold', amount: 0, allIn: false };
   if (body === 'checks') return { kind: 'check', amount: 0, allIn: false };
 
-  let m = /^posts the ante ([\d,]+)$/.exec(body);
+  let m = /^posts the ante (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'ante', amount: num(m[1]), allIn };
-  m = /^posts small blind ([\d,]+)$/.exec(body);
+  m = /^posts small blind (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'sb', amount: num(m[1]), allIn };
-  m = /^posts big blind ([\d,]+)$/.exec(body);
+  m = /^posts big blind (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'bb', amount: num(m[1]), allIn };
-  m = /^calls ([\d,]+)$/.exec(body);
+  m = /^calls (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'call', amount: num(m[1]), allIn };
-  m = /^bets ([\d,]+)$/.exec(body);
+  m = /^bets (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'bet', amount: num(m[1]), allIn };
-  m = /^raises ([\d,]+) to ([\d,]+)$/.exec(body);
+  m = /^raises (\$?[\d,.]+) to (\$?[\d,.]+)$/.exec(body);
   if (m) return { kind: 'raise', amount: num(m[1]), to: num(m[2]), allIn };
 
   return null;
@@ -248,8 +289,19 @@ function rotateToBlinds(
 
 function parseHand(block: string): Hand | { error: string } {
   const lines = block.split(/\r?\n/);
-  const head = HEADER.exec(lines[0]);
-  if (!head) return { error: 'unrecognised header (cash games are not supported yet)' };
+
+  // Run-it-twice all-ins print FIRST/SECOND street markers and award the pot to
+  // the winner once per run. A single-board street walk cannot represent a
+  // doubled board, so these are skipped whole rather than mis-parsed into a
+  // wrong board and a doubled `won`. Rare (all-in-and-called only); an honest
+  // skip with a reason beats silent corruption.
+  if (lines.some((l) => RUN_IT_TWICE.test(l))) {
+    return { error: 'run-it-twice not supported' };
+  }
+
+  const mtt = HEADER.exec(lines[0]);
+  const cash = mtt ? null : CASH_HEADER.exec(lines[0]);
+  if (!mtt && !cash) return { error: 'unrecognised header (not a tournament or cash hand)' };
 
   const tbl = lines[1] ? TABLE.exec(lines[1]) : null;
   if (!tbl) return { error: 'missing table line' };
@@ -314,6 +366,15 @@ function parseHand(block: string): Hand | { error: string } {
         hero = dealt[1];
         heroCards = cards(dealt[2]);
       }
+      continue;
+    }
+
+    const drop = CASH_DROP.exec(line);
+    if (drop) {
+      // Nobody invested it, so it joins the pot (and the winner's take) but no
+      // player's `invested`. Adding it here keeps `computedPot` equal to the
+      // printed total; omitting it left every dropped hand short and dropped.
+      pot += num(drop[1]);
       continue;
     }
 
@@ -389,15 +450,34 @@ function parseHand(block: string): Hand | { error: string } {
   const won: Record<string, number> = {};
   for (const c of collected) won[c.player] = (won[c.player] ?? 0) + c.amount;
 
+  // The two header shapes normalise to one set of fields. Cash has no
+  // tournament, level, or ante; its stake is the blinds, in cents.
+  const header = mtt
+    ? {
+        variant: 'mtt' as const,
+        id: mtt[1],
+        tournamentId: mtt[2],
+        gameName: mtt[3],
+        level: Number(mtt[4]),
+        sb: num(mtt[5]),
+        bb: num(mtt[6]),
+        ante: mtt[7] ? num(mtt[7]) : 0,
+        timestamp: mtt[8],
+      }
+    : {
+        variant: 'cash' as const,
+        id: cash![1],
+        tournamentId: '',
+        gameName: `Hold'em No Limit ($${cash![2]}/$${cash![3]})`,
+        level: 0,
+        sb: cents(cash![2]),
+        bb: cents(cash![3]),
+        ante: 0,
+        timestamp: cash![4],
+      };
+
   return {
-    id: head[1],
-    tournamentId: head[2],
-    gameName: head[3],
-    level: Number(head[4]),
-    sb: num(head[5]),
-    bb: num(head[6]),
-    ante: head[7] ? num(head[7]) : 0,
-    timestamp: head[8],
+    ...header,
     table: tbl[1],
     maxSeats: Number(tbl[2]),
     buttonSeat: Number(tbl[3]),
@@ -423,7 +503,7 @@ function parseHand(block: string): Hand | { error: string } {
 export function parseHands(text: string): ParseResult {
   const blocks = text
     .trim()
-    .split(/\r?\n(?=Poker Hand #)/)
+    .split(HAND_BLOCK_SPLIT)
     .map((b) => b.trim())
     .filter(Boolean);
 

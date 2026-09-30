@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
+import { coldCalls } from './flats.ts';
 import { LABELS, labelGroups } from './labels.ts';
 import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
@@ -47,7 +48,7 @@ function sampleReport() {
   const archive = readArchive(files);
   const { hands, window } = selectWindow(archive.hands);
   const meta = { archive: archive.meta, window };
-  return renderJson(summarise(hands), meta, rfiFolds(hands), labelGroups(hands));
+  return renderJson(summarise(hands), meta, rfiFolds(hands), coldCalls(hands), labelGroups(hands));
 }
 
 describe('docs/leak-coaching.md', () => {

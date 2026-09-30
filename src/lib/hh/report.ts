@@ -20,6 +20,7 @@ import type { HeroHand } from './hero.ts';
 import type { FamilyBrief, FamilyVerdict } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { spotWrongness, throughlineHolds } from './priority.ts';
+import type { ColdCall } from './flats.ts';
 import type { RfiFold } from './rfi.ts';
 import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 
@@ -113,7 +114,11 @@ export function renderText(
     return out.join('\n');
   }
 
-  out.push(`levels ${s.levels[0]}–${s.levels[1]} · ${s.tournaments} tournament(s) in window`);
+  // Cash has no levels or tournaments — every Rush & Cash hand is its own table.
+  if (s.variant === 'cash') out.push(`cash · ${s.hands} hands in window`);
+  else if (s.variant === 'mixed')
+    out.push(`mixed cash + tournament · ${s.hands} hands — filter with --variant to grade cleanly`);
+  else out.push(`levels ${s.levels[0]}–${s.levels[1]} · ${s.tournaments} tournament(s) in window`);
   out.push('');
 
   // Labels and chart folds lead. They name what Hero did. Everything below
@@ -141,7 +146,10 @@ export function renderText(
   out.push('');
 
   out.push('CHIP FLOW');
-  out.push(`  ${pad('Net', 24)}${padLeft(chips(s.netChips), 12)}${padLeft(bb(s.netBB), 10)} bb`);
+  // The raw-minor-unit column is chips for MTT; for cash it would be cents, and
+  // for a mixed window it sums chips and cents into nonsense — so bb only there.
+  const rawNet = s.variant === 'mtt' ? chips(s.netChips) : '';
+  out.push(`  ${pad('Net', 24)}${padLeft(rawNet, 12)}${padLeft(bb(s.netBB), 10)} bb`);
   out.push(`  ${pad('  at showdown', 24)}${padLeft('', 12)}${padLeft(bb(s.showdownBB), 10)} bb`);
   out.push(
     `  ${pad('  without showdown', 24)}${padLeft('', 12)}${padLeft(bb(s.nonShowdownBB), 10)} bb`,
@@ -221,6 +229,7 @@ export function renderJson(
   s: Summary,
   meta: ReportMeta,
   folds: RfiFold[],
+  flats: ColdCall[],
   groups: LabelGroup[],
   perLabel?: number,
 ) {
@@ -228,7 +237,10 @@ export function renderJson(
     // Ordered as it should be read. `labels` is why any hand is in the
     // payload; `stats` is context and goes last so it is not mistaken for
     // the finding.
-    meta: { ...meta, levels: s.levels, tournaments: s.tournaments },
+    // `variant` names the frame the bands are graded against — a reader must
+    // not quote a cash band as though it were the MTT one. levels/tournaments
+    // are MTT-only and degenerate for cash (0 / 1); variant says which to trust.
+    meta: { ...meta, variant: s.variant, levels: s.levels, tournaments: s.tournaments },
     labels: groups.map((g) => {
       const stride = strideFor(g.decisions, perLabel);
       return {
@@ -243,8 +255,10 @@ export function renderJson(
       };
     }),
     // How Hero entered, without what it returned: the distribution is a fact
-    // about play, the net is a fact about luck.
+    // about play, the net is a fact about luck. `rfiFolds` and `coldCalls` are
+    // per-hand preflop facts, sound to coach at n=1 (docs/leak-coaching.md §2).
     rfiFolds: folds,
+    coldCalls: flats,
     byBoard: {
       caveat: SPLIT_CAVEAT,
       splits: s.byBoard.map((b) => ({

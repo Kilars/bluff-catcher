@@ -15,10 +15,9 @@
  * slice it is looking at.
  */
 
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
-import type { Dirent } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { collect, die } from './util.ts';
 import {
   DATE_PATTERN,
   readArchive,
@@ -26,11 +25,14 @@ import {
   type ArchiveFile,
   type Excluded,
 } from '../src/lib/hh/archive.ts';
-import type { FamilyVerdict } from '../src/lib/hh/judge.ts';
-import { stubJudge, validateFamilyVerdict } from '../src/lib/hh/judge.ts';
+import { anthropicJudge } from '../src/lib/hh/anthropicJudge.ts';
+import { claudeCliJudge } from '../src/lib/hh/claudeCliJudge.ts';
+import type { FamilyBrief, FamilyVerdict, Judge } from '../src/lib/hh/judge.ts';
+import { assertBlind, stubJudge, validateFamilyVerdict } from '../src/lib/hh/judge.ts';
 import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
 import { familyBriefs } from '../src/lib/hh/packet.ts';
 import { rankGroups } from '../src/lib/hh/priority.ts';
+import { coldCalls } from '../src/lib/hh/flats.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -46,50 +48,36 @@ import {
 const MODES = ['leaks', 'pots', 'coach'] as const;
 type Mode = (typeof MODES)[number];
 
+const JUDGES = ['stub', 'anthropic', 'claude'] as const;
+type JudgeName = (typeof JUDGES)[number];
+
+const VARIANTS = ['cash', 'mtt'] as const;
+type VariantName = (typeof VARIANTS)[number];
+
 const DEFAULT_TARGET = 'hands';
 
 const USAGE =
-  'usage: npm run leaks -- [paths] [--mode leaks|pots|coach] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--label NAME] [--judge stub] [--json] [--out FILE]';
+  'usage: npm run leaks -- [paths] [--mode leaks|pots|coach] [--variant cash|mtt] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--label NAME] [--judge stub|claude|anthropic] [--json] [--out FILE]';
 
-function die(message: string): never {
-  console.error(message);
-  process.exit(1);
-}
+// A live judge is flaky in ways a stub never is: it drops an instance, fences its JSON, or
+// slips an outcome word into a note — all transient. Retry re-asks and re-validates the
+// whole seam; only an exhausted family throws, so the run still fails loud rather than
+// shipping an unjudged family as `clean`.
+const JUDGE_ATTEMPTS = 3;
 
-/**
- * Every .txt under a directory, recursively — tournaments live in subfolders.
- *
- * Symlinked directories are followed, because pointing `hands/` at the folder
- * the client downloads into is the obvious way to use this. `seen` holds real
- * paths so a symlink that points back up its own tree terminates instead of
- * recursing forever.
- */
-function isDirectory(path: string, entry: Dirent): boolean {
-  if (entry.isDirectory()) return true;
-  if (!entry.isSymbolicLink()) return false;
-  try {
-    // statSync follows the link, so a stale one — an unmounted drive, a
-    // renamed download folder — throws instead of answering. Skipping it is
-    // right; crashing the whole run over one dead link is not.
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
+async function judgeFamily(judge: Judge, brief: FamilyBrief): Promise<FamilyVerdict> {
+  let last = '';
+  for (let attempt = 1; attempt <= JUDGE_ATTEMPTS; attempt++) {
+    try {
+      return assertBlind(validateFamilyVerdict(brief, await judge.evaluate(brief)));
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+      if (attempt < JUDGE_ATTEMPTS) {
+        console.error(`family "${brief.family}" attempt ${attempt}/${JUDGE_ATTEMPTS} failed, retrying: ${last}`);
+      }
+    }
   }
-}
-
-function collect(target: string, seen = new Set<string>()): string[] {
-  if (!existsSync(target)) die(`no such path: ${target}`);
-  if (statSync(target).isFile()) return [target];
-
-  const real = realpathSync(target);
-  if (seen.has(real)) return [];
-  seen.add(real);
-
-  return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(target, entry.name);
-    if (isDirectory(path, entry)) return collect(path, seen);
-    return entry.name.toLowerCase().endsWith('.txt') ? [path] : [];
-  });
+  throw new Error(`family "${brief.family}" after ${JUDGE_ATTEMPTS} attempts: ${last}`);
 }
 
 // ── argv ─────────────────────────────────────────────────────────────────────
@@ -98,7 +86,7 @@ function collect(target: string, seen = new Set<string>()): string[] {
 // `targets` and gets statted as a path. Parsing positionally rather than
 // filtering is the only way that stays true when a flag is added.
 
-const VALUED = new Set(['--mode', '--from', '--to', '--out', '--label', '--judge']);
+const VALUED = new Set(['--mode', '--from', '--to', '--out', '--label', '--judge', '--variant']);
 const args = process.argv.slice(2);
 
 const targets: string[] = [];
@@ -144,14 +132,35 @@ if (label !== null && !(LABELS as readonly string[]).includes(label)) {
   die(`unknown label: ${label}\nknown labels: ${LABELS.join(', ')}`);
 }
 
-// `--judge` is deliberately limited to the stub until a model backend is chosen
-// (PLAN-coach.md §4, "the judgment seam"): it proves the batteries answer end to
-// end, offline, so swapping in Jev or an LLM is the one remaining step.
-const judge = flags['--judge'] ?? null;
-if (judge !== null && judge !== 'stub') {
-  die(`--judge only supports "stub" until a model backend is chosen, got: ${judge}`);
+// `--judge` picks the backend behind the Judge port: `stub` (offline, every hand `fine`
+// — proves the wiring), `claude` (the local `claude` CLI, on your logged-in plan, no API
+// key), or `anthropic` (the hosted API, needs ANTHROPIC_API_KEY).
+const judge = (flags['--judge'] ?? null) as JudgeName | null;
+if (judge !== null && !(JUDGES as readonly string[]).includes(judge)) {
+  die(`--judge must be one of: ${JUDGES.join(', ')}, got: ${judge}`);
 }
 if (judge !== null && mode !== 'coach') die(`--judge applies only to --mode coach`);
+
+// `--variant` narrows an archive that holds both games to one. Cash and MTT read
+// different ranges and money units, so grading them in one report blends stats
+// against a single band set — the filter is how you keep them apart at report
+// time (the split-hands script does it on disk).
+const variant = (flags['--variant'] ?? null) as VariantName | null;
+if (variant !== null && !(VARIANTS as readonly string[]).includes(variant)) {
+  die(`--variant must be one of: ${VARIANTS.join(', ')}, got: ${variant}`);
+}
+
+// Build the judge now, before parsing a single hand, so a bad setup fails loud up front
+// rather than mid-run. `anthropicJudge()` owns its key check and throws a clear message;
+// surface any construction error as a clean CLI error.
+let judgeImpl: Judge | null = null;
+try {
+  if (judge === 'stub') judgeImpl = stubJudge;
+  else if (judge === 'claude') judgeImpl = claudeCliJudge();
+  else if (judge === 'anthropic') judgeImpl = anthropicJudge();
+} catch (err) {
+  die(err instanceof Error ? err.message : String(err));
+}
 
 // ── read ─────────────────────────────────────────────────────────────────────
 
@@ -170,7 +179,10 @@ if (archive.hands.length === 0) {
   die(`parsed 0 usable hands from ${files.length} file(s) (${archive.meta.excluded} excluded)`);
 }
 
-const { hands, window } = selectWindow(archive.hands, from, to);
+// Filter to one game before windowing, so the window meta counts what the
+// report actually grades. The archive meta still spans everything, as context.
+const selectable = variant ? archive.hands.filter((h) => h.variant === variant) : archive.hands;
+const { hands, window } = selectWindow(selectable, from, to);
 const meta: ReportMeta = { archive: archive.meta, window };
 
 // ── render ───────────────────────────────────────────────────────────────────
@@ -187,13 +199,19 @@ if (mode === 'pots') {
   // `--label` means "all of this one" — Infinity sends every instance, not a sample.
   const briefs = familyBriefs(rankGroups(groups), label ? Infinity : undefined);
 
-  // One judge call per family. Only the stub runs until an LLM backend is wired,
-  // and the seam is validated not trusted: a malformed verdict throws here rather
-  // than reaching the payload.
-  const verdicts: FamilyVerdict[] = [];
-  if (judge === 'stub') {
-    for (const brief of briefs) {
-      verdicts.push(validateFamilyVerdict(brief, await stubJudge.evaluate(brief)));
+  // One judge call per family, fired concurrently — the families are independent and
+  // each call is a slow model round-trip. The seam is validated not trusted: a malformed
+  // verdict or a blindness breach throws. A live model is flaky (a dropped instance, a
+  // fenced note) so each family is retried a few times; only when every attempt fails do
+  // we fail loud (die) — never let a skipped family render as `clean`. `Promise.all`
+  // rejects on the first exhausted family, preserving that fail-loud contract.
+  let verdicts: FamilyVerdict[] = [];
+  if (judgeImpl) {
+    const judgeOne = judgeImpl;
+    try {
+      verdicts = await Promise.all(briefs.map((brief) => judgeFamily(judgeOne, brief)));
+    } catch (err) {
+      die(`judge failed on ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -202,11 +220,12 @@ if (mode === 'pots') {
 } else {
   const summary = summarise(hands);
   const folds = rfiFolds(hands);
+  const flats = coldCalls(hands);
   const all = labelGroups(hands);
   const groups = label ? all.filter((g) => g.label === label) : all;
   const perLabel = label ? Infinity : undefined;
   output = asJson
-    ? JSON.stringify(renderJson(summary, meta, folds, groups, perLabel), null, 2)
+    ? JSON.stringify(renderJson(summary, meta, folds, flats, groups, perLabel), null, 2)
     : renderText(summary, meta, folds, groups, perLabel);
 }
 

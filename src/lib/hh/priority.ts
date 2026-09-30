@@ -22,28 +22,72 @@ import { FACETS, LABELS, type Label } from './labels.ts';
  */
 export const BASE_PRIORITY: Record<Label, number> = {
   'pfa-check-flop': 8,
+  // New turn axis; set below the flop label and left for the same video
+  // calibration, not tuned to any session.
+  'pfa-check-turn': 5,
+  // New two-barrels-then-river-check axis (abandoning a held barrel line with
+  // air). Set below the flop-passivity labels and left for the same video
+  // calibration, not tuned to any session; conservative because a river give-up
+  // on a bricked board is often the correct play.
+  'barrel-abandon': 4,
+  // New c-bet-selection axis (an air c-bet into 3+ players). Conservative and
+  // deferred to the same video calibration, not tuned to any session; it is a
+  // one-label family so it earns nothing at n = 1 (evidence floors at 0.5) —
+  // the built-in overfit brake does the rest.
+  'cbet-multiway-air': 4,
   'check-draw': 7,
   'river-check-value': 7,
   'river-bluff-no-blocker': 5,
   'donk-bet': 5,
   'check-raise-flop': 5,
+  // New caller-aggression axis (turn lead into a declined c-bet); conservative,
+  // deferred to the same video calibration.
+  'turn-probe': 4,
   'overbet-strong': 4,
   'river-bluff-with-blocker': 4,
   'river-call-marginal': 3,
+  // New river-raise axis, split value vs. bluff like the river bet. Set
+  // conservatively and deferred to the same video calibration, not tuned to any
+  // session; the bluff-raise sits below the value-raise for the same reason
+  // aggression is an input, not an axis.
+  'river-raise-value': 4,
+  'river-raise-bluff': 3,
+  // New facing-aggression axis (over-folding to a barrel). Defensive, folds
+  // only, so it sits at the bluff-catch floor — aggression is the axis the
+  // target skews away from, and the over-fold lean's magnitude is unmeasured.
+  // Set conservatively and deferred to the same video calibration, not tuned to
+  // any session.
+  'fold-to-turn-barrel': 3,
+  'fold-to-river-barrel': 3,
 };
 
 export type Family =
   | 'PFR flop passivity'
+  | 'PFR c-bet selection'
   | 'Caller aggression'
   | 'River bluffing'
-  | 'River value / bluff-catch';
+  | 'River value / bluff-catch'
+  | 'Facing aggression';
 
-/** The four spot-based families (unanimous 5-judge panel, §4). */
+/** The five spot-based families (unanimous 5-judge panel, §4). */
 export const FAMILIES: Record<Family, Label[]> = {
-  'PFR flop passivity': ['pfa-check-flop', 'check-draw'],
-  'Caller aggression': ['donk-bet', 'check-raise-flop'],
-  'River bluffing': ['river-bluff-with-blocker', 'river-bluff-no-blocker'],
-  'River value / bluff-catch': ['river-call-marginal', 'river-check-value', 'overbet-strong'],
+  'PFR flop passivity': ['pfa-check-flop', 'pfa-check-turn', 'barrel-abandon', 'check-draw'],
+  // One label so far — it cannot fire a `throughlineHolds` (needs ≥2 distinct
+  // labels), which is fine: `familyRelevance` still surfaces it on its label.
+  'PFR c-bet selection': ['cbet-multiway-air'],
+  'Caller aggression': ['donk-bet', 'check-raise-flop', 'turn-probe'],
+  'River bluffing': ['river-bluff-with-blocker', 'river-bluff-no-blocker', 'river-raise-bluff'],
+  'River value / bluff-catch': [
+    'river-call-marginal',
+    'river-check-value',
+    'overbet-strong',
+    'river-raise-value',
+  ],
+  // Folds only — the one family scoped to defence. `river-call-marginal` (a
+  // river call) stays in bluff-catch; its claim ("mis-bluff-catches") is a
+  // different one from this family's ("over-folds to barrels"), so they must not
+  // share a family and each HYPOTHESIS stays single-claimed.
+  'Facing aggression': ['fold-to-turn-barrel', 'fold-to-river-barrel'],
 };
 
 const FAMILY_OF: Record<Label, Family> = Object.fromEntries(

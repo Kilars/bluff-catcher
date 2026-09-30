@@ -17,7 +17,7 @@ import type { Card } from '../odds.ts';
 import type { Depth } from '../preflop/ranges.ts';
 import { BOARD_SEEN, boardType, type BoardType } from './board.ts';
 import { decisionsOf, type Decision } from './decisions.ts';
-import type { HeroHand } from './hero.ts';
+import type { HeroHand, StreetPlay } from './hero.ts';
 import { actionLine } from './lines.ts';
 import { depthFor } from './rfi.ts';
 
@@ -67,14 +67,22 @@ const OVERBET = 1;
  */
 export const LABELS = [
   'pfa-check-flop',
+  'pfa-check-turn',
+  'barrel-abandon',
+  'cbet-multiway-air',
   'check-draw',
   'donk-bet',
+  'turn-probe',
   'check-raise-flop',
   'overbet-strong',
   'river-bluff-with-blocker',
   'river-bluff-no-blocker',
   'river-call-marginal',
   'river-check-value',
+  'river-raise-value',
+  'river-raise-bluff',
+  'fold-to-turn-barrel',
+  'fold-to-river-barrel',
 ] as const;
 
 export type Label = (typeof LABELS)[number];
@@ -85,13 +93,35 @@ export type Label = (typeof LABELS)[number];
  * the facet is the whole event: checking is unremarkable, checking a *draw* is
  * a decision. Section numbers below are `docs/strategy-notes.md`.
  */
-function labelsFor(
-  d: Decision,
-  hand: HandClass,
-  rem: Removal[],
-  checkRaised: boolean,
-  checkedThrough: boolean,
-): string[] {
+/**
+ * The per-decision line facts each predicate reads, all booleans and all derived
+ * once per hand in `labelledDecisions`. Named rather than positional because
+ * nine same-typed flags in a row is a transposition waiting to type-check.
+ */
+interface LabelFlags {
+  checkRaised: boolean;
+  checkedThrough: boolean;
+  checkedGaveUp: boolean;
+  betFlop: boolean;
+  betTurn: boolean;
+  multiwayFlop: boolean;
+  pfaCheckedFlop: boolean;
+  villainBetFlop: boolean;
+  villainBetTurn: boolean;
+}
+
+function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags): string[] {
+  const {
+    checkRaised,
+    checkedThrough,
+    checkedGaveUp,
+    betFlop,
+    betTurn,
+    multiwayFlop,
+    pfaCheckedFlop,
+    villainBetFlop,
+    villainBetTurn,
+  } = f;
   const out: string[] = [];
 
   // §2 stage 1: the board picks the c-bet frequency, from ~90% on A-7-2r to
@@ -99,6 +129,49 @@ function labelsFor(
   // attached rather than a rate. A check that became a check-raise is excluded
   // — that is not declining the c-bet, it is a different line (§3).
   if (d.pfa && d.street === 'flop' && d.kind === 'check' && !checkRaised) out.push('pfa-check-flop');
+
+  // §2 stage 1, one street later: Hero kept the initiative on the flop (bet it)
+  // and then checked the turn. Gated on `betFlop` because a turn check after a
+  // flop check is not surrendering initiative — that was already gone, and the
+  // flop check is `pfa-check-flop`'s to name. A check that became a turn
+  // check-raise is excluded for the same reason it is on the flop: that is a
+  // different line, not a declined barrel.
+  if (d.pfa && d.street === 'turn' && d.kind === 'check' && betFlop && !checkRaised)
+    out.push('pfa-check-turn');
+
+  // §2 stage 1, the line played out to its end: Hero fired the flop AND the turn
+  // (`betFlop && betTurn`) and then gave up the river with air — two barrels, then
+  // a give-up on the last card the bluff had to be told on. Unlike `pfa-check-turn`
+  // this is not a preflop-earned initiative surrendered but a *held* barrel line
+  // abandoned, which is why it wants both prior bets in the gate. `hand === 'air'`
+  // keeps it off the showdown-value check-back, which is `river-check-value`'s
+  // (`strong`/`marginal-made`) to name — so the two cannot co-fire. `checkedGaveUp`
+  // is the give-up: the river check went to showdown or folded to a bet, never a
+  // check-then-call — a check-then-call after two barrels is a bluff-catch, not an
+  // abandoned line, exactly as `river-check-value` keeps the checked-through case
+  // apart from the call. A candidate, never a verdict: a third barrel with no fold
+  // equity on a bricked board can be the correct give-up, and it names no frequency.
+  if (
+    d.pfa &&
+    d.street === 'river' &&
+    d.kind === 'check' &&
+    hand === 'air' &&
+    betFlop &&
+    betTurn &&
+    checkedGaveUp
+  )
+    out.push('barrel-abandon');
+
+  // §2: the aggressor c-bets the flop with air into 3+ players. Heads-up an air
+  // c-bet on a dry board is standard, so no bare `cbet-air` label exists — but
+  // multiway the fold equity that a bluff-c-bet lives on has to clear *every*
+  // villain, and each extra player behind is another range that has to fold.
+  // `!d.facedBet` states the contract: a bet after the caller donked and Hero
+  // raised is a different line, not a c-bet. A candidate, never a verdict —
+  // backdoor equity or a coherent barrel plan can make this fine, and it never
+  // implies a frequency, so `multiwayFlop` is a per-decision fact, not a rate.
+  if (d.pfa && d.street === 'flop' && d.kind === 'bet' && !d.facedBet && hand === 'air' && multiwayFlop)
+    out.push('cbet-multiway-air');
 
   // §2 stage 2: the table says bet a draw often, not always — checking a nut
   // flush draw on a monotone flop is standard — so this is a label, not a flag.
@@ -109,6 +182,15 @@ function labelsFor(
   // connected boards (6-5-4), where the caller owns the straights and sets. A
   // fact either way; `shared.boardType` is what tells a good lead from a leak.
   if (d.street === 'flop' && !d.pfa && d.kind === 'bet' && !d.facedBet) out.push('donk-bet');
+
+  // §3: the caller bets the turn after the preflop raiser CHECKED BACK the flop
+  // — betting into a *declined* c-bet, which is the strict meaning of "probe".
+  // Gated on `pfaCheckedFlop` (the flop went check-check, so the only other
+  // aggressor declined it), never on any turn lead: a turn bet after Hero faced
+  // and called a flop c-bet is a different line, not a probe. `pfaCheckedFlop`
+  // is a clean heads-up read; multiway it can misattribute the declined bet, so
+  // the rubric carries that as an `unless`.
+  if (!d.pfa && d.street === 'turn' && d.kind === 'bet' && pfaCheckedFlop) out.push('turn-probe');
 
   // §3: check-raising the flop as the caller — "correct and underused". Built
   // from equity-when-called (sets, two pair, combo draws), and its frequency
@@ -158,6 +240,32 @@ function labelsFor(
     out.push('river-check-value');
   }
 
+  // §4/§5: raising over a river bet — the one river action no label modelled.
+  // Split by hand class the same way the river bet is: a made hand raises for
+  // value, air raises as a bluff. `facedBet` is kept explicit and consistent
+  // with `river-call-marginal` — a raise implies a bet was faced, but the guard
+  // states the contract rather than leaning on `kind` alone.
+  if (d.street === 'river' && d.kind === 'raise' && d.facedBet) {
+    if (hand === 'strong' || hand === 'marginal-made') out.push('river-raise-value');
+    // Which way a blocker points is not decided here, exactly as the river-bet
+    // bluff labels leave it: that reverses with the board and needs a villain
+    // range PLAN §3 forbids. The label reports the raise-as-bluff and stops.
+    else if (hand === 'air') out.push('river-raise-bluff');
+  }
+
+  // Facing aggression (over-folding), folds only. "Barrel" is load-bearing: the
+  // villain must have ALSO bet the previous street (a continued bet), not merely
+  // bet this one. `villainBetFlop`/`villainBetTurn` assert exactly that from the
+  // prior street's play; a fold to a lone bet with no prior aggression carries
+  // no label, so the name does not lie. `d.facedBet` reads the street as printed
+  // (decisions.ts) and catches the check-then-fold that is the commonest way to
+  // face a barrel. The label is a candidate — whether the fold was an over-fold
+  // is the reader's call from the price and hand class, never a verdict here.
+  if (d.street === 'turn' && d.kind === 'fold' && d.facedBet && villainBetFlop)
+    out.push('fold-to-turn-barrel');
+  if (d.street === 'river' && d.kind === 'fold' && d.facedBet && villainBetTurn)
+    out.push('fold-to-river-barrel');
+
   return out;
 }
 
@@ -169,6 +277,10 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   const texture = boardType(h.board);
   const flop = h.streets.find((s) => s.street === 'flop');
   const playersToFlop = flop ? new Set(flop.allActions.map((a) => a.player)).size : 0;
+  // 3+ players saw the flop: an air c-bet now needs every one of them to fold,
+  // not just one. Threaded into `labelsFor` like `betFlop`; the count itself
+  // rides on each LabelledDecision as a grouping facet.
+  const multiwayFlop = playersToFlop > 2;
   const checkRaised = new Set(h.streets.filter((s) => s.checkRaised).map((s) => s.street));
   // Hero checked and the street ended there — no later call, raise or fold to a
   // bet. This is the checked-through line `river-check-value` wants, kept apart
@@ -178,13 +290,56 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
       .filter((s) => s.checked && !s.called && !s.raised && !s.folded)
       .map((s) => s.street),
   );
+  // Hero checked and then gave the street up — the check went to showdown or
+  // folded to a bet, but never became a call or a raise. `barrel-abandon` reads
+  // this to keep a river check-then-call (a bluff-catch, not an abandoned line)
+  // out, the same way `checkedThrough` keeps it out of `river-check-value`; this
+  // one also admits the check-then-fold, which is a give-up too.
+  const checkedGaveUp = new Set(
+    h.streets.filter((s) => s.checked && !s.called && !s.raised).map((s) => s.street),
+  );
+  const turn = h.streets.find((s) => s.street === 'turn');
+  // Hero bet the flop. `pfa-check-turn` reads this — Hero took the c-bet, so a
+  // later turn check is a barrel declined and not a pot already surrendered on
+  // the flop.
+  const betFlop = Boolean(flop && flop.bet);
+  // Hero bet the turn. `barrel-abandon` reads this alongside `betFlop` — two
+  // barrels fired — so a river check with air is a barrel line given up, not a
+  // pot that was never contested. Exact copy of the `betFlop` pattern, reusing
+  // the `turn` binding above.
+  const betTurn = Boolean(turn && turn.bet);
+  // The flop went check-check: Hero checked, never faced a bet and never bet
+  // it, so the preflop aggressor (the only other range that could c-bet)
+  // declined it. This is what `turn-probe` bets into. Read heads-up; multiway a
+  // third player could be the one who checked, hence the rubric caveat.
+  const pfaCheckedFlop = Boolean(flop && flop.checked && !flop.bet && !flop.facedBetEver);
+  // A villain barrelled a street: Hero faced a bet on it (`facedBetEver`, which
+  // also catches Hero checking and the villain betting behind) and Hero was not
+  // the one betting (`!bet`, so a bet Hero made and was raised on is not a
+  // villain barrel). This is the prior-street aggression `fold-to-*-barrel`
+  // requires — a continued bet, not a lone stab. Read heads-up-to-Hero; multiway
+  // the pricing mis-scales, hence the rubric caveat. Derived here from the same
+  // StreetPlay fields the other per-street sets use, no parser or enrich change.
+  const villainBarrelled = (s?: StreetPlay) => Boolean(s && s.facedBetEver && !s.bet);
+  const villainBetFlop = villainBarrelled(flop);
+  const villainBetTurn = villainBarrelled(turn);
 
   return decisionsOf(h).flatMap((d) => {
     if (d.street === 'preflop') return [];
     const board = h.board.slice(0, BOARD_SEEN[d.street]);
     const hand = handClass(cards, board);
     const rem = removals(cards, board);
-    const labels = labelsFor(d, hand, rem, checkRaised.has(d.street), checkedThrough.has(d.street));
+    const labels = labelsFor(d, hand, rem, {
+      checkRaised: checkRaised.has(d.street),
+      checkedThrough: checkedThrough.has(d.street),
+      checkedGaveUp: checkedGaveUp.has(d.street),
+      betFlop,
+      betTurn,
+      multiwayFlop,
+      pfaCheckedFlop,
+      villainBetFlop,
+      villainBetTurn,
+    });
     if (!labels.length) return [];
     return [
       {

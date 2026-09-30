@@ -172,6 +172,51 @@ export function validateFamilyVerdict(brief: FamilyBrief, v: FamilyVerdict): Fam
 }
 
 /**
+ * The one hole a static shape-check can't guard: the model's own prose. `note` and
+ * `throughline` are free text, so a backend can restate an outcome it was told never to
+ * see — "villain had the flush", "you got there". This is a tripwire behind the prompt
+ * contract, enforced at the same seam as `validateFamilyVerdict`: a hit throws, which
+ * (fail-loud) aborts the run rather than emitting a blindness-breaking coaching note.
+ *
+ * The set is deliberately narrow — result frames that do not occur in blind decision
+ * coaching — because a hit aborts a whole family, and false positives on a live model's
+ * legitimate prose are as costly as a miss. Bare poker vocabulary that overlaps strategy
+ * is NOT matched: "fold"/"call" as verbs ("betting folds out worse", "your calling
+ * range"), "showdown" ("ahead at showdown", "showdown value"), "busted" ("a busted draw
+ * on the board") — all blind-safe. Only frames naming what the pot did or what villain
+ * actually held — "got called", "villain folded", "villain had the flush" — are leaks.
+ */
+const OUTCOME_FRAMES = [
+  /\b(?:won|lost) the pot\b/i,
+  /\b(?:won|lost)\s+\d/i,
+  /\bnet result\b/i,
+  /\$\s?\d/,
+  /\b(?:villain|opponent|hero|he|they|she)\s+(?:had|held|showed|turned up)\b/i,
+  /\b(?:villain|opponent|he|they|she)\s+(?:called|folded)\b/i,
+  /\bgot (?:called|there)\b/i,
+  /\b(?:stacked off|felted|scooped)\b/i,
+];
+
+/**
+ * Scans every note and the throughline prose for an outcome frame. Pure, backend-
+ * agnostic, and enforced at the call site next to `validateFamilyVerdict`.
+ */
+export function assertBlind(v: FamilyVerdict): FamilyVerdict {
+  const check = (text: string, where: string): void => {
+    for (const re of OUTCOME_FRAMES) {
+      const m = re.exec(text);
+      if (m) throw new Error(`blindness breach in ${where}: "${m[0]}" — the model referenced an outcome`);
+    }
+  };
+  for (const iv of v.verdicts) check(iv.note, `note ${iv.ref}`);
+  if (v.throughline) {
+    check(v.throughline.thesis, 'throughline thesis');
+    check(v.throughline.body, 'throughline body');
+  }
+  return v;
+}
+
+/**
  * A deterministic non-answer: every instance `fine` at severity 0, no throughline.
  * It proves the wiring end to end and runs the harness offline with no network
  * and no backend chosen; a payload of all-`fine`, `stub` notes is the tell.

@@ -7,7 +7,7 @@
  * 3-betting, defending, and every postflop street.
  */
 
-import type { Action, Hand, Street } from './parse.ts';
+import type { Action, GameVariant, Hand, Street } from './parse.ts';
 
 /** How Hero entered (or declined) the pot. */
 export type PreflopRole =
@@ -70,6 +70,7 @@ export interface StreetPlay {
 
 export interface HeroHand {
   id: string;
+  variant: GameVariant;
   tournamentId: string;
   timestamp: string;
   /** Calendar date, YYYY-MM-DD, off the export's own clock — the window key. */
@@ -100,6 +101,8 @@ export interface HeroHand {
 
   /** Raises already made when Hero first had to decide. */
   facingRaises: number;
+  /** Seat of the raiser Hero faced when first acting; null first-in or unraised. */
+  facingRaiserPos: string | null;
   /** Limpers already in when Hero first had to decide. */
   limpersAhead: number;
   /** Hero could have entered first in (no raise ahead, not in the BB). */
@@ -210,6 +213,7 @@ function classifyPreflop(
   HeroHand,
   | 'role'
   | 'facingRaises'
+  | 'facingRaiserPos'
   | 'limpersAhead'
   | 'firstInOpp'
   | 'threeBetOpp'
@@ -237,6 +241,7 @@ function classifyPreflop(
   let stealDefence: HeroHand['stealDefence'] = null;
   let heroRaised = false;
   let facingRaises = 0;
+  let facingRaiserPos: string | null = null;
   let limpersAhead = 0;
 
   for (const a of pre) {
@@ -244,6 +249,7 @@ function classifyPreflop(
       if (!seenHero) {
         seenHero = true;
         facingRaises = raises;
+        facingRaiserPos = lastRaiser ? (hand.position[lastRaiser] ?? null) : null;
         limpersAhead = limpers;
         threeBetOpp = raises === 1;
 
@@ -291,6 +297,7 @@ function classifyPreflop(
   return {
     role,
     facingRaises,
+    facingRaiserPos,
     limpersAhead,
     firstInOpp: seenHero && facingRaises === 0 && heroPos !== 'BB',
     threeBetOpp,
@@ -324,6 +331,7 @@ export function heroHand(hand: Hand): HeroHand | null {
 
   return {
     id: hand.id,
+    variant: hand.variant,
     tournamentId: hand.tournamentId,
     timestamp: hand.timestamp,
     handDate: handDate(hand.timestamp),

@@ -21,6 +21,7 @@ meta.archive {files, hands, excluded, skipped, first, last, tournaments,
 meta.levels, meta.tournaments — of the window
 labels[]     {label, shared, instances, stride, decisions[]}
 rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
+coldCalls[]  {id, position, vsPos, cards, hand, stackBB, depth, limpersAhead}
 byBoard      {caveat, splits[]}
 byRole[]     {role, hands}
 stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
@@ -189,7 +190,14 @@ appear in the output. Do not emit a finding without its citations.
   OR (stats[threeBet].flag = 'missed' AND verdict != 'thin')
 ```
 **cite** `byRole[role='cold-call'].hands`; `stats[threeBet].pct` and
-`stats[coldCall].pct` when not thin.
+`stats[coldCall].pct` when not thin. For the per-hand drill-down, cite specific
+`coldCalls[]` entries: each is one flat, sound at n=1 like a chart fold — name
+the `id`, `cards`, `position`, `vsPos` (the opener's seat) and `stackBB`, and
+argue it. A flat is not automatically a leak: a small pair set-mining in
+position, or a suited hand closing behind at a price, is fine; the leak is a
+dominated broadway or a medium pair flatted out of position, where the choice
+was 3-bet or fold. `vsPos` is the pivot — the same hand is a flat vs a button
+open and a fold vs UTG. Never aggregate `coldCalls[]` into a rate.
 
 **why it costs** Flatting builds a small pot, lets worse hands realise equity
 cheaply, hands villain the initiative and the c-bet, and invites players behind
@@ -282,6 +290,26 @@ pattern.
   from ~90% on A-7-2r to ~25% on T-9-7, so `shared.boardType` decides this one:
   all on `middling-theirs` is discipline, all on `dry-high-mine` is giving back
   what the raise bought.
+- **`pfa-check-turn`** — Hero raised preflop, c-bet the flop, then checked the
+  turn (a turn check-raise is excluded, and a turn check after a *flop* check is
+  not this — that pot was already given up on the flop). The turn is the barrel
+  the flop bet set up; `shared.boardType` still carries the flop texture, so
+  read the turn card and whether the range shifted, not a barrelling rate.
+- **`barrel-abandon`** — Hero c-bet the flop, barrelled the turn, then checked
+  the river with `air` (no showdown value): two barrels fired and then the line
+  given up on the last card the bluff had to be told on. Unlike `pfa-check-turn`
+  this abandons a *held* barrel line, not a preflop-earned initiative. Not a
+  verdict — a river give-up can be correct on a bricked board where a third
+  barrel has no fold equity — and it names no barrelling frequency; read the
+  river card and board, and `shared.boardType` carries the flop texture.
+- **`cbet-multiway-air`** — Hero was the preflop raiser and c-bet the flop with
+  `air` (no showdown value) into **3+ players**. A pure-bluff c-bet lives on fold
+  equity, and multiway that equity has to clear *every* villain — each extra
+  range behind is another that has to fold before the bluff prints, so this is
+  the selection error the family names. Not a verdict: with real backdoor equity
+  or a coherent barrel plan on a raiser-favoured board it is fine, and
+  `shared.boardType` plus the player count are the read — never a c-bet rate,
+  which is a stats-layer concern this label does not touch.
 - **`check-draw`** — Hero checked holding eight or more outs. A fold is great
   for a draw, so the default is to bet — but checking a nut flush draw on a
   monotone flop is standard, and `shared.boardType` is again what separates
@@ -292,6 +320,12 @@ pattern.
   connected boards where the caller owns the straights and sets, so
   `shared.boardType` decides it: a lead on `middling-theirs` (e.g. 6-5-4) can be
   the line, a lead on `dry-high-mine` is usually the leak.
+- **`turn-probe`** — Hero was the caller and led the turn after the preflop
+  raiser **checked back the flop** (a declined c-bet, not any turn lead). The
+  flop went check-check, so both ranges are uncapped and the probe attacks a
+  hand that already gave up once; `shared.boardType` carries the flop texture,
+  so read the turn card and whether it favours the caller. Heads-up read: with a
+  third player in, confirm the checked flop was the raiser's before trusting it.
 - **`check-raise-flop`** — Hero check-raised the flop as the caller. Correct and
   underused, but built from equity-when-called (sets, two pair, combo draws);
   its frequency swings hard with texture, so read `shared.boardType` and the
@@ -325,6 +359,37 @@ pattern.
   pool that doesn't fold a made hand taken to showdown is often a bet left
   unmade. The label says only that Hero checked a made hand through; whether
   value was there is your read from the board and the pool, not a claim it makes.
+- **`river-raise-value`** — Hero raised over a river bet holding `strong` or
+  `marginal-made`. The top of the value range: a raise only prints when it beats
+  what calls it, and `strong` here admits non-nut hands (an overpair, top pair
+  with a Q kicker), so a "marginal-made" raise usually turns a bluff-catcher into
+  a hand that folds out worse and is called by better — read the actual cards and
+  the line (`facedSizing`) villain reps, not the bucket. The label says Hero
+  raised; whether it was value is your call.
+- **`river-raise-bluff`** — Hero raised over a river bet holding `air`. A pure
+  bluff-raise, a steeper ask than a bet because the bettor already showed
+  strength; it must credibly rep a hand that beats them. Whether a blocker helps
+  depends on whether it removes their calls or their folds, and the payload
+  cannot tell you: read `removals` against the board yourself, and do not assume
+  the raise is good just because the hand has none.
+- **`fold-to-turn-barrel`** — Hero folded the turn to a **continued** bet: the
+  villain bet the flop too, so this is a second barrel, not a lone stab. The
+  honest question is the price against the hand — `facedSizing` gives
+  `requiredEquity`/`mdf`, and a showdown class that clears the price defends
+  while one that does not folds. A fold can be correct: do not read the label as
+  an over-fold. Small-stakes pools under-barrel, so over-folding is the *lean* to
+  test, never the verdict. Heads-up-to-Hero the price is exact; with villains
+  acting between the bet and Hero it mis-scales, so confirm the line first
+  (multiway the flop and turn bets may be different villains, not one barrel).
+- **`fold-to-river-barrel`** — Hero folded the river to a **continued** barrel:
+  the villain bet the turn behind too, backing the river bet (the flop may have
+  checked through, so this is a barrel of at least two streets, not necessarily
+  three). Same reading: weigh `requiredEquity`/`mdf` from `facedSizing` against
+  the showdown class Hero held, on the sharp river call/fold boundary. A fold
+  can be correct — paired boards, bricked draws and narrow barrelled value lines
+  are folds, not over-folds. The pool's under-bluffing is a lean to test against
+  the price, not a licence to call wider blind, and the price is exact only
+  heads-up-to-Hero (multiway the two bets may be different villains).
 
 **On the bluff-catch and the river bluffs, the correct direction is population-
 dependent, and the report cannot see it.** The same call is right against a

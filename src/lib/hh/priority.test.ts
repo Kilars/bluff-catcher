@@ -36,7 +36,7 @@ describe('priority tables', () => {
     expect(BASE_PRIORITY['river-check-value']).toBeGreaterThan(BASE_PRIORITY['river-call-marginal']);
   });
 
-  it('partitions the nine labels into the four families exactly once each', () => {
+  it('partitions the seventeen labels into the six families exactly once each', () => {
     const flat = Object.values(FAMILIES).flat();
     expect(flat.sort()).toEqual([...LABELS].sort());
     expect(new Set(flat).size).toBe(LABELS.length);
@@ -78,6 +78,14 @@ describe('rankGroups', () => {
     ]);
     expect(familyRelevance(ranked)['PFR flop passivity']).toBe(8);
   });
+
+  it('surfaces the new Facing aggression family on its strongest fold label', () => {
+    const ranked = rankGroups([
+      group('fold-to-turn-barrel', [d({ position: 'BB' }), d({ position: 'BB' })]), // 3×1 = 3
+      group('fold-to-river-barrel', [d({})]), // 3×0.5 floor = 1.5, same family
+    ]);
+    expect(familyRelevance(ranked)['Facing aggression']).toBe(3);
+  });
 });
 
 function v(label: string, verdict: InstanceVerdict['verdict'], severity: Severity): InstanceVerdict {
@@ -102,5 +110,10 @@ describe('throughlineHolds', () => {
     const twoSpots = [v('pfa-check-flop', 'leak', 4), v('check-draw', 'leak', 2)];
     expect(throughlineHolds(oneSpot)).toBe(false);
     expect(throughlineHolds(twoSpots)).toBe(true);
+  });
+
+  it('holds for the new Facing aggression family across both fold labels', () => {
+    const spots = [v('fold-to-turn-barrel', 'leak', 3), v('fold-to-river-barrel', 'leak', 3)];
+    expect(throughlineHolds(spots)).toBe(true);
   });
 });

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "leaks": "node --experimental-strip-types scripts/leaks.ts",
+    "split-hands": "node --experimental-strip-types scripts/split-hands.ts",
     "smoke": "node --experimental-strip-types scripts/smoke.ts",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
@@ -23,6 +24,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^24.13.3",

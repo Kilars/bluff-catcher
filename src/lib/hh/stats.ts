@@ -10,7 +10,7 @@
  * preflop trainer, so a leak report that harps on them is noise.
  */
 
-import type { Street } from './parse.ts';
+import type { GameVariant, Street } from './parse.ts';
 import { BLINDS, type HeroHand, type PreflopRole } from './hero.ts';
 import { boardType, type BoardType } from './board.ts';
 
@@ -174,8 +174,38 @@ const BANDS: Record<string, Band> = {
   },
 };
 
-function stat(key: string, made: number, opp: number): Stat {
-  const b = BANDS[key];
+/**
+ * 6-max cash reads a different game than 8-max MTT, so the preflop bands that
+ * genuinely move get an overlay; postflop and showdown bands are close enough
+ * to game-invariant to reuse. 6-max plays more hands and raises more of them
+ * (higher PFR, narrower VPIP−PFR gap, a touch more 3-betting), and deep-stacked
+ * position makes cold-calling far less of a blanket bleed than it is in an MTT.
+ * Conventional 6-max online-cash reference ranges, argued alongside the MTT set
+ * in docs/leak-coaching.md — change them together.
+ */
+const CASH_OVERRIDES: Record<string, Partial<Band>> = {
+  vpip: { band: [21, 28] },
+  pfr: { band: [18, 25] },
+  gap: { band: [0, 5] },
+  threeBet: { band: [7, 12] },
+  coldCall: {
+    band: [4, 14],
+    note: 'flatting out of position still bleeds; in position in deep 6-max it is a real part of the range',
+  },
+};
+
+/** The band table a variant is graded against. Cash overlays the moved bands
+ * onto the MTT set; a mixed window falls back to the MTT bands (filter with
+ * --variant to grade cash against its own). */
+function bandsFor(variant: GameVariant | 'mixed'): Record<string, Band> {
+  if (variant !== 'cash') return BANDS;
+  const out: Record<string, Band> = { ...BANDS };
+  for (const [k, o] of Object.entries(CASH_OVERRIDES)) out[k] = { ...BANDS[k], ...o };
+  return out;
+}
+
+function stat(bands: Record<string, Band>, key: string, made: number, opp: number): Stat {
+  const b = bands[key];
   const pct = opp > 0 ? (made / opp) * 100 : null;
 
   let verdict: Verdict = 'none';
@@ -255,8 +285,12 @@ export interface RoleLine {
 
 export interface Summary {
   hands: number;
+  /** 'mixed' when the window spans both games — the money and rate stats blend. */
+  variant: GameVariant | 'mixed';
   tournaments: number;
   levels: [number, number];
+  /** Net in raw minor units; meaningful only for a single-variant window (chips
+   * for MTT, cents for cash), so the renderer shows it for MTT alone. */
   netChips: number;
   /** Net measured in big blinds of the hand it happened in — the MTT-safe unit. */
   netBB: number;
@@ -274,8 +308,16 @@ export interface Summary {
   biggestCalls: { hand: HeroHand; street: Street; toCall: number; potOdds: number }[];
 }
 
+function variantOf(hs: HeroHand[]): GameVariant | 'mixed' {
+  if (!hs.length) return 'mtt';
+  const first = hs[0].variant;
+  return hs.every((h) => h.variant === first) ? first : 'mixed';
+}
+
 export function summarise(hs: HeroHand[]): Summary {
   const n = hs.length;
+  const variant = variantOf(hs);
+  const bands = bandsFor(variant);
   const sawFlop = hs.filter((h) => h.sawFlop);
 
   // ── Preflop, excluding open-raise selection ───────────────────────────────
@@ -338,22 +380,22 @@ export function summarise(hs: HeroHand[]): Summary {
   const showdowns = sawFlop.filter((h) => h.showdown);
 
   const stats: Stat[] = [
-    stat('vpip', vpip, n),
-    stat('pfr', pfr, n),
-    stat('gap', vpip - pfr, n),
-    stat('limp', firstIn.filter((h) => h.role === 'limp').length, firstIn.length),
-    stat('threeBet', threeBetOpps.filter((h) => h.threeBet).length, threeBetOpps.length),
-    stat('foldTo3Bet', faced3.filter((h) => h.foldedTo3Bet).length, faced3.length),
-    stat('coldCall', coldCallOpps.filter((h) => h.role === 'cold-call').length, coldCallOpps.length),
-    stat('foldBBvsSteal', steals.filter((h) => h.stealDefence === 'fold').length, steals.length),
-    stat('cbetFlop', cbets.length, cbetOpps.length),
-    stat('cbetTurn', barrels.length, barrelOpps.length),
-    stat('foldToCbetFlop', foldedToCbet.length, faceCbetOpps.length),
-    stat('checkRaiseFlop', xrs.length, xrOpps.length),
-    stat('aggFreq', aggressive, aggressive + passive),
-    stat('wwsf', sawFlop.filter((h) => h.wonPot).length, sawFlop.length),
-    stat('wtsd', showdowns.length, sawFlop.length),
-    stat('wsd', showdowns.filter((h) => h.wonPot).length, showdowns.length),
+    stat(bands, 'vpip', vpip, n),
+    stat(bands, 'pfr', pfr, n),
+    stat(bands, 'gap', vpip - pfr, n),
+    stat(bands, 'limp', firstIn.filter((h) => h.role === 'limp').length, firstIn.length),
+    stat(bands, 'threeBet', threeBetOpps.filter((h) => h.threeBet).length, threeBetOpps.length),
+    stat(bands, 'foldTo3Bet', faced3.filter((h) => h.foldedTo3Bet).length, faced3.length),
+    stat(bands, 'coldCall', coldCallOpps.filter((h) => h.role === 'cold-call').length, coldCallOpps.length),
+    stat(bands, 'foldBBvsSteal', steals.filter((h) => h.stealDefence === 'fold').length, steals.length),
+    stat(bands, 'cbetFlop', cbets.length, cbetOpps.length),
+    stat(bands, 'cbetTurn', barrels.length, barrelOpps.length),
+    stat(bands, 'foldToCbetFlop', foldedToCbet.length, faceCbetOpps.length),
+    stat(bands, 'checkRaiseFlop', xrs.length, xrOpps.length),
+    stat(bands, 'aggFreq', aggressive, aggressive + passive),
+    stat(bands, 'wwsf', sawFlop.filter((h) => h.wonPot).length, sawFlop.length),
+    stat(bands, 'wtsd', showdowns.length, sawFlop.length),
+    stat(bands, 'wsd', showdowns.filter((h) => h.wonPot).length, showdowns.length),
   ];
 
   const byBoard: BoardSplit[] = [
@@ -398,6 +440,7 @@ export function summarise(hs: HeroHand[]): Summary {
 
   return {
     hands: n,
+    variant,
     tournaments: new Set(hs.map((h) => h.tournamentId)).size,
     levels: levelSpan,
     netChips: hs.reduce((t, h) => t + h.net, 0),
