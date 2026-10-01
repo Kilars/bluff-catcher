@@ -381,8 +381,14 @@
   background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
 }
 
+/* Semi-bluff: 3-bets (red half) but folds to a big 4-bet (blue half). The split
+   is the lesson — see the desktop grid's .bluff for the full rationale. */
 .cell[data-action='bluff'] {
-  background: color-mix(in srgb, var(--range-bluff) 55%, var(--color-bg));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--range-value) 55%, var(--color-bg)) 0 50%,
+    color-mix(in srgb, var(--range-bluff) 55%, var(--color-bg)) 50% 100%
+  );
 }
 
 .cell[data-action='call'] {
@@ -479,7 +485,9 @@
 }
 
 .legendSwatch[data-action='value'] { background: var(--range-value); }
-.legendSwatch[data-action='bluff'] { background: var(--range-bluff); }
+.legendSwatch[data-action='bluff'] {
+  background: linear-gradient(135deg, var(--range-value) 0 50%, var(--range-bluff) 50% 100%);
+}
 .legendSwatch[data-action='threeBet'] { background: var(--range-value); }
 .legendSwatch[data-action='call'] { background: var(--range-call); }
 .legendSwatch[data-action='fold'] { background: var(--color-neutral-800); }

@@ -78,7 +78,10 @@ export const CELL_ACTION_LABELS: Record<CellAction, string> = {
  */
 export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: string }> = [
   { action: 'value', label: '3-bet — value (V)' },
-  { action: 'bluff', label: '3-bet — bluff (B)' },
+  // The blue half of a bluff cell is the lesson: it 3-bets, but it is not a
+  // value 3-bet — it gives up to a *big* 4-bet. A small 4-bet (under ~2.2× the
+  // 3-bet) is a different question; the suited-ace bluffs call or jam over that.
+  { action: 'bluff', label: '3-bet — bluff (B); blue half folds to a big 4-bet' },
   { action: 'threeBet', label: '3-bet (3)' },
   { action: 'call', label: 'call' },
   { action: 'fold', label: 'fold' },

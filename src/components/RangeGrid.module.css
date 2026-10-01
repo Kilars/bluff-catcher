@@ -141,8 +141,19 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-value) 42%, transparent);
 }
 
+/*
+ * A bluff is a *semi-bluff*: it 3-bets, but it is not value — it folds to a big
+ * 4-bet (a small one is a call/jam, not a fold). So its cell is split on the
+ * diagonal — the 3-bet red it shares with value on one half, the bluff blue on
+ * the other. "Half blue" is the whole tell: the blue half is the part of the
+ * hand's life that gives up to a big 4-bet.
+ */
 .bluff {
-  background: color-mix(in srgb, var(--range-bluff) 26%, #151f2b);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--range-value) 28%, #241618) 0 50%,
+    color-mix(in srgb, var(--range-bluff) 26%, #151f2b) 50% 100%
+  );
   color: var(--range-bluff);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-bluff) 40%, transparent);
 }
@@ -209,6 +220,21 @@
   height: 12px;
   border-radius: var(--radius-sm);
   flex: none;
+}
+
+/*
+ * The swatch borrows the cell colour class (.value/.bluff/.call) for its fill —
+ * including the bluff's diagonal split — but not the cell's corner letter or
+ * inset border. Those anchor to nothing on a bare 12px span and only clutter
+ * the key; the label already names the action. This keeps the desktop key a row
+ * of clean colour chips, matching the phone legend's gradient-only swatches.
+ */
+.legend .legendSwatch::after {
+  content: none;
+}
+
+.legend .legendSwatch {
+  box-shadow: none;
 }
 
 .footnote {
