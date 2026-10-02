@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { dealFacingSpot, dealableClasses, type FacingSpot } from './facingDeal';
+import { dealFacingSpot, dealableClasses, facingTier, type FacingSpot } from './facingDeal';
 import { BUCKET_META, bucketChartAction, bucketsFor } from './facing';
 import { BTN4_OPEN } from './btn4BetRanges';
 import type { Format } from './ranges';
@@ -73,5 +73,22 @@ describe('BTN vs 3-bet kinds', () => {
     expect(bucketChartAction('btn4-cash-BB', 'A5s')).toEqual({ action: '4bet', kind: 'bluff' });
     expect(bucketChartAction('btn4-mtt-SB', 'QQ')).toEqual({ action: '4bet' });
     expect(bucketChartAction('btn4-mtt-SB', 'AA')).toEqual({ action: 'call' });
+  });
+});
+
+describe('BTN vs 3-bet tiers', () => {
+  it('measures trash on the bucket\'s own chart, and has a border in every chart', () => {
+    for (const format of ['mtt', 'cash'] as Format[]) {
+      for (const b of bucketsFor(format, 'btn4')) {
+        const tiers = dealableClasses(b).map((hc) => facingTier(b, hc));
+        expect(tiers, b).toContain('border');
+        expect(tiers, b).toContain('trash');
+      }
+    }
+    // 72o is never opened, so never dealt — but J4s is opened in cash, folds
+    // to the 3-bet and sits among folds: trash.
+    expect(facingTier('btn4-cash-SB', 'J4s')).toBe('trash');
+    // A5s is a bluff 4-bet next to calls and folds: border.
+    expect(facingTier('btn4-cash-SB', 'A5s')).toBe('border');
   });
 });

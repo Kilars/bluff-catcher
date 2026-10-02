@@ -360,7 +360,8 @@ describe('BTN vs 3-bet mode (docs/PLAN-btn-4bet.md)', () => {
     renderAt('phone', <App />);
 
     expect(screen.getByTestId('phone-top-bar')).toHaveTextContent('vs 3b');
-    expect(screen.getByTestId('ladder-context')).toHaveTextContent(/^(SB|BB) 3-bets 9\.2bb · 40bb$/);
+    expect(screen.getByTestId('ladder-context')).toHaveTextContent(/^(SB|BB) 3-bets to 9\.2bb · 40bb$/);
+    expect(screen.getByText('Fold, call or 4-bet (all-in)?')).toBeInTheDocument();
     const opener = screen.getAllByTestId('seat-slot').find((s) => s.getAttribute('data-state') === 'opener')!;
     expect(['SB', 'BB']).toContain(opener.getAttribute('data-label'));
     fireEvent.click(screen.getByTestId('decision-4bet'));

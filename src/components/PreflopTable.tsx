@@ -369,7 +369,11 @@ export default function PreflopTable({
                   <div className={styles.plaque}>
                     <span className={styles.plaqueName}>{seat.label}</span>
                     <span className={styles.plaqueStack}>
-                      {isFolded ? 'folded' : isOpener ? `raises ${seat.raiseBb}bb` : stackLabel}
+                      {isFolded
+                        ? 'folded'
+                        : isOpener
+                          ? `${heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${seat.raiseBb}bb`
+                          : stackLabel}
                     </span>
                     {isOpener && openerTag && (
                       <span className={styles.plaqueTag} data-testid="opener-tag">

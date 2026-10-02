@@ -20,8 +20,12 @@ Branch: `btn-4bet`.
   facing drills.
 - **Same answer loop and keys:** F = Fold, J = Call, K = 4-bet, Space / Enter next,
   R range sheet, I briefing, Escape closes.
-- **Pure charts.** One right answer per hand. The source does not split 4-bets into value and
-  bluff, so the chart has a single 4-bet colour.
+- **Pure charts.** One right answer per hand.
+- **Value / bluff split in cash** (owner request, 2026-10-02), coloured like the 3-bet charts:
+  the bluff cell is half blue. The source has no label, but it does say what hero does facing
+  a 5-bet jam (`Call 5BetBTNvs<seat>`): 4-bets that call the jam are **value** (AA–TT, AK, AQs),
+  4-bets that fold to it are **bluffs** (A5s, AQo, AJo, KQo). At 40bb the 4-bet is all-in, so
+  there is no 5-bet to fold to and those charts stay plain (a `4` corner mark).
 - **Only reachable hands are dealt.** Hero only reaches this spot with a hand they opened, so
   the dealer samples from the source's BTN open range for the format. Hands outside it are
   never dealt (the range sheet still shows them as fold).
@@ -35,8 +39,8 @@ same repo, commit and caveats as `research/cash-100-pto.json` and `research/bb-d
 
 - Keys: `4BetBTNvs<SB|BB>` (raise) and `Call 3BetBTNvs<SB|BB>` (call), 169 hands, 0/1 only.
   Fold = neither. `OpenBTN` from the same file is the reachable range.
-- Vendored in `research/btn-4bet-pto.json` (these five keys per format, with a `_source`
-  block). Charts live as TS sets in `lib/preflop/btn4BetRanges.ts`. A test re-reads the JSON
+- Vendored in `research/btn-4bet-pto.json` (these five keys per format, plus
+  `Call 5BetBTNvs<SB|BB>` for cash, with a `_source` block). Charts live as TS sets in `lib/preflop/btn4BetRanges.ts`. A test re-reads the JSON
   and checks them cell for cell, and checks that every continue hand is inside `OpenBTN`.
 - **Sizing (source README, sizing profiles):**
 
@@ -49,15 +53,15 @@ same repo, commit and caveats as `research/cash-100-pto.json` and `research/bb-d
 
 | Chart | Open | 4-bet | Call | Fold |
 |---|---|---|---|---|
-| Cash vs SB | 554 | 90 | 68 | 396 |
-| Cash vs BB | 554 | 90 | 68 | 396 |
+| Cash vs SB | 554 | 90 (value 50 / bluff 40) | 68 | 396 |
+| Cash vs BB | 554 | 90 (value 50 / bluff 40) | 68 | 396 |
 | 40bb vs SB | 664 | 90 | 194 | 380 |
 | 40bb vs BB | 664 | 70 | 274 | 320 |
 
 - Cash vs SB and vs BB are **identical** in the source. Each still gets its own page (the felt
   shows the real 3-bettor), and the footnote says so.
-- 40bb: the 4-bet is a jam, so the solver **flats AA/KK** (and QQ vs BB) and jams small
-  pairs and AQ/KQ. The mixed solve (`MTT_40_GTO`) confirms it, so this is not a rounding error.
+- 40bb: the 4-bet is a jam, so the solver **flats AA/KK** (and QQ/AKs vs BB) and jams
+  JJ/TT, AQ, KQo, AK and a few pairs (88, 33). The mixed solve (`MTT_40_GTO`) confirms it, so this is not a rounding error.
   The briefing calls it out.
 
 ---
@@ -65,26 +69,43 @@ same repo, commit and caveats as `research/cash-100-pto.json` and `research/bb-d
 ## Design
 
 - `facing.ts`: `Drill` gains `'btn4'`. `FacingAction` gains `'4bet'`. A third chart shape,
-  `FourBetChart { fourBet, call }`, so the 4-bet answer is typed as itself rather than
+  `FourBetChart { fourBet: {value, bluff} | Set, call }`, so the 4-bet answer is typed as itself rather than
   re-using `'3bet'`. `chartAction` / `facingComboCounts` handle it. Four buckets
   `btn4-<format>-<SB|BB>` built from one table, like `BB_SPOTS`. `BucketMeta.heroOpenBb` is
-  hero's own open, and `raiseAction` names the K-key action.
+  hero's own open, and `raise` names the K-key action.
 - **Seat types:** the 3-bettor can be the BB, which is not a `Seat`. `TableSeat = Seat | 'BB'`
   moves from `PreflopTable` into `ranges.ts` (re-exported). `FacingSpot.opener` and
   `BucketMeta.openers/chartSeat` widen to it. `positionLabel` accepts it. In this drill,
   "opener" means *the raiser hero faces*, which is documented on the type.
-- `facingDeal.ts`: a bucket can carry a `reachable` set. The sampler draws only from it.
+- `facingDeal.ts`: a bucket can carry a reachable set (`BUCKET_REACHABLE`). The sampler draws only from it.
   The trash tier is measured against the bucket's own chart, as in BB defend.
-- `grid.ts`: `CellAction` gains `'fourBet'` (label "4-bet", legend "4-bet (4)"), coloured like
-  the plain 3-bet in both grids.
-- **Table:** `buildSeats` / ladder take `heroRaiseBb`. When hero has opened, the raiser is a
+- `grid.ts`: `CellAction` gains `'fourBetValue'`, `'fourBetBluff'` and `'fourBet'`, coloured like
+  their 3-bet twins (value red, half-blue bluff, plain red with a `4` mark) in both grids.
+- **Table:** `buildSeats` takes `heroOpened`, the ladder and `PreflopTable` take `heroOpenBb`. When hero has opened, the raiser is a
   seat *after* hero, and the other blind is folded with its dead blind chip (`posted` widens to
   `'sb' | 'bb'`). Hero's raise chip sits beside hero's cards, and the D steps aside as it does
   when the BTN opens in the facing drill.
-- `useFacingDrill`: K commits the bucket's `raiseAction`, and verdict copy says "4-bet".
+- `useFacingDrill`: K commits the bucket's `raise`, and verdict copy says "4-bet".
   `FacingTrainer` / `PhoneFacingTrainer` read button labels and the prompt from the drill view.
 - App: mode `btn4bet`, stats `bluff-catcher:btn4bet(-cash):v1`, briefings `btn4bet(-cash)`,
-  chip "vs 3-bet" / "3B cash", context "BTN vs 3-bet · 40bb" / "· Cash 100bb".
+  chip "vs 3b" / "3b cash", context "BTN vs 3-bet · 40bb" / "· Cash 100bb".
+
+---
+
+## Review round (3 reviewers, after build)
+
+Logic and types, UI on desktop and phone (rendered at 1280×860 and 390×844), and data fidelity
+against upstream. No bugs. Data, sizes and the cash split were verified against `449993f`
+(the blinds 3-bet with the OOP multiplier; upstream's 3-bet-pot solves confirm 12.5bb). Fixed:
+
+- 40bb briefing said the jams "hate playing out of position", but hero is in position. The jam
+  list also left out AK, JJ and TT. Both rewritten from the charts.
+- Phone prompt didn't say the 40bb 4-bet is all-in. It now shows the 4-bet size, as desktop does.
+- The 3-bettor's plaque said "raises". It now says "3-bets to …".
+- Stale tier docstring in `facingDeal.ts`. Added a test that pins the btn4 tiers.
+
+Left as is: `ThreeBetKind` also types 4-bet kinds, and a folded blind on the phone ladder
+keeps its blind tint. That matches BB defend.
 
 ---
 

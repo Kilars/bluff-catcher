@@ -252,7 +252,7 @@ describe('hero opened, a blind 3-bets (docs/PLAN-btn-4bet.md)', () => {
     );
     expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
     expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^12\.5$/);
-    expect(screen.getByText('raises 12.5bb')).toBeInTheDocument();
+    expect(screen.getByText('3-bets to 12.5bb')).toBeInTheDocument();
     // The folded BB's posted blind stays in the pot.
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.queryByTestId('hero-blind-chip')).not.toBeInTheDocument();

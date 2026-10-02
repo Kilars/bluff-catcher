@@ -73,7 +73,9 @@ export function buildLadderSlots(
     state: 'hero',
     // When hero has the button no other seat carries it — the button must
     // never vanish from the row (it has done, once, and it is the seat every
-    // other seat is read relative to).
+    // other seat is read relative to). If hero has opened, the slot's mark
+    // shows the raise instead of the D, as a BTN opener's does; the slot
+    // still carries data-button and says "dealer button" to screen readers.
     isButton: position === 'BTN',
     // Hero in a blind has posted, so the slot carries it.
     blind: position === 'SB' ? 'sb' : position === 'BB' ? 'bb' : undefined,

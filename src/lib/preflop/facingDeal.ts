@@ -109,9 +109,10 @@ export function neighbours(hc: HandClass): HandClass[] {
 /**
  * Which weighting tier a class falls in for a bucket:
  *   - border: at least one neighbour has a different action in the bucket's
- *     chart (fold / call / 3-bet; value vs bluff is not a different action).
- *   - trash:  folds in all six source charts, and no neighbour continues in
- *     any of them. Disjoint from border by construction.
+ *     chart (fold / call / re-raise; value vs bluff is not a different action).
+ *   - trash:  folds in every source chart of the format (BTN drill) or in the
+ *     bucket's own chart (BB defend, BTN vs 3-bet), and no neighbour continues
+ *     there either. Disjoint from border by construction.
  *   - mid:    everything else.
  */
 export type FacingTier = 'border' | 'mid' | 'trash';

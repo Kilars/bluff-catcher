@@ -1,7 +1,7 @@
 /**
  * The BTN vs 3-bet charts against their vendored source
  * (`research/btn-4bet-pto.json`), cell for cell, plus the combo counts and
- * the value/bluff split docs/PLAN-btn-4bet.md quotes.
+ * the cash value/bluff split docs/PLAN-btn-4bet.md describes.
  */
 
 import { describe, it, expect } from 'vitest';

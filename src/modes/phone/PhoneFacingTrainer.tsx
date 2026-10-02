@@ -62,7 +62,7 @@ export default function PhoneFacingTrainer({
         heroOpenBb={bucketMeta.heroOpenBb}
         format={bucketMeta.format}
         contextLine={[
-          `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets' : 'raises'} ${bucketMeta.raiseBb}bb`,
+          `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${bucketMeta.raiseBb}bb`,
           bucketMeta.openerTag,
           bucketMeta.stackLabel,
         ]
@@ -80,7 +80,8 @@ export default function PhoneFacingTrainer({
         isCommitted={isCommitted}
         wasCorrect={wasCorrect}
         verdictText={verdictText}
-        prompt={`Fold, call or ${raiseWord}?`}
+        // Facing a 3-bet the size matters: at 40bb the 4-bet is a jam.
+        prompt={`Fold, call or ${raiseWord}${bucketMeta.fourBetSize ? ` (${bucketMeta.fourBetSize})` : ''}?`}
         actionLabel={raiseWord}
         boundaryText={detailText}
         actions={phoneActions(bucketMeta.raise, raiseWord)}

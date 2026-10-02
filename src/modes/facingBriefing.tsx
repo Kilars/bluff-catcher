@@ -211,7 +211,7 @@ const BTN4_CASH_BRIEFING: InfoSheetContent = {
       title: 'Three rules',
       body: (
         <ul className={styles.briefList}>
-          <li>Calls are suited and connected: 66–99, AJs–A8s, KQs–K9s, QJs, QTs, JTs.</li>
+          <li>Calls are middle pairs and suited broadways/aces: 66–99, AJs–A8s, KQs–K9s, QJs, QTs, JTs.</li>
           <li>Offsuit hands below AJo/KQo fold, and so do 55 and below.</li>
           <li>About 7 in 10 of your opens fold to the 3-bet. That is the chart, not a leak.</li>
         </ul>
@@ -248,8 +248,11 @@ const BTN4_MTT_BRIEFING: InfoSheetContent = {
       title: 'Three rules',
       body: (
         <ul className={styles.briefList}>
-          <li>AA and KK call (and QQ vs the BB). A jam would fold out the 3-bettor's bluffs.</li>
-          <li>The jams are hands that hate playing out of position: middle and small pairs, AQ, KQo.</li>
+          <li>AA and KK call (and QQ and AKs vs the BB). A jam would fold out the 3-bettor's bluffs.</li>
+          <li>
+            The jams are strong-but-not-best hands that would rather not play a bloated pot: JJ, TT,
+            AQ, KQo, AK (AKo vs the BB), and a few pairs — 88 and 33 vs either blind.
+          </li>
           <li>Suited aces and suited connectors call. They play well in position.</li>
         </ul>
       ),

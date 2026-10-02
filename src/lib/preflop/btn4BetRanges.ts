@@ -64,9 +64,9 @@ export const BTN4_CASH_CHARTS: Record<ThreeBettor, FourBetChart> = {
 };
 
 /**
- * Tournament 40bb. The 4-bet is a jam, so the solver flats AA/KK (and QQ vs
- * the BB) to keep the 3-bettor's bluffs in, and jams the middle pairs and
- * AQ/KQ that would rather not see a flop out of position.
+ * Tournament 40bb. The 4-bet is a jam, so the solver flats AA/KK (and QQ/AKs
+ * vs the BB) to keep the 3-bettor's bluffs in, and jams the strong-but-not-
+ * best hands (JJ, TT, AQ, KQo, AK) that would rather not play a bloated pot.
  */
 export const BTN4_MTT_CHARTS: Record<ThreeBettor, FourBetChart> = {
   /** 4-bet 90 / call 194 (of 664 opened). */
