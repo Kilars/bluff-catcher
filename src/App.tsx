@@ -1,7 +1,7 @@
 /**
  * App — root shell. Holds mode state and routes to the active mode.
  *
- * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend'
+ * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet'
  *   Persisted to localStorage key bluff-catcher:mode:v1.
  *   Default 'odds' on first load or corrupt value.
  *
@@ -49,7 +49,7 @@ import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopSt
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
-import { BB_CHIP_LABEL, FACING_CHIP_LABEL } from './lib/facingMeta';
+import { BB_CHIP_LABEL, BTN4_CHIP_LABEL, FACING_CHIP_LABEL } from './lib/facingMeta';
 import { FACING_DRILL_OF, useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
@@ -70,6 +70,7 @@ const STATS_KEY = {
   preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
   facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
   bbdefend: { mtt: 'bluff-catcher:bbdefend:v1', cash: 'bluff-catcher:bbdefend-cash:v1' },
+  btn4bet: { mtt: 'bluff-catcher:btn4bet:v1', cash: 'bluff-catcher:btn4bet-cash:v1' },
 } as const;
 
 /** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
@@ -87,6 +88,8 @@ function contextLabelFor(
       return FACING_CHIP_LABEL[format];
     case 'bbdefend':
       return BB_CHIP_LABEL[format];
+    case 'btn4bet':
+      return BTN4_CHIP_LABEL[format];
   }
 }
 
@@ -153,9 +156,14 @@ export default function App() {
     mtt: usePreflopStats(STATS_KEY.bbdefend.mtt),
     cash: usePreflopStats(STATS_KEY.bbdefend.cash),
   };
+  const btn4StatsByFormat = {
+    mtt: usePreflopStats(STATS_KEY.btn4bet.mtt),
+    cash: usePreflopStats(STATS_KEY.btn4bet.cash),
+  };
   const preflopStats = preflopStatsByFormat[format];
   const facingStats = facingStatsByFormat[format];
   const bbStats = bbStatsByFormat[format];
+  const btn4Stats = btn4StatsByFormat[format];
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -226,7 +234,13 @@ export default function App() {
   // RFI and both facing drills share a stats shape (hands / streak /
   // accuracy), so the phone chrome only has to tell odds apart from "an
   // accuracy drill".
-  const accuracyStats = { odds: preflopStats, preflop: preflopStats, facing: facingStats, bbdefend: bbStats }[mode];
+  const accuracyStats = {
+    odds: preflopStats,
+    preflop: preflopStats,
+    facing: facingStats,
+    bbdefend: bbStats,
+    btn4bet: btn4Stats,
+  }[mode];
   const facingDrill = FACING_DRILL_OF[mode];
   const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 

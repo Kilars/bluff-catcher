@@ -38,7 +38,17 @@ export const RANK_LABELS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4
 // orientation convention, so `RangeGrid` and `PhoneRangeView` cannot disagree
 // on what a colour means or what to call it in an aria-label.
 
-export type CellAction = 'value' | 'bluff' | 'threeBet' | 'call' | 'fold';
+// BTN vs 3-bet (docs/PLAN-btn-4bet.md) adds the 4-bet twins of the three
+// 3-bet colours: same fills, their own words and corner mark.
+export type CellAction =
+  | 'value'
+  | 'bluff'
+  | 'threeBet'
+  | 'fourBetValue'
+  | 'fourBetBluff'
+  | 'fourBet'
+  | 'call'
+  | 'fold';
 
 /**
  * One page of a paged chart sheet (the facing drills' range view): a chart
@@ -67,6 +77,10 @@ export const CELL_ACTION_LABELS: Record<CellAction, string> = {
   bluff: '3-bet (bluff)',
   // A chart that does not split 3-bets by kind (cash) — no value/bluff claim.
   threeBet: '3-bet',
+  fourBetValue: '4-bet (value)',
+  fourBetBluff: '4-bet (bluff)',
+  // 40bb, where the 4-bet is all-in and there is nothing to split.
+  fourBet: '4-bet',
   call: 'call',
   fold: 'fold',
 };
@@ -83,6 +97,11 @@ export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: stri
   // 3-bet) is a different question; the suited-ace bluffs call or jam over that.
   { action: 'bluff', label: '3-bet — bluff (B); blue half folds to a big 4-bet' },
   { action: 'threeBet', label: '3-bet (3)' },
+  { action: 'fourBetValue', label: '4-bet — value (V)' },
+  // Same lesson one raise up: it 4-bets for its blockers, and the blue half
+  // is the fold when the 3-bettor jams.
+  { action: 'fourBetBluff', label: '4-bet — bluff (B); blue half folds to a 5-bet jam' },
+  { action: 'fourBet', label: '4-bet (4)' },
   { action: 'call', label: 'call' },
   { action: 'fold', label: 'fold' },
 ];

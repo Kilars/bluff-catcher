@@ -233,3 +233,58 @@ describe('cash charts (no value/bluff split)', () => {
     expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['facing-cash']);
   });
 });
+
+describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
+  const FOUR_BET_BLUFF: FacingSpot = {
+    opener: 'SB',
+    bucket: 'btn4-cash-SB',
+    cards: ['Ah', 'Jc'],
+    handClass: 'AJo',
+    correct: '4bet',
+    kind: 'bluff',
+  };
+
+  it('K commits a 4-bet, graded right, and the copy says 4-bet', () => {
+    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['btn4bet-cash']));
+    const spy = vi.spyOn(dealModule, 'dealFacingSpot').mockReturnValue(FOUR_BET_BLUFF);
+    const onRecord = vi.fn<(wasCorrect: boolean) => void>();
+    const { result } = renderHook(() => useFacingDrill({ onRecord, format: 'cash', drill: 'btn4' }));
+    expect(result.current.raiseWord).toBe('4-bet');
+    press('k');
+    expect(result.current.committed).toBe('4bet');
+    expect(onRecord).toHaveBeenCalledWith(true);
+    expect(result.current.verdictText).toBe('Correct — 4-bet (bluff)');
+    expect(result.current.detailText).toBe('AJo vs SB: 4-bet (bluff)');
+    spy.mockRestore();
+  });
+
+  it('briefs each format once, under its own id', () => {
+    localStorage.clear();
+    renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', drill: 'btn4' }));
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['btn4bet']);
+  });
+
+  it('colours 4-bets with the value/bluff split in cash and plainly at 40bb', () => {
+    expect(facingCellAction('btn4-cash-SB', 'KK')).toBe('fourBetValue');
+    expect(facingCellAction('btn4-cash-BB', 'KQo')).toBe('fourBetBluff');
+    expect(facingCellAction('btn4-cash-BB', 'JTs')).toBe('call');
+    expect(facingCellAction('btn4-mtt-SB', '33')).toBe('fourBet');
+    expect(legendFor((hc) => facingCellAction('btn4-cash-SB', hc)).map((i) => i.action)).toEqual([
+      'fourBetValue',
+      'fourBetBluff',
+      'call',
+      'fold',
+    ]);
+    expect(legendFor((hc) => facingCellAction('btn4-mtt-BB', hc)).map((i) => i.action)).toEqual([
+      'fourBet',
+      'call',
+      'fold',
+    ]);
+  });
+
+  it('names the chart by the 3-bettor', () => {
+    expect(facingChartTitle('btn4-cash-SB')).toBe('BTN vs SB 3-bet');
+    expect(facingChartTitle('btn4-mtt-BB')).toBe('BTN vs BB 3-bet');
+    expect(facingAnswerWord({ correct: '4bet' })).toBe('4-bet');
+  });
+});

@@ -7,11 +7,11 @@
  *
  * Owns spot state:
  *  - dealFacingSpot() on mount and on "next".
- *  - committed: null (awaiting input) | 'fold' | 'call' | '3bet'.
+ *  - committed: null (awaiting input) | 'fold' | 'call' | the drill's raise.
  *  - A commit locks the three actions until the player advances.
  *
  * Keyboard bindings (same shape as the RFI drill):
- *  - F = Fold, J = Call, K = 3-bet (only while uncommitted). J means *open* in
+ *  - F = Fold, J = Call, K = 3-bet / 4-bet (only while uncommitted). J means *open* in
  *    the RFI drill; the modes never share a screen, and the briefing says so.
  *  - Space / Enter = Next hand (only once committed)
  *  - R = Range sheet (only once committed)
@@ -34,6 +34,7 @@ import {
   type Bucket,
   type Drill,
   type FacingAction,
+  type RaiseAction,
 } from '../lib/preflop/facing';
 import { CELL_ACTION_LABELS, type CellAction, type ChartPage } from '../lib/preflop/grid';
 import { positionLabel } from '../lib/preflop/boundary';
@@ -45,29 +46,34 @@ import type { Format } from '../lib/preflop/ranges';
 export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
   btn: { mtt: 'facing', cash: 'facing-cash' },
   bb: { mtt: 'bbdefend', cash: 'bbdefend-cash' },
+  btn4: { mtt: 'btn4bet', cash: 'btn4bet-cash' },
 };
+
+/** A re-raise as the copy and buttons write it. */
+export const RAISE_WORD: Record<RaiseAction, string> = { '3bet': '3-bet', '4bet': '4-bet' };
 
 // ─── Pure helpers (exported for the views and tests) ──────────────────────────
 
 /**
  * A bucket chart's answer for a hand, as a grid colour. A chart without kinds
- * (cash) colours its 3-bets plainly — never as "value".
+ * (cash 3-bets, 40bb 4-bets) colours its raises plainly — never as "value".
  */
 export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
   const { action, kind } = bucketChartAction(bucket, hc);
   if (action === '3bet') return kind ?? 'threeBet';
+  if (action === '4bet') return kind === 'value' ? 'fourBetValue' : kind === 'bluff' ? 'fourBetBluff' : 'fourBet';
   return action;
 }
 
 /**
  * "BTN vs Late (UTG+2, LJ, HJ, CO)" — the range sheet's title. Cash bucket
  * labels already name their openers ("vs LJ/HJ", "vs CO"), and so does every
- * BB bucket ("BB vs CO"), so those stand alone.
+ * per-seat bucket ("BB vs CO", "BTN vs SB 3-bet"), so those stand alone.
  */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
   const hero = DRILL_HERO[meta.drill];
-  if (meta.drill === 'bb' || meta.format === 'cash') return `${hero} ${meta.label}`;
+  if (meta.drill !== 'btn' || meta.format === 'cash') return `${hero} ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
 
@@ -94,10 +100,14 @@ export function facingChartPages(format: Format, drill: Drill, kicker: string): 
 
 /**
  * The word the verdict uses for a spot's right answer: "call", "3-bet (bluff)",
- * or a bare "3-bet" when the chart does not split them (cash).
+ * "4-bet (value)", or a bare "3-bet" / "4-bet" when the chart does not split
+ * them.
  */
 export function facingAnswerWord(spot: Pick<FacingSpot, 'correct' | 'kind'>): string {
-  if (spot.correct === '3bet') return spot.kind ? `3-bet (${spot.kind})` : '3-bet';
+  if (spot.correct === '3bet' || spot.correct === '4bet') {
+    const word = RAISE_WORD[spot.correct];
+    return spot.kind ? `${word} (${spot.kind})` : word;
+  }
   return spot.correct;
 }
 
@@ -119,7 +129,7 @@ export interface UseFacingDrillOptions {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App remounts the drill on a change. */
   format?: Format;
-  /** Hero on the button (default) or in the big blind. */
+  /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
 }
 
@@ -210,8 +220,10 @@ export function useFacingDrill({
       }
 
       if (committedRef.current === null) {
+        // K is the drill's re-raise: a 3-bet facing an open, a 4-bet facing a 3-bet.
+        const raise = BUCKET_META[spotRef.current.bucket].raise;
         const action: FacingAction | null =
-          key === 'f' ? 'fold' : key === 'j' ? 'call' : key === 'k' ? '3bet' : null;
+          key === 'f' ? 'fold' : key === 'j' ? 'call' : key === 'k' ? raise : null;
         if (action) {
           e.preventDefault();
           handleCommit(action);
@@ -232,6 +244,7 @@ export function useFacingDrill({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const bucketMeta = BUCKET_META[spot.bucket];
+  const raiseWord = RAISE_WORD[bucketMeta.raise];
   const isCommitted = committed !== null;
   const wasCorrect = isCommitted ? committed === spot.correct : null;
   const correctWord = facingAnswerWord(spot);
@@ -248,6 +261,7 @@ export function useFacingDrill({
   return {
     spot,
     bucketMeta,
+    raiseWord,
     openerLabel,
     committed,
     rangeOpen,

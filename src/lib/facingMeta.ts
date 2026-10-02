@@ -38,3 +38,15 @@ export const BB_CHIP_LABEL: Record<Format, string> = {
   mtt: 'BB 40bb',
   cash: 'BB cash',
 };
+
+/** BTN vs 3-bet mode's context string (docs/PLAN-btn-4bet.md): one depth per format. */
+export const BTN4_CONTEXT_LABEL: Record<Format, string> = {
+  mtt: 'BTN vs 3-bet · 40bb',
+  cash: 'BTN vs 3-bet · Cash 100bb',
+};
+
+/** BTN vs 3-bet mode's phone chip — kept to ~7 characters for the 390px bar. */
+export const BTN4_CHIP_LABEL: Record<Format, string> = {
+  mtt: 'vs 3b',
+  cash: '3b cash',
+};

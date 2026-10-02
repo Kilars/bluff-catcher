@@ -1,5 +1,10 @@
 /**
- * Facing an open from the button: fold, call or 3-bet. Pure, no UI imports.
+ * The facing drills: hero faces a raise and folds, calls or re-raises. Pure,
+ * no UI imports. Three drills share this machinery:
+ *   btn  — an open, hero on the button: fold, call or 3-bet (this header)
+ *   bb   — an open, hero in the big blind (`bbDefendRanges.ts`)
+ *   btn4 — hero opened the button, a blind 3-bets: fold, call or 4-bet
+ *          (`btn4BetRanges.ts`, docs/PLAN-btn-4bet.md)
  *
  * ── Where these charts come from ──────────────────────────────────────────
  * PokerCoaching's free preflop chart pack (`full-preflop-charts.pdf`, p.6,
@@ -35,7 +40,7 @@
  */
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
-import { SEAT_META, type Format, type Position, type Seat } from './ranges.ts';
+import { SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
 import { CASH_VS_CO, CASH_VS_EARLY, type CashOpener } from './cashRanges.ts';
 import {
   BB_CASH_CHARTS,
@@ -45,21 +50,29 @@ import {
   type BbCashOpener,
   type BbMttOpener,
 } from './bbDefendRanges.ts';
+import { BTN4_CASH_CHARTS, BTN4_MTT_CHARTS, BTN4_OPEN, BTN4_THREE_BETTORS, type ThreeBettor } from './btn4BetRanges.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
-/** Hero's three options, in order of aggression (keys F / J / K). */
-export const FACING_ACTIONS = ['fold', 'call', '3bet'] as const;
+/**
+ * Every answer a facing drill grades. A drill offers three of them (keys
+ * F / J / K): fold, call, and its own re-raise — a 3-bet facing an open, a
+ * 4-bet facing a 3-bet (`BucketMeta.raise`).
+ */
+export const FACING_ACTIONS = ['fold', 'call', '3bet', '4bet'] as const;
 export type FacingAction = (typeof FACING_ACTIONS)[number];
 
+/** The re-raise a drill offers on K. */
+export type RaiseAction = Extract<FacingAction, '3bet' | '4bet'>;
+
 /**
- * Why a hand 3-bets. Both kinds grade as the same action; the kind is carried
- * for the verdict text ("Correct — 3-bet (bluff)"), because *why* a hand
- * 3-bets is the lesson.
+ * Why a hand re-raises. Both kinds grade as the same action; the kind is
+ * carried for the verdict text ("Correct — 3-bet (bluff)"), because *why* a
+ * hand raises is the lesson.
  */
 export type ThreeBetKind = 'value' | 'bluff';
 
-/** A chart's answer for one hand class. `kind` is set only for a 3-bet. */
+/** A chart's answer for one hand class. `kind` is set only for a re-raise. */
 export interface FacingAnswer {
   action: FacingAction;
   kind?: ThreeBetKind;
@@ -75,10 +88,10 @@ export type Opener = (typeof OPENERS)[number];
  * Which facing drill a chart belongs to: hero on the button facing an open
  * (docs/PLAN-3bet.md), or hero in the big blind (docs/PLAN-bb-defend.md).
  */
-export type Drill = 'btn' | 'bb';
+export type Drill = 'btn' | 'bb' | 'btn4';
 
 /** Hero's seat in each drill. */
-export const DRILL_HERO = { btn: 'BTN', bb: 'BB' } as const satisfies Record<Drill, string>;
+export const DRILL_HERO = { btn: 'BTN', bb: 'BB', btn4: 'BTN' } as const satisfies Record<Drill, string>;
 
 /** The open hero faces in the BTN drill (PLAN-3bet: 2.5bb, every opener). */
 export const BTN_DRILL_RAISE_BB = 2.5;
@@ -92,6 +105,9 @@ const BTN_BUCKETS = ['early', 'late', 'cashEarly', 'cashCo'] as const;
 
 /** The BB drill grades each opener against its own chart: one bucket per opener. */
 export type BbBucket = `bb-mtt-${BbMttOpener}` | `bb-cash-${BbCashOpener}`;
+
+/** BTN vs 3-bet: one bucket per (format, 3-bettor). */
+export type Btn4Bucket = `btn4-${Format}-${ThreeBettor}`;
 
 /**
  * Everything the BB drill's buckets differ by, per format (source metadata,
@@ -118,6 +134,7 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       openers: [o],
       chartSeat: o,
       raiseBb: o === 'SB' ? src.sbOpen : src.open,
+      raise: '3bet',
       chartName: `BB vs ${seat} (${format === 'mtt' ? '40bb' : 'cash'})`,
       footnote: 'Pure chart: border hands are likely mixed in the full solve, so they are close.',
     };
@@ -125,9 +142,51 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
   });
 });
 
-/** Every chart either drill grades against. */
-export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket;
-export const BUCKETS: readonly Bucket[] = [...BTN_BUCKETS, ...BB_SPOTS.map((s) => s.id)];
+/**
+ * Everything the BTN-vs-3-bet buckets differ by, per format (source sizing
+ * profiles, docs/PLAN-btn-4bet.md): cash opens 2.5bb and the blind 3-bets to
+ * 5× (12.5bb), hero 4-bets to 25bb; 40bb opens 2.3bb, 3-bet to 4× (9.2bb),
+ * and hero's 4-bet is all-in.
+ */
+const BTN4_SOURCE = {
+  mtt: { charts: BTN4_MTT_CHARTS, stack: '40bb', open: 2.3, threeBet: 9.2, fourBet: 'all-in' },
+  cash: { charts: BTN4_CASH_CHARTS, stack: '100bb', open: 2.5, threeBet: 12.5, fourBet: '25bb' },
+} as const;
+
+/** One BTN-vs-3-bet bucket per (format, 3-bettor), built in one place like `BB_SPOTS`. */
+const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
+  const src = BTN4_SOURCE[format];
+  return BTN4_THREE_BETTORS.map((seat) => {
+    const id: Btn4Bucket = `btn4-${format}-${seat}`;
+    const meta: BucketMeta = {
+      id,
+      drill: 'btn4',
+      format,
+      stackLabel: src.stack,
+      label: `vs ${seat} 3-bet`,
+      openers: [seat],
+      chartSeat: seat,
+      raiseBb: src.threeBet,
+      heroOpenBb: src.open,
+      raise: '4bet',
+      fourBetSize: src.fourBet,
+      chartName: `BTN vs ${seat} 3-bet (${format === 'mtt' ? '40bb' : 'cash'})`,
+      footnote:
+        format === 'cash'
+          ? 'The source uses the same chart vs SB and vs BB. Pure chart: border hands are close.'
+          : 'The 4-bet is all-in at 40bb, so there is no bluff split. Pure chart: border hands are close.',
+    };
+    return { id, meta, chart: src.charts[seat], reachable: BTN4_OPEN[format] };
+  });
+});
+
+/** Every chart any facing drill grades against. */
+export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket | Btn4Bucket;
+export const BUCKETS: readonly Bucket[] = [
+  ...BTN_BUCKETS,
+  ...BB_SPOTS.map((s) => s.id),
+  ...BTN4_SPOTS.map((s) => s.id),
+];
 
 /**
  * Which chart each opener is graded against. The first cut sits after UTG+1:
@@ -179,12 +238,22 @@ export interface BucketMeta {
    * A per-opener chart (BB drill) would only repeat the seat.
    */
   openerTag?: string;
-  /** The openers graded against this bucket's chart, in seat order. */
-  openers: readonly Seat[];
-  /** The source chart this bucket uses: the opener seat it was solved against. */
-  chartSeat: Seat;
-  /** The open size hero faces, in bb. */
+  /**
+   * The seats that raise into hero, graded against this bucket's chart, in
+   * seat order. "Opener" is the facing drills' word for *the raiser hero
+   * faces*: in BTN vs 3-bet that is the 3-bettor, not the seat that opened.
+   */
+  openers: readonly TableSeat[];
+  /** The source chart this bucket uses: the raiser's seat it was solved against. */
+  chartSeat: TableSeat;
+  /** The raise hero faces, in bb: the open, or (BTN vs 3-bet) the 3-bet. */
   raiseBb: number;
+  /** Hero's own open, in bb — set only when hero opened (BTN vs 3-bet). */
+  heroOpenBb?: number;
+  /** The re-raise hero answers with on K. */
+  raise: RaiseAction;
+  /** Hero's 4-bet size as the prompt states it ("25bb", "all-in"); BTN vs 3-bet only. */
+  fourBetSize?: string;
   /** The source chart's name as the pack prints it, e.g. "BTN vs UTG+1". */
   chartName: string;
   /** One-line range-sheet footnote on where the bucket chart is off. */
@@ -206,6 +275,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('mtt', 'early'),
     chartSeat: 'UTG1',
     raiseBb: BTN_DRILL_RAISE_BB,
+    raise: '3bet',
     chartName: 'BTN vs UTG+1',
     footnote: 'UTG is a touch tighter than this.',
   },
@@ -219,6 +289,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('mtt', 'late'),
     chartSeat: 'LJ',
     raiseBb: BTN_DRILL_RAISE_BB,
+    raise: '3bet',
     chartName: 'BTN vs LJ',
     footnote: 'vs HJ/CO the exact chart is a bit wider: more suited calls and bluffs.',
   },
@@ -232,6 +303,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('cash', 'cashEarly'),
     chartSeat: 'LJ',
     raiseBb: BTN_DRILL_RAISE_BB,
+    raise: '3bet',
     chartName: 'BTN vs LJ/HJ (cash)',
     footnote: 'The source uses one chart for LJ and HJ. Flats are the simplified chart’s: 66–99, A9s, A8s, QTs, JTs.',
   },
@@ -245,11 +317,21 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('cash', 'cashCo'),
     chartSeat: 'CO',
     raiseBb: BTN_DRILL_RAISE_BB,
+    raise: '3bet',
     chartName: 'BTN vs CO (cash)',
     footnote: 'Same flats as vs LJ/HJ; only 3-bets are added.',
   },
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.meta])),
+  ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.meta])),
 } as Record<Bucket, BucketMeta>;
+
+/**
+ * The hands the dealer may deal per bucket, where that is narrower than all
+ * 169: BTN vs 3-bet only happens to hands hero opened.
+ */
+export const BUCKET_REACHABLE: Partial<Record<Bucket, ReadonlySet<HandClass>>> = Object.fromEntries(
+  BTN4_SPOTS.map((s) => [s.id, s.reachable])
+);
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -270,11 +352,25 @@ export interface PlainChart {
   call: ReadonlySet<HandClass>;
 }
 
-export type FacingChart = KindedChart | PlainChart;
+/**
+ * A BTN-vs-3-bet chart (`btn4BetRanges.ts`). Its 4-bets are split into value
+ * and bluff where the source can tell them apart (cash: by what calls a 5-bet
+ * jam), or one plain set where it cannot (40bb, where the 4-bet is all-in).
+ */
+export interface FourBetChart {
+  fourBet: { value: ReadonlySet<HandClass>; bluff: ReadonlySet<HandClass> } | ReadonlySet<HandClass>;
+  call: ReadonlySet<HandClass>;
+}
 
-/** Whether a chart splits its 3-bets into value and bluff. */
+export type FacingChart = KindedChart | PlainChart | FourBetChart;
+
+/** Whether a chart is a 3-bet chart that splits its 3-bets into value and bluff. */
 export function hasKinds(chart: FacingChart): chart is KindedChart {
   return 'value' in chart;
+}
+
+function isFourBetChart(chart: FacingChart): chart is FourBetChart {
+  return 'fourBet' in chart;
 }
 
 /**
@@ -329,13 +425,22 @@ export const BUCKET_CHART = {
   cashEarly: CASH_VS_EARLY,
   cashCo: CASH_VS_CO,
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.chart])),
+  ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.chart])),
 } as Record<Bucket, FacingChart>;
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
 
-/** A chart's answer for a hand class: 3-bet (with kind, if the chart has kinds), call, or fold. */
+/** A chart's answer for a hand class: its re-raise (with kind, if the chart has kinds), call, or fold. */
 export function chartAction(chart: FacingChart, hc: HandClass): FacingAnswer {
-  if (hasKinds(chart)) {
+  if (isFourBetChart(chart)) {
+    const { fourBet } = chart;
+    if ('value' in fourBet) {
+      if (fourBet.value.has(hc)) return { action: '4bet', kind: 'value' };
+      if (fourBet.bluff.has(hc)) return { action: '4bet', kind: 'bluff' };
+    } else if (fourBet.has(hc)) {
+      return { action: '4bet' };
+    }
+  } else if (hasKinds(chart)) {
     if (chart.value.has(hc)) return { action: '3bet', kind: 'value' };
     if (chart.bluff.has(hc)) return { action: '3bet', kind: 'bluff' };
   } else if (chart.threeBet.has(hc)) {
@@ -358,20 +463,24 @@ export function facingAction(opener: Opener, hc: HandClass): FacingAnswer {
 
 /**
  * Combo totals per answer, as printed under each source chart; sums to 1326.
- * A kinded chart reports value and bluff, a plain one a single threeBet.
+ * A kinded chart reports value and bluff, a plain one a single threeBet or
+ * fourBet.
  */
 export type FacingComboCounts = { call: number; fold: number } & (
   | { value: number; bluff: number }
   | { threeBet: number }
+  | { fourBet: number }
 );
 
 export function facingComboCounts(chart: FacingChart): FacingComboCounts {
-  const counts: Record<string, number> = hasKinds(chart)
+  const plainKey = isFourBetChart(chart) ? 'fourBet' : 'threeBet';
+  const kinded = hasKinds(chart) || (isFourBetChart(chart) && 'value' in chart.fourBet);
+  const counts: Record<string, number> = kinded
     ? { value: 0, bluff: 0, call: 0, fold: 0 }
-    : { threeBet: 0, call: 0, fold: 0 };
+    : { [plainKey]: 0, call: 0, fold: 0 };
   for (const hc of ALL_169) {
     const { action, kind } = chartAction(chart, hc);
-    counts[action === '3bet' ? (kind ?? 'threeBet') : action] += combosForClass(hc);
+    counts[action === 'call' || action === 'fold' ? action : (kind ?? plainKey)] += combosForClass(hc);
   }
   return counts as FacingComboCounts;
 }

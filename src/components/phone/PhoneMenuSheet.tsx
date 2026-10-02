@@ -54,6 +54,10 @@ const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
     mode: 'bbdefend',
     note: { mtt: 'Fold, call or 3-bet in the big blind · 40bb', cash: 'Fold, call or 3-bet in the big blind · cash 100bb' },
   },
+  {
+    mode: 'btn4bet',
+    note: { mtt: 'Fold, call or 4-bet after a blind 3-bets · 40bb', cash: 'Fold, call or 4-bet after a blind 3-bets · cash 100bb' },
+  },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────

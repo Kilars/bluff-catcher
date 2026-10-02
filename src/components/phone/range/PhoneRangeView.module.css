@@ -376,14 +376,18 @@
 /* Only reached via `cellAction` (the facing-open drill); `[data-open]` above
    stays the only colour path for the RFI usage. */
 
+/* The 4-bet cells (BTN vs 3-bet) wear the same colours as their 3-bet twins. */
 .cell[data-action='value'],
-.cell[data-action='threeBet'] {
+.cell[data-action='threeBet'],
+.cell[data-action='fourBetValue'],
+.cell[data-action='fourBet'] {
   background: color-mix(in srgb, var(--range-value) 55%, var(--color-bg));
 }
 
 /* Semi-bluff: 3-bets (red half) but folds to a big 4-bet (blue half). The split
    is the lesson — see the desktop grid's .bluff for the full rationale. */
-.cell[data-action='bluff'] {
+.cell[data-action='bluff'],
+.cell[data-action='fourBetBluff'] {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--range-value) 55%, var(--color-bg)) 0 50%,
@@ -402,13 +406,19 @@
 /* Colour-blind cue: value (red) and call (green) also differ by a corner letter. */
 .cell[data-action='value'],
 .cell[data-action='bluff'],
-.cell[data-action='threeBet'] {
+.cell[data-action='threeBet'],
+.cell[data-action='fourBetValue'],
+.cell[data-action='fourBetBluff'],
+.cell[data-action='fourBet'] {
   position: relative;
 }
 
 .cell[data-action='value']::after,
 .cell[data-action='bluff']::after,
-.cell[data-action='threeBet']::after {
+.cell[data-action='threeBet']::after,
+.cell[data-action='fourBetValue']::after,
+.cell[data-action='fourBetBluff']::after,
+.cell[data-action='fourBet']::after {
   position: absolute;
   top: 2px;
   right: 3px;
@@ -420,16 +430,22 @@
   pointer-events: none;
 }
 
-.cell[data-action='value']::after {
+.cell[data-action='value']::after,
+.cell[data-action='fourBetValue']::after {
   content: 'V';
 }
 
-.cell[data-action='bluff']::after {
+.cell[data-action='bluff']::after,
+.cell[data-action='fourBetBluff']::after {
   content: 'B';
 }
 
 .cell[data-action='threeBet']::after {
   content: '3';
+}
+
+.cell[data-action='fourBet']::after {
+  content: '4';
 }
 
 .cell[data-action='fold'] {
@@ -484,8 +500,11 @@
   flex: none;
 }
 
-.legendSwatch[data-action='value'] { background: var(--range-value); }
-.legendSwatch[data-action='bluff'] {
+.legendSwatch[data-action='value'],
+.legendSwatch[data-action='fourBetValue'],
+.legendSwatch[data-action='fourBet'] { background: var(--range-value); }
+.legendSwatch[data-action='bluff'],
+.legendSwatch[data-action='fourBetBluff'] {
   background: linear-gradient(135deg, var(--range-value) 0 50%, var(--range-bluff) 50% 100%);
 }
 .legendSwatch[data-action='threeBet'] { background: var(--range-value); }

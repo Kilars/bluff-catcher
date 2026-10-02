@@ -28,7 +28,7 @@
 
 import { buildLadderSlots, ladderContextLine, type LadderSlot } from './ladderSlots';
 import { DEFAULT_OPENER_RAISE_BB, type TableSeat } from '../../PreflopTable';
-import type { Format, Seat } from '../../../lib/preflop/ranges';
+import type { Format } from '../../../lib/preflop/ranges';
 import styles from './PhoneSeatLadder.module.css';
 
 /** Screen-reader description for one slot: never just a bare position label. */
@@ -36,7 +36,15 @@ function slotDescription(slot: LadderSlot): string {
   const parts: string[] = [slot.label];
   if (slot.state === 'folded') parts.push('folded');
   else if (slot.state === 'hero')
-    parts.push(slot.blind === 'sb' ? 'you, small blind' : slot.blind === 'bb' ? 'you, big blind' : 'you');
+    parts.push(
+      slot.raiseBb !== undefined
+        ? `you, raised ${slot.raiseBb}bb`
+        : slot.blind === 'sb'
+          ? 'you, small blind'
+          : slot.blind === 'bb'
+            ? 'you, big blind'
+            : 'you'
+    );
   else if (slot.state === 'opener') parts.push(`raises ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
   else parts.push('to act');
   if (slot.isButton) parts.push('dealer button');
@@ -53,9 +61,11 @@ export interface PhoneSeatLadderProps {
    * opened instead of folding. Omit it and the row renders exactly as the RFI
    * drill always has.
    */
-  opener?: Seat;
+  opener?: TableSeat;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
+  /** Hero's own open, in bb (BTN vs 3-bet): `opener` is then a 3-bettor behind hero. */
+  heroOpenBb?: number;
   /** Overrides the line under the row (default: "3 folded · 5 behind"). */
   contextLine?: string;
   /** Tournament (9 seats, default) or cash (6 seats). */
@@ -66,10 +76,11 @@ export default function PhoneSeatLadder({
   position,
   opener,
   raiseBb,
+  heroOpenBb,
   contextLine,
   format,
 }: PhoneSeatLadderProps) {
-  const slots = buildLadderSlots(position, opener, raiseBb, format);
+  const slots = buildLadderSlots(position, opener, raiseBb, format, heroOpenBb);
 
   return (
     <div className={styles.ladderBlock}>
@@ -93,7 +104,13 @@ export default function PhoneSeatLadder({
           >
             <span className={styles.mark} aria-hidden="true">
               {/* A raise outranks the D: when the BTN opens, the size is what matters. */}
-              {slot.state === 'opener' ? (slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB) : slot.isButton ? 'D' : ''}
+              {slot.state === 'opener'
+                ? (slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB)
+                : slot.raiseBb !== undefined
+                  ? slot.raiseBb
+                  : slot.isButton
+                    ? 'D'
+                    : ''}
             </span>
             <span className={styles.label}>{slot.label}</span>
           </div>

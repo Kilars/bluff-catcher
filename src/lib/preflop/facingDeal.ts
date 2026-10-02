@@ -22,26 +22,30 @@ import {
   BUCKETS,
   BUCKET_CHART,
   BUCKET_META,
+  BUCKET_REACHABLE,
   OPENERS,
   bucketChartAction,
   bucketsFor,
   chartAction,
 } from './facing.ts';
-import type { Format, Seat } from './ranges.ts';
+import type { Format, TableSeat } from './ranges.ts';
 import { CASH_VS_CO, CASH_VS_EARLY } from './cashRanges.ts';
 import { FACING_SOURCES } from './facingSources.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface FacingSpot {
-  /** The seat that opened. The felt shows the real seat. */
-  opener: Seat;
+  /**
+   * The seat that raised into hero: the opener, or in BTN vs 3-bet the
+   * 3-bettor. The felt shows the real seat.
+   */
+  opener: TableSeat;
   /** The chart hero is graded against (BTN drill: `bucketFor`; BB drill: the opener's own). */
   bucket: Bucket;
   cards: [Card, Card];
   handClass: HandClass;
   correct: FacingAction;
-  /** Set only when `correct` is '3bet', for the verdict text. */
+  /** Set only when `correct` is a re-raise from a chart that splits them, for the verdict text. */
   kind?: ThreeBetKind;
 }
 
@@ -62,7 +66,7 @@ export interface DealFacingOpts {
   pool?: FacingPool;
   /** Tournament (default) or cash. Picks the buckets, openers and charts. */
   format?: Format;
-  /** Hero on the button (default) or in the big blind. */
+  /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
 }
 
@@ -128,11 +132,11 @@ function computeTier(bucket: Bucket, hc: HandClass): FacingTier {
   const own = bucketChartAction(bucket, hc).action;
   const near = neighbours(hc);
   if (near.some((n) => bucketChartAction(bucket, n).action !== own)) return 'border';
-  // The BB drill grades every opener on its own chart, so its trash tier is
-  // measured against that chart alone — BB defends so wide vs the late seats
-  // that almost nothing folds in all of them.
+  // The BB and BTN-vs-3-bet drills grade every raiser on its own chart, so
+  // their trash tier is measured against that chart alone — BB defends so
+  // wide vs the late seats that almost nothing folds in all of them.
   const meta = BUCKET_META[bucket];
-  const sources = meta.drill === 'bb' ? [BUCKET_CHART[bucket]] : SOURCE_CHARTS[meta.format];
+  const sources = meta.drill === 'btn' ? SOURCE_CHARTS[meta.format] : [BUCKET_CHART[bucket]];
   const foldsEverywhere = (c: HandClass) =>
     sources.every((chart) => chartAction(chart, c).action === 'fold');
   if (foldsEverywhere(hc) && near.every(foldsEverywhere)) return 'trash';
@@ -178,9 +182,25 @@ export const ACTIVE_FACING_POOL: FacingPool = borderSkewFacingPool;
 
 // ─── Sampling ─────────────────────────────────────────────────────────────────
 
-/** Weighted pick over the 169 classes: pool weight × combo count. */
+/**
+ * The classes a bucket deals from: all 169, or (BTN vs 3-bet) only the hands
+ * hero opened, since no other hand reaches the spot.
+ */
+const DEALABLE = Object.fromEntries(
+  BUCKETS.map((b) => {
+    const reachable = BUCKET_REACHABLE[b];
+    return [b, reachable ? ALL_169.filter((hc) => reachable.has(hc)) : ALL_169];
+  })
+) as Record<Bucket, readonly HandClass[]>;
+
+/** The hand classes a bucket can deal (see `DEALABLE`). */
+export function dealableClasses(bucket: Bucket): readonly HandClass[] {
+  return DEALABLE[bucket];
+}
+
+/** Weighted pick over the bucket's dealable classes: pool weight × combo count. */
 function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): HandClass {
-  return sampleClassByCombos(ALL_169, (hc) => pool.weight(bucket, hc), rng);
+  return sampleClassByCombos(DEALABLE[bucket], (hc) => pool.weight(bucket, hc), rng);
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────

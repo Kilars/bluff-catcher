@@ -25,6 +25,7 @@ import {
   getRangeSet,
   type ChartKey,
   type Seat,
+  type TableSeat,
 } from './ranges.ts';
 
 // ─── Seat labels ──────────────────────────────────────────────────────────────
@@ -33,8 +34,8 @@ import {
  * The seat's short display name, as written in the sentence and on a phone
  * tab: `UTG1` is a position *id*; "UTG+1" is what a player calls the seat.
  */
-export function positionLabel(pos: Seat): string {
-  return SEAT_META[pos].short;
+export function positionLabel(pos: TableSeat): string {
+  return pos === 'BB' ? 'BB' : SEAT_META[pos].short;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

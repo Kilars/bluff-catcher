@@ -178,3 +178,90 @@ export const BB_BRIEFING: Record<Format, InfoSheetContent> = {
   mtt: BB_MTT_BRIEFING,
   cash: BB_CASH_BRIEFING,
 };
+
+/**
+ * BTN vs 3-bet (docs/PLAN-btn-4bet.md). The chart facts are pinned by
+ * `lib/preflop/btn4BetRanges.test.ts`.
+ */
+const BTN4_CASH_BRIEFING: InfoSheetContent = {
+  ...MTT_BRIEFING,
+  title: 'Fold, call or 4-bet on the button',
+  subline: '6-max cash table · 100bb effective, no ante',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'You open the button to 2.5bb, a blind 3-bets to 12.5bb and the other blind folds. Fold, call, or 4-bet to 25bb. Only hands you open are dealt.',
+    },
+    {
+      title: 'Value and bluff',
+      body: (
+        <ul className={styles.briefList}>
+          <li>
+            <strong>Value</strong> — AA–TT, AK, AQs. They call a 5-bet jam.
+          </li>
+          <li>
+            <strong>Bluff</strong> — A5s, AQo, AJo, KQo. They 4-bet for the blockers and fold to a
+            jam: the blue half of the cell.
+          </li>
+          <li>The split comes from the source's own answer to a 5-bet jam.</li>
+        </ul>
+      ),
+    },
+    {
+      title: 'Three rules',
+      body: (
+        <ul className={styles.briefList}>
+          <li>Calls are suited and connected: 66–99, AJs–A8s, KQs–K9s, QJs, QTs, JTs.</li>
+          <li>Offsuit hands below AJo/KQo fold, and so do 55 and below.</li>
+          <li>About 7 in 10 of your opens fold to the 3-bet. That is the chart, not a leak.</li>
+        </ul>
+      ),
+    },
+    {
+      title: 'SB or BB',
+      body: 'The source uses the same chart against either blind. The table shows who 3-bet.',
+    },
+  ],
+  keys: [
+    { key: 'F', label: 'Fold' },
+    { key: 'J', label: 'Call' },
+    { key: 'K', label: '4-bet' },
+    { key: 'Space', label: 'Next hand' },
+    { key: 'R', label: 'Range grid' },
+    { key: 'I', label: 'This page' },
+  ],
+};
+
+const BTN4_MTT_BRIEFING: InfoSheetContent = {
+  ...BTN4_CASH_BRIEFING,
+  subline: '9-handed tournament table · 40bb effective, BB ante',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'You open the button to 2.3bb, a blind 3-bets to 9.2bb and the other blind folds. Fold, call, or 4-bet. At 40bb the 4-bet is all-in. Only hands you open are dealt.',
+    },
+    {
+      title: 'One chart per blind',
+      body: 'Against the SB and against the BB the charts differ, so each has its own. The table shows who 3-bet.',
+    },
+    {
+      title: 'Three rules',
+      body: (
+        <ul className={styles.briefList}>
+          <li>AA and KK call (and QQ vs the BB). A jam would fold out the 3-bettor's bluffs.</li>
+          <li>The jams are hands that hate playing out of position: middle and small pairs, AQ, KQo.</li>
+          <li>Suited aces and suited connectors call. They play well in position.</li>
+        </ul>
+      ),
+    },
+    {
+      title: 'No bluff split',
+      body: 'The 4-bet is the jam, so there is no 5-bet to fold to. Every 4-bet is plain red. Pure chart: hands on a border are close.',
+    },
+  ],
+};
+
+export const BTN4_BRIEFING: Record<Format, InfoSheetContent> = {
+  mtt: BTN4_MTT_BRIEFING,
+  cash: BTN4_CASH_BRIEFING,
+};

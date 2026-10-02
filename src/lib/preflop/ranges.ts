@@ -79,6 +79,13 @@ export type Position = (typeof POSITIONS)[number];
 export type Seat = Position | 'SB';
 
 /**
+ * Any seat at the table, the big blind included. Only the facing drills need
+ * it: BB defend seats hero there, and in BTN vs 3-bet the BB is a 3-bettor.
+ * Kept out of `Seat` so the RFI chart tables never need a BB entry.
+ */
+export type TableSeat = Seat | 'BB';
+
+/**
  * Display names for every seat, so no component keeps its own copy.
  *   short — tab strips, plaques, the seat ladder ("UTG+1")
  *   long  — the felt's centre heading ("Under the gun")
