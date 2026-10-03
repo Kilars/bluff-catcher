@@ -6,6 +6,7 @@
 
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
 import type { Format } from '../lib/preflop/ranges';
+import type { Drill } from '../lib/preflop/facing';
 import styles from './FacingTrainer.module.css';
 
 const MTT_BRIEFING: InfoSheetContent = {
@@ -309,4 +310,63 @@ const OPEN4_CASH_BRIEFING: InfoSheetContent = {
 export const OPEN4_BRIEFING: Record<Format, InfoSheetContent> = {
   mtt: OPEN4_CASH_BRIEFING,
   cash: OPEN4_CASH_BRIEFING,
+};
+
+// ─── Low-stakes read (lib/preflop/lowStakes.ts) ───────────────────────────────
+//
+// The cash 4-bet briefings again, for a pool whose 5-bet jam is QQ+, AK and
+// nothing else. Only the value/bluff copy changes; `lowStakes.test.ts` pins
+// which hands move.
+
+const BTN4_CASH_LOW_BRIEFING: InfoSheetContent = {
+  ...BTN4_CASH_BRIEFING,
+  steps: BTN4_CASH_BRIEFING.steps.map((step) =>
+    step.title !== 'Value and bluff'
+      ? step
+      : {
+          title: 'Value and bluff · low stakes',
+          body: (
+            <ul className={styles.briefList}>
+              <li>
+                <strong>Value</strong> — AA–QQ, AK. They call a 5-bet jam.
+              </li>
+              <li>
+                <strong>Bluff</strong> — JJ, TT and AQs, plus the blockers A5s, AQo, AJo, KQo. They
+                4-bet and fold to a jam: the blue half of the cell.
+              </li>
+              <li>
+                A low-stakes 5-bet jam is QQ+, AK with no bluffs. Calling it needs 37%; JJ and TT have
+                36%, AQs 29%. Opponents → Balanced shows the solver's split.
+              </li>
+            </ul>
+          ),
+        }
+  ),
+};
+
+const OPEN4_CASH_LOW_BRIEFING: InfoSheetContent = {
+  ...OPEN4_CASH_BRIEFING,
+  steps: OPEN4_CASH_BRIEFING.steps.map((step) =>
+    step.title !== 'Three rules'
+      ? step
+      : {
+          title: 'Three rules · low stakes',
+          body: (
+            <ul className={styles.briefList}>
+              <li>
+                Value: AA–QQ and AK. JJ 4-bets but folds to a jam from every seat: a low-stakes jam is
+                QQ+, AK, and JJ has 36% against it where calling needs 37% or more.
+              </li>
+              <li>Bluffs are blockers: ATs, A5s, KTs, plus AQo from the CO.</li>
+              <li>Calls: 77–TT (66 too from HJ/CO), AQs, AJs, KQs, KJs. Everything else folds: about 6 in 10 LJ opens, 7 in 10 CO opens.</li>
+            </ul>
+          ),
+        }
+  ),
+};
+
+/** The cash 4-bet briefings for a low-stakes pool; other drills read their usual one. */
+export const LOW_STAKES_BRIEFING: Partial<Record<Drill, InfoSheetContent>> = {
+  btn4: BTN4_CASH_LOW_BRIEFING,
+  open4: OPEN4_CASH_LOW_BRIEFING,
 };

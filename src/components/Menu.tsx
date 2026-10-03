@@ -9,6 +9,8 @@
  * drills — then a "Stack depth" group — the three tournament tiers the preflop
  * trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group with the
  * RFI range charts, so the charts are reachable without playing a hand first.
+ * An "Opponents" group (low stakes or balanced) follows it in the cash 4-bet
+ * drills, the only place that read changes an answer.
  * The format group is shown in the two preflop modes; the depth group only in
  * preflop mode with the tournament format, since cash has one depth and the
  * odds trainer has none; the "Drill" group, holding the one odds
@@ -26,7 +28,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MODES, MODE_LABEL, hasFormatChoice, type AppMode } from '../hooks/useAppPrefs';
+import { MODES, MODE_LABEL, hasFormatChoice, hasOpponentsChoice, type AppMode } from '../hooks/useAppPrefs';
+import { OPPONENTS, OPPONENTS_META, type Opponents } from '../lib/preflop/lowStakes';
 import { DEPTHS, DEPTH_META, FORMATS, FORMAT_META, type Depth, type Format } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
@@ -46,6 +49,9 @@ interface MenuProps {
   /** Tournament or cash, for both preflop drills. */
   currentFormat: Format;
   onFormatChange: (format: Format) => void;
+  /** Cash 4-bet drills: who is across the table. */
+  opponents: Opponents;
+  onOpponentsChange: (opponents: Opponents) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -60,6 +66,8 @@ export default function Menu({
   onDepthChange,
   currentFormat,
   onFormatChange,
+  opponents,
+  onOpponentsChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,
@@ -133,6 +141,15 @@ export default function Menu({
     [onFormatChange, close]
   );
 
+  const handleSelectOpponents = useCallback(
+    (next: Opponents) => {
+      onOpponentsChange(next);
+      close();
+      buttonRef.current?.focus();
+    },
+    [onOpponentsChange, close]
+  );
+
   // Deliberately does not close: see the header note.
   const handleToggleShowDraw = useCallback(() => {
     onShowDrawChange(!showDraw);
@@ -199,6 +216,28 @@ export default function Menu({
                   {f === currentFormat && (
                     <span className={styles.activeMarker} aria-label="(active)" />
                   )}
+                </button>
+              ))}
+            </>
+          )}
+
+          {hasOpponentsChoice(currentMode, currentFormat) && (
+            <>
+              <div className={styles.separator} />
+              <span className={styles.groupLabel}>Opponents</span>
+              {OPPONENTS.map((o) => (
+                <button
+                  key={o}
+                  className={`${styles.item} ${o === opponents ? styles.itemActive : ''}`}
+                  role="menuitemradio"
+                  aria-checked={o === opponents}
+                  onClick={() => handleSelectOpponents(o)}
+                >
+                  <span className={styles.itemMain}>
+                    {OPPONENTS_META[o].label}
+                    <span className={styles.itemNote}>{OPPONENTS_META[o].note}</span>
+                  </span>
+                  {o === opponents && <span className={styles.activeMarker} aria-label="(active)" />}
                 </button>
               ))}
             </>

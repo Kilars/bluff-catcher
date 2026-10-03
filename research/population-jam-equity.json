@@ -1,0 +1,18 @@
+{
+  "_source": {
+    "tool": "eval7 py_hand_vs_range_monte_carlo, research/population-jam-equity.py",
+    "samples": 2000000,
+    "note": "Hero equity (%) all-in preflop against the jam range below. The range is an assumption about low-stakes cash pools, not a solve: a 5-bet jam there is value only."
+  },
+  "jam": "QQ+,AK",
+  "equity": {
+    "AA": 84.1,
+    "KK": 57.2,
+    "QQ": 40.2,
+    "JJ": 36.2,
+    "TT": 36.4,
+    "AKs": 41.9,
+    "AKo": 38.8,
+    "AQs": 28.6
+  }
+}

@@ -18,6 +18,7 @@
 import Menu from './Menu';
 import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
+import type { Opponents } from '../lib/preflop/lowStakes';
 import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
@@ -46,6 +47,8 @@ interface HeaderProps {
   /** Tournament or cash, for both preflop drills; switched from the menu. */
   format: Format;
   onFormatChange: (format: Format) => void;
+  opponents: Opponents;
+  onOpponentsChange: (opponents: Opponents) => void;
   /** Odds drill: name the draw before the commit. Toggled from the menu. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -81,6 +84,8 @@ export default function Header({
   onDepthChange,
   format,
   onFormatChange,
+  opponents,
+  onOpponentsChange,
   showDraw,
   onShowDrawChange,
   oddsStats,
@@ -115,6 +120,8 @@ export default function Header({
           onDepthChange={onDepthChange}
           currentFormat={format}
           onFormatChange={onFormatChange}
+          opponents={opponents}
+          onOpponentsChange={onOpponentsChange}
           showDraw={showDraw}
           onShowDrawChange={onShowDrawChange}
           onOpenRanges={onOpenRanges}
