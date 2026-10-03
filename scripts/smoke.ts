@@ -44,18 +44,20 @@ console.log('smoke: leaks CLI');
 // 09-09 so the date does real work here: it drops the first day. Length, not
 // just shape — an empty `pots` array would satisfy Array.isArray while the
 // window quietly matched nothing.
-const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-09', '--json'));
+const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'));
 check('argv: --mode and --from consume their values', pots.pots?.length === 3);
 
 // ── the window filters, in both directions ───────────────────────────────────
+// `--variant mtt` because the fixtures folder also holds a cash session (rc/),
+// whose hands would otherwise land in every window count below.
 // Against the slash-formatted timestamp these silently returned everything
 // (--from) and nothing (--to).
-const all = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--json')).pots as { id: string }[];
+const all = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--json')).pots as { id: string }[];
 const later = JSON.parse(
-  leaks(FIXTURES, '--mode', 'pots', '--from', '2026-09-09', '--json'),
+  leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'),
 ).pots as { id: string }[];
 const earlier = JSON.parse(
-  leaks(FIXTURES, '--mode', 'pots', '--to', '2026-09-08', '--json'),
+  leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--to', '2026-09-08', '--json'),
 ).pots as { id: string }[];
 
 check('window: the fixture spans two days', all.length === 5, `${all.length} hands`);
