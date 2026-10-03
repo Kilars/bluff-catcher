@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "vendor-ranges": "node --experimental-strip-types scripts/vendor-ranges.ts"
   },
   "engines": {
     "node": ">=22.6"
