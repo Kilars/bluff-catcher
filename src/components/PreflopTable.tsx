@@ -31,6 +31,7 @@ import {
   type ChartKey,
   type Format,
   type Seat,
+  type TableSeat,
 } from '../lib/preflop/ranges';
 
 // ─── Seat → display label ─────────────────────────────────────────────────────
@@ -40,12 +41,8 @@ export const POSITION_LABEL: Record<Seat, string> = Object.fromEntries(
   Object.entries(SEAT_META).map(([seat, meta]) => [seat, meta.short])
 ) as Record<Seat, string>;
 
-/**
- * Any seat hero can sit in at this table: the RFI seats plus the big blind,
- * which only the BB-defence drill seats hero in (docs/PLAN-bb-defend.md).
- * Kept out of `Seat` so the RFI chart tables never need a BB entry.
- */
-export type TableSeat = Seat | 'BB';
+/** Any seat at the table, the big blind included (defined in `ranges.ts`). */
+export type { TableSeat };
 
 /** A table seat's short label — `POSITION_LABEL` plus the big blind. */
 export function tableSeatLabel(seat: TableSeat): string {
@@ -86,16 +83,20 @@ const RING: Record<Format, readonly string[]> = { mtt: ringFor('mtt'), cash: rin
  *
  * With hero in the BB the SB acts before hero: it is the opener, or it folded
  * and leaves its posted blind behind (`posted: 'sb'`).
+ *
+ * When hero has opened (BTN / open vs 3-bet), the raiser is a seat *behind* hero —
+ * still an `opener`-type seat, the raise hero faces — and the other blind has
+ * folded — a folded blind leaving its posted blind behind (`posted: 'sb' | 'bb'`).
  */
 export interface SeatInfo {
   label: string;
   type: 'folded' | 'toAct' | 'sb' | 'bb' | 'opener';
   /** The button seat — it gets the dealer button, not a colour treatment. */
   isBtn?: boolean;
-  /** The open size, in bb — only set when `type === 'opener'`. */
+  /** The raise size, in bb — only set when `type === 'opener'`. */
   raiseBb?: number;
-  /** A folded blind's dead chip — only the SB, folding in front of a BB hero. */
-  posted?: 'sb';
+  /** A folded blind's dead chip: the SB in front of a BB hero, or either blind behind an opened hero. */
+  posted?: 'sb' | 'bb';
 }
 
 /**
@@ -162,22 +163,38 @@ export const DEFAULT_OPENER_RAISE_BB = BTN_DRILL_RAISE_BB;
  * open drill always seats hero on the BTN, so every opener seat qualifies.
  * A seat after hero is never turned into an opener; that spot is reserved for
  * the RFI drill's `toAct` seats and isn't a legal facing-open deal anyway.
+ *
+ * `heroOpened` (BTN / open vs 3-bet): hero has already raised, so the action has
+ * come back round. `opener` is then the seat that 3-bet, behind hero; every other
+ * seat has folded, and a folded blind leaves its posted blind behind.
  */
 export function buildSeats(
   heroPos: TableSeat,
-  opener?: Seat,
+  opener?: TableSeat,
   raiseBb: number = DEFAULT_OPENER_RAISE_BB,
-  format: Format = 'mtt'
+  format: Format = 'mtt',
+  heroOpened = false
 ): SeatInfo[] {
   const ring = RING[format];
   const heroIdx = ring.indexOf(tableSeatLabel(heroPos));
-  const openerLabel = opener === undefined ? undefined : POSITION_LABEL[opener];
+  const openerLabel = opener === undefined ? undefined : tableSeatLabel(opener);
   const seats: SeatInfo[] = [];
 
   ring.forEach((label, i) => {
     if (i === heroIdx) return; // hero sits at the bottom, not in the ring loop
     const before = i < heroIdx;
     const isBlind = label === 'SB' || label === 'BB';
+    if (heroOpened && !before) {
+      const isRaiser = label === openerLabel;
+      seats.push({
+        label,
+        type: isRaiser ? 'opener' : 'folded',
+        isBtn: label === 'BTN',
+        raiseBb: isRaiser ? raiseBb : undefined,
+        ...(isBlind && !isRaiser ? { posted: label === 'SB' ? ('sb' as const) : ('bb' as const) } : {}),
+      });
+      return;
+    }
     if (isBlind && !before) {
       seats.push({ label, type: label === 'SB' ? 'sb' : 'bb' });
       return;
@@ -193,6 +210,11 @@ export function buildSeats(
   });
 
   return seats;
+}
+
+/** How many seats act before hero preflop: hero's index in the action ring. */
+export function seatsBeforeHero(heroPos: TableSeat, format: Format = 'mtt'): number {
+  return RING[format].indexOf(tableSeatLabel(heroPos));
 }
 
 /**
@@ -249,13 +271,19 @@ interface PreflopTableProps {
   /** Table size override; defaults to the chart key's format. The facing drill passes it. */
   format?: Format;
   /**
-   * The facing-open drill's raiser (PLAN-3bet F2): a seat before hero that
-   * opened instead of folding. Omit it and the table renders exactly as the
-   * RFI drill always has — every seat before hero folded, no raise chip.
+   * The facing drills' raiser (PLAN-3bet F2): a seat before hero that opened
+   * instead of folding, or with `heroOpenBb` the seat behind hero that 3-bet. Omit
+   * it and the table renders exactly as the RFI drill always has — every seat
+   * before hero folded, no raise chip.
    */
-  opener?: Seat;
+  opener?: TableSeat;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
+  /**
+   * Hero's own open, in bb (BTN / open vs 3-bet): hero's raise chip goes
+   * beside hero's cards, and `opener` is a 3-bettor behind hero.
+   */
+  heroOpenBb?: number;
   /**
    * A short tag written as a third line on the opener's plaque — the facing
    * drill puts the chart bucket there ("vs Late") so the seat and the chart it
@@ -287,6 +315,7 @@ export default function PreflopTable({
   format: formatProp,
   opener,
   raiseBb = DEFAULT_OPENER_RAISE_BB,
+  heroOpenBb,
   openerTag,
   stackLabel: stackLabelOverride,
   centreTitle,
@@ -297,7 +326,7 @@ export default function PreflopTable({
   const format = formatProp ?? formatOf(depth);
   const slots = SEAT_SLOTS[format];
   const stackLabel = stackLabelOverride ?? CHART_META[depth].stackLabel;
-  const seats = buildSeats(position, opener, raiseBb, format);
+  const seats = buildSeats(position, opener, raiseBb, format, heroOpenBb !== undefined);
   const posLabel = tableSeatLabel(position);
   const posLong = centreTitle ?? (position === 'BB' ? 'Big blind' : SEAT_META[position].long);
   const contextLine = centreLine ?? buildContextLine(position, format);
@@ -306,10 +335,13 @@ export default function PreflopTable({
   // When the BTN opened, its raise chip takes that spot and the button steps
   // aside toward the middle of the felt.
   const btnSlot = slots[seatSlotIndex(position, 'BTN', format)];
-  const btnRaised = seats.some((s) => s.isBtn && s.type === 'opener');
-  // Hero in a blind posts too: the chip goes where the button would sit beside
-  // hero's cards. The two never collide — hero cannot be a blind and the BTN.
-  const heroBlind = position === 'SB' ? '0.5' : position === 'BB' ? '1' : null;
+  const btnRaised =
+    seats.some((s) => s.isBtn && s.type === 'opener') || (position === 'BTN' && heroOpenBb !== undefined);
+  // Hero in a blind posts too, and hero who opened has a raise out: either
+  // way the chip goes where the button would sit beside hero's cards. They
+  // never collide — hero cannot be a blind and the BTN.
+  const heroChip =
+    heroOpenBb !== undefined ? String(heroOpenBb) : position === 'SB' ? '0.5' : position === 'BB' ? '1' : null;
 
   return (
     <section className={styles.table}>
@@ -337,7 +369,11 @@ export default function PreflopTable({
                   <div className={styles.plaque}>
                     <span className={styles.plaqueName}>{seat.label}</span>
                     <span className={styles.plaqueStack}>
-                      {isFolded ? 'folded' : isOpener ? `raises ${seat.raiseBb}bb` : stackLabel}
+                      {isFolded
+                        ? 'folded'
+                        : isOpener
+                          ? `${heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${seat.raiseBb}bb`
+                          : stackLabel}
                     </span>
                     {isOpener && openerTag && (
                       <span className={styles.plaqueTag} data-testid="opener-tag">
@@ -357,7 +393,7 @@ export default function PreflopTable({
                   >
                     <div className={styles.chip} />
                     <span className={styles.chipAmount}>
-                      {isOpener ? seat.raiseBb : seat.type === 'bb' ? '1' : '0.5'}
+                      {isOpener ? seat.raiseBb : seat.type === 'bb' || seat.posted === 'bb' ? '1' : '0.5'}
                     </span>
                   </div>
                 )}
@@ -365,14 +401,14 @@ export default function PreflopTable({
             );
           })}
 
-          {heroBlind && (
+          {heroChip && (
             <div
               className={styles.chipSpot}
               style={{ left: `${slots[0].cx}px`, top: `${slots[0].cy}px` }}
-              data-testid="hero-blind-chip"
+              data-testid={heroOpenBb !== undefined ? 'hero-raise-chip' : 'hero-blind-chip'}
             >
               <div className={styles.chip} />
-              <span className={styles.chipAmount}>{heroBlind}</span>
+              <span className={styles.chipAmount}>{heroChip}</span>
             </div>
           )}
 

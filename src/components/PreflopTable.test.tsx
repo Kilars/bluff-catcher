@@ -225,3 +225,60 @@ describe('hero in the big blind (docs/PLAN-bb-defend.md)', () => {
     expect(screen.queryByText('0.5')).not.toBeInTheDocument();
   });
 });
+
+describe('hero opened, a blind 3-bets (docs/PLAN-btn-4bet.md)', () => {
+  it('folds everyone but the 3-bettor; the folded blind leaves its blind', () => {
+    const seats = buildSeats('BTN', 'SB', 12.5, 'cash', true);
+    expect(seats.map((s) => [s.label, s.type])).toEqual([
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'folded'],
+      ['SB', 'opener'],
+      ['BB', 'folded'],
+    ]);
+    expect(seats.find((s) => s.label === 'SB')).toMatchObject({ raiseBb: 12.5 });
+    expect(seats.find((s) => s.label === 'BB')?.posted).toBe('bb');
+  });
+
+  it('lets the BB be the 3-bettor, with the SB\'s dead 0.5 left behind', () => {
+    const seats = buildSeats('BTN', 'BB', 9.2, 'mtt', true);
+    expect(seats.find((s) => s.label === 'BB')).toMatchObject({ type: 'opener', raiseBb: 9.2 });
+    expect(seats.find((s) => s.label === 'SB')).toMatchObject({ type: 'folded', posted: 'sb' });
+  });
+
+  it('draws hero\'s open, the 3-bet and the dead blind, with the D stepped aside', () => {
+    render(
+      <PreflopTable hero={['As', 'Kd']} position="BTN" opener="SB" raiseBb={12.5} heroOpenBb={2.5} format="cash" />
+    );
+    expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^12\.5$/);
+    expect(screen.getByText('3-bets to 12.5bb')).toBeInTheDocument();
+    // The folded BB's posted blind stays in the pot.
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.queryByTestId('hero-blind-chip')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Dealer button').style.top).toBe('330px');
+  });
+});
+
+describe('hero opened from the LJ, a seat behind 3-bets', () => {
+  it('folds the seats between and behind; the BTN keeps the D; blinds leave dead chips', () => {
+    const seats = buildSeats('LJ', 'CO', 7.5, 'cash', true);
+    expect(seats.map((s) => [s.label, s.type, s.posted ?? null])).toEqual([
+      ['HJ', 'folded', null],
+      ['CO', 'opener', null],
+      ['BTN', 'folded', null],
+      ['SB', 'folded', 'sb'],
+      ['BB', 'folded', 'bb'],
+    ]);
+    expect(seats.find((s) => s.label === 'BTN')?.isBtn).toBe(true);
+  });
+
+  it('draws the in-position 3-bet, hero\'s open and both dead blinds', () => {
+    render(<PreflopTable hero={['As', 'Kd']} position="HJ" opener="BTN" raiseBb={7.5} heroOpenBb={2.5} format="cash" />);
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^7\.5$/);
+    expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
+    expect(screen.getByText('3-bets to 7.5bb')).toBeInTheDocument();
+    expect(screen.getByText('0.5')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+});

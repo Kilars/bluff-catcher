@@ -210,3 +210,42 @@ describe('hero in the big blind', () => {
     expect(screen.getByTestId('ladder-context')).toHaveTextContent('7 folded · 0 behind');
   });
 });
+
+describe('hero opened the button, a blind 3-bets', () => {
+  it('shows hero\'s open on hero\'s slot and the 3-bet behind, the other blind folded', () => {
+    renderAt('phone', <PhoneSeatLadder position="BTN" opener="BB" raiseBb={12.5} heroOpenBb={2.5} format="cash" />);
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.map((s) => [s.getAttribute('data-label'), s.getAttribute('data-state')])).toEqual([
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'folded'],
+      ['BTN', 'hero'],
+      ['SB', 'folded'],
+      ['BB', 'opener'],
+    ]);
+    const [btn, sb, bb] = slots.slice(-3);
+    expect(btn.querySelector('[aria-hidden]')).toHaveTextContent(/^2\.5$/);
+    expect(btn).toHaveAttribute('aria-label', 'BTN, you, raised 2.5bb, dealer button');
+    expect(sb).toHaveAttribute('data-blind', 'sb');
+    expect(bb.querySelector('[aria-hidden]')).toHaveTextContent(/^12\.5$/);
+  });
+});
+
+describe('hero opened from the CO, the BTN 3-bets', () => {
+  it('puts the D on the 3-bettor\'s slot under its raise and folds the blinds', () => {
+    renderAt('phone', <PhoneSeatLadder position="CO" opener="BTN" raiseBb={7.5} heroOpenBb={2.5} format="cash" />);
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.map((s) => [s.getAttribute('data-label'), s.getAttribute('data-state')])).toEqual([
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'hero'],
+      ['BTN', 'opener'],
+      ['SB', 'folded'],
+      ['BB', 'folded'],
+    ]);
+    const btn = slots[3];
+    expect(btn).toHaveAttribute('data-button', 'true');
+    expect(btn).toHaveAttribute('aria-label', 'BTN, 3-bets to 7.5bb, dealer button');
+    expect(btn.querySelector('[aria-hidden]')).toHaveTextContent(/^7\.5$/);
+  });
+});

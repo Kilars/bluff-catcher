@@ -44,7 +44,7 @@ export type PhoneStatsPillProps = CommonProps &
         bands: Bands;
       }
     | ({ mode: 'preflop' } & AccuracyVariant)
-    | ({ mode: 'facing' | 'bbdefend' } & AccuracyVariant)
+    | ({ mode: 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' } & AccuracyVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────

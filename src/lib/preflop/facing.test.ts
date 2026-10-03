@@ -44,8 +44,8 @@ function comboDiff(a: FacingChart, b: FacingChart): number {
 }
 
 describe('facing — shape', () => {
-  it('has three actions in order of aggression, and openers that are real seats', () => {
-    expect([...FACING_ACTIONS]).toEqual(['fold', 'call', '3bet']);
+  it('has its actions in order of aggression, and openers that are real seats', () => {
+    expect([...FACING_ACTIONS]).toEqual(['fold', 'call', '3bet', '4bet']);
     expect([...OPENERS]).toEqual(['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO']);
     for (const o of OPENERS) expect(POSITIONS).toContain(o);
   });

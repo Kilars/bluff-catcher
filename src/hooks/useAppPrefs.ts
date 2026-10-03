@@ -23,10 +23,10 @@ import type { Drill } from '../lib/preflop/facing';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend';
+export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet';
 
 /** Every valid mode, in menu order. Same list `loadMode` validates against. */
-export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend'];
+export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet', 'open4bet'];
 
 /** Each mode's name in menus and sheet subtitles. */
 export const MODE_LABEL: Record<AppMode, string> = {
@@ -34,10 +34,25 @@ export const MODE_LABEL: Record<AppMode, string> = {
   preflop: 'Preflop RFI',
   facing: 'Facing open',
   bbdefend: 'BB defend',
+  btn4bet: 'BTN vs 3-bet',
+  open4bet: 'Open vs 3-bet',
 };
 
 /** The facing drill each facing mode runs; the other modes have none. */
-export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = { facing: 'btn', bbdefend: 'bb' };
+export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = {
+  facing: 'btn',
+  bbdefend: 'bb',
+  btn4bet: 'btn4',
+  open4bet: 'open4',
+};
+
+/**
+ * Whether a mode follows the tournament/cash switch. Odds has no format, and
+ * Open vs 3-bet has cash charts only, so neither offers the choice.
+ */
+export function hasFormatChoice(mode: AppMode): boolean {
+  return mode !== 'odds' && mode !== 'open4bet';
+}
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';

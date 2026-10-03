@@ -26,7 +26,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MODES, MODE_LABEL, type AppMode } from '../hooks/useAppPrefs';
+import { MODES, MODE_LABEL, hasFormatChoice, type AppMode } from '../hooks/useAppPrefs';
 import { DEPTHS, DEPTH_META, FORMATS, FORMAT_META, type Depth, type Format } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
@@ -180,7 +180,7 @@ export default function Menu({
             </button>
           ))}
 
-          {currentMode !== 'odds' && (
+          {hasFormatChoice(currentMode) && (
             <>
               <div className={styles.separator} />
               <span className={styles.groupLabel}>Format</span>

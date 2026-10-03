@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { FACING_DRILL_OF, MODE_LABEL, type AppMode } from '../../hooks/useAppPrefs';
+import { FACING_DRILL_OF, MODE_LABEL, hasFormatChoice, type AppMode } from '../../hooks/useAppPrefs';
 import {
   DEPTHS,
   DEPTH_META,
@@ -54,6 +54,11 @@ const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
     mode: 'bbdefend',
     note: { mtt: 'Fold, call or 3-bet in the big blind · 40bb', cash: 'Fold, call or 3-bet in the big blind · cash 100bb' },
   },
+  {
+    mode: 'btn4bet',
+    note: { mtt: 'Fold, call or 4-bet after a blind 3-bets · 40bb', cash: 'Fold, call or 4-bet after a blind 3-bets · cash 100bb' },
+  },
+  { mode: 'open4bet', note: 'Fold, call or 4-bet your LJ/HJ/CO open · cash only' },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -174,7 +179,7 @@ export default function PhoneMenuSheet({
           ))}
         </div>
 
-        {mode !== 'odds' && (
+        {hasFormatChoice(mode) && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Format</span>
             {FORMATS.map((f) => (

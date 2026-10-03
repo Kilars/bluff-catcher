@@ -133,9 +133,12 @@
  * `.fold` is shared between both modes — a fold cell looks the same either way.
  */
 
-/* A cash 3-bet (no value/bluff split) wears the value colour; its corner mark differs. */
+/* A cash 3-bet (no value/bluff split) wears the value colour; its corner mark differs.
+   The 4-bet cells (BTN vs 3-bet) wear the same colours as their 3-bet twins. */
 .value,
-.threeBet {
+.threeBet,
+.fourBetValue,
+.fourBet {
   background: color-mix(in srgb, var(--range-value) 28%, #241618);
   color: var(--range-value);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--range-value) 42%, transparent);
@@ -148,7 +151,8 @@
  * the other. "Half blue" is the whole tell: the blue half is the part of the
  * hand's life that gives up to a big 4-bet.
  */
-.bluff {
+.bluff,
+.fourBetBluff {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--range-value) 28%, #241618) 0 50%,
@@ -175,7 +179,10 @@
  */
 .value::after,
 .bluff::after,
-.threeBet::after {
+.threeBet::after,
+.fourBetValue::after,
+.fourBetBluff::after,
+.fourBet::after {
   position: absolute;
   top: 1px;
   right: 2px;
@@ -186,16 +193,22 @@
   pointer-events: none;
 }
 
-.value::after {
+.value::after,
+.fourBetValue::after {
   content: 'V';
 }
 
-.bluff::after {
+.bluff::after,
+.fourBetBluff::after {
   content: 'B';
 }
 
 .threeBet::after {
   content: '3';
+}
+
+.fourBet::after {
+  content: '4';
 }
 
 /* ── Legend + footnote ─────────────────────────────────────────────────── */

@@ -332,3 +332,65 @@ describe('BB defend mode (docs/PLAN-bb-defend.md)', () => {
     expect(screen.getByText('Fold, call or 3-bet in the big blind')).toBeInTheDocument();
   });
 });
+
+describe('BTN vs 3-bet mode (docs/PLAN-btn-4bet.md)', () => {
+  it('restores on reload, briefs once, shows hero\'s open and the 3-bet, and keeps its own stats', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'btn4bet');
+    localStorage.setItem('bluff-catcher:format:v1', 'cash');
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Fold, call or 4-bet on the button')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:briefed:v1')!)).toContain('btn4bet-cash');
+
+    expect(screen.getByText('BTN vs 3-bet · Cash 100bb')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
+    expect(screen.getByTestId('raise-chip')).toHaveTextContent(/^12\.5$/);
+    expect(screen.getByText(/You open 2\.5bb, (SB|BB) 3-bets to 12\.5bb\. Fold, call or 4-bet \(25bb\)\?/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /4-bet$/ }));
+    expect(screen.getByTestId('verdict')).toHaveTextContent(/^(Correct|Wrong) — /);
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:btn4bet-cash:v1')!).hands).toBe(1);
+    expect(localStorage.getItem('bluff-catcher:facing-cash:v1')).toBeNull();
+  });
+
+  it('renders the phone tree with a 4-bet thumb button and the 3-bettor on the ladder', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'btn4bet');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['btn4bet']));
+    renderAt('phone', <App />);
+
+    expect(screen.getByTestId('phone-top-bar')).toHaveTextContent('vs 3b');
+    expect(screen.getByTestId('ladder-context')).toHaveTextContent(/^(SB|BB) 3-bets to 9\.2bb · 40bb$/);
+    expect(screen.getByText('Fold, call or 4-bet (all-in)?')).toBeInTheDocument();
+    const opener = screen.getAllByTestId('seat-slot').find((s) => s.getAttribute('data-state') === 'opener')!;
+    expect(['SB', 'BB']).toContain(opener.getAttribute('data-label'));
+    fireEvent.click(screen.getByTestId('decision-4bet'));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:btn4bet:v1')!).hands).toBe(1);
+  });
+});
+
+describe('Open vs 3-bet mode (cash only)', () => {
+  it('plays cash even with the tournament switch on, hero opens and a seat behind 3-bets', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'open4bet');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['open4bet']));
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Open vs 3-bet · Cash 100bb')).toBeInTheDocument();
+    expect(screen.queryByText('UTG')).not.toBeInTheDocument();
+    expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
+    expect(screen.getByText(/You open 2\.5bb, (HJ|CO|BTN|SB|BB) 3-bets to (7\.5|12\.5)bb\. Fold, call or 4-bet \((19|25)bb\)\?/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /4-bet$/ }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:open4bet:v1')!).hands).toBe(1);
+  });
+});
+
+describe('Open vs 3-bet menu', () => {
+  it('offers no format choice, since the mode is cash only', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'open4bet');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['open4bet']));
+    renderAt('desktop', <App />);
+    fireEvent.click(screen.getByRole('button', { name: /menu/i }));
+    expect(screen.queryByText('Format')).not.toBeInTheDocument();
+    expect(screen.getByText(/You opened the (LJ|HJ|CO) · Open vs 3-bet/)).toBeInTheDocument();
+  });
+});

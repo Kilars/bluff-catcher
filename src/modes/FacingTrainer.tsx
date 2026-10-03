@@ -1,7 +1,10 @@
 /**
- * FacingTrainer — the facing-open drills: someone opens, it folds to hero on
+ * FacingTrainer — the facing drills: someone opens, it folds to hero on
  * the button (docs/PLAN-3bet.md) or in the big blind (`drill="bb"`,
- * docs/PLAN-bb-defend.md), and hero chooses Fold / Call / 3-bet.
+ * docs/PLAN-bb-defend.md), and hero chooses Fold / Call / 3-bet; or hero
+ * opened the button and a blind 3-bets (`drill="btn4"`,
+ * docs/PLAN-btn-4bet.md), and hero chooses Fold / Call / 4-bet; or the same
+ * from an LJ/HJ/CO open, in cash (`drill="open4"`).
  *
  * Presentation only, in the same split as PreflopTrainer: the spot, commit,
  * sheets, keys and verdict copy all live in `hooks/useFacingDrill`, and this
@@ -12,7 +15,7 @@
  * Props:
  *   stats — this mode's own `usePreflopStats()` instance
  *     (`bluff-catcher:facing:v1`, `bluff-catcher:bbdefend:v1`, …), separate from RFI's.
- *   drill — 'btn' (default) or 'bb': hero's seat, charts, copy and briefing.
+ *   drill — 'btn' (default), 'bb', 'btn4' or 'open4': charts, copy and briefing.
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
@@ -28,11 +31,12 @@ import {
   facingChartPages,
   useFacingDrill,
 } from '../hooks/useFacingDrill';
-import { BB_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
-import { DRILL_HERO, type Drill } from '../lib/preflop/facing';
-import type { Format } from '../lib/preflop/ranges';
+import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
+import type { Drill } from '../lib/preflop/facing';
+import { positionLabel } from '../lib/preflop/boundary';
+import type { Format, Seat } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
-import { BB_BRIEFING, FACING_BRIEFING } from './facingBriefing';
+import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, OPEN4_BRIEFING } from './facingBriefing';
 import styles from './PreflopTrainer.module.css';
 import own from './FacingTrainer.module.css';
 
@@ -43,11 +47,11 @@ export interface FacingTrainerProps {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App keys the trainer on it, so a switch re-deals. */
   format?: Format;
-  /** Hero on the button (default) or in the big blind. */
+  /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
 }
 
-/** What differs on screen between the two drills. */
+/** What differs on screen between the drills. */
 const DRILL_VIEW = {
   btn: {
     contextLabel: FACING_CONTEXT_LABEL,
@@ -61,6 +65,18 @@ const DRILL_VIEW = {
     kicker: 'Defending the big blind',
     where: 'Folds to you in the big blind',
   },
+  btn4: {
+    contextLabel: BTN4_CONTEXT_LABEL,
+    briefing: BTN4_BRIEFING,
+    kicker: 'Facing a 3-bet',
+    where: 'You opened the button',
+  },
+  open4: {
+    contextLabel: OPEN4_CONTEXT_LABEL,
+    briefing: OPEN4_BRIEFING,
+    kicker: 'Facing a 3-bet',
+    where: 'You opened',
+  },
 } as const;
 
 export function FacingTrainer({
@@ -72,12 +88,14 @@ export function FacingTrainer({
   const layout = useLayoutMode();
   const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind });
   const view = DRILL_VIEW[drillKind];
-  const hero = DRILL_HERO[drillKind];
   const contextLabel = view.contextLabel[format];
+  const heroOpened = drill.bucketMeta.heroOpenBb !== undefined;
 
   const {
     spot,
     bucketMeta,
+    sizes,
+    raiseWord,
     openerLabel,
     rangeOpen,
     infoOpen,
@@ -99,6 +117,9 @@ export function FacingTrainer({
   const kicker = `${view.kicker} · ${contextLabel}`;
   const pages = useMemo(() => facingChartPages(format, drillKind, kicker), [format, drillKind, kicker]);
   const startPage = Math.max(0, pages.findIndex((p) => p.id === spot.bucket));
+  // The sheets take an RFI seat, which a paged sheet only uses to seed its
+  // (hidden) seat tabs — and there is no BB RFI seat. Any seat will do.
+  const sheetSeat: Seat = spot.opener === 'BB' ? 'BTN' : spot.opener;
   const info = <PreflopInfoSheet content={view.briefing[format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
@@ -109,7 +130,7 @@ export function FacingTrainer({
           <PhoneSheet title={view.kicker} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
               key={spot.bucket}
-              position={spot.opener}
+              position={sheetSeat}
               highlight={spot.handClass}
               legend
               pages={pages}
@@ -126,14 +147,17 @@ export function FacingTrainer({
     <>
       <PreflopTable
         hero={spot.cards}
-        position={hero}
+        position={bucketMeta.hero}
         opener={spot.opener}
-        raiseBb={bucketMeta.raiseBb}
+        raiseBb={sizes.raiseBb}
+        heroOpenBb={bucketMeta.heroOpenBb}
         openerTag={bucketMeta.openerTag}
         format={format}
         stackLabel={bucketMeta.stackLabel}
-        centreTitle={[`${openerLabel} opens`, bucketMeta.openerTag].filter(Boolean).join(' · ')}
-        centreLine={`${view.where} · ${contextLabel}`}
+        centreTitle={[`${openerLabel} ${heroOpened ? '3-bets' : 'opens'}`, bucketMeta.openerTag]
+          .filter(Boolean)
+          .join(' · ')}
+        centreLine={`${drillKind === 'open4' ? `You opened the ${positionLabel(bucketMeta.hero)}` : view.where} · ${contextLabel}`}
       />
 
       <div className={styles.dock}>
@@ -152,9 +176,11 @@ export function FacingTrainer({
           {!isCommitted ? (
             <>
               <p className={styles.prompt}>
-                {openerLabel} opens {bucketMeta.raiseBb}bb. Fold, call or 3-bet?
+                {heroOpened
+                  ? `You open ${bucketMeta.heroOpenBb}bb, ${openerLabel} 3-bets to ${sizes.raiseBb}bb. Fold, call or 4-bet (${sizes.fourBetSize})?`
+                  : `${openerLabel} opens ${sizes.raiseBb}bb. Fold, call or 3-bet?`}
                 <span className={styles.promptHint}>
-                  Keys: F = Fold · J = Call · K = 3-bet · {bucketMeta.label} chart
+                  Keys: F = Fold · J = Call · K = {raiseWord} · {bucketMeta.label} chart
                 </span>
               </p>
               <div className={own.buttons}>
@@ -177,10 +203,10 @@ export function FacingTrainer({
                 <button
                   type="button"
                   className={`${own.btnAction} ${own.btnRaise}`}
-                  onClick={() => handleCommit('3bet')}
+                  onClick={() => handleCommit(bucketMeta.raise)}
                 >
                   <span className={styles.keyHint} aria-hidden="true">K</span>
-                  3-bet
+                  {raiseWord}
                 </button>
               </div>
             </>
@@ -213,7 +239,7 @@ export function FacingTrainer({
       {rangeOpen && (
         <RangeSheet
           key={spot.bucket}
-          position={spot.opener}
+          position={sheetSeat}
           highlight={spot.handClass}
           legend
           pages={pages}

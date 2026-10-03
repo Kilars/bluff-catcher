@@ -9,8 +9,14 @@
  * blinds here and not on desktop.
  */
 
-import { buildSeats, DEFAULT_OPENER_RAISE_BB, tableSeatLabel, type TableSeat } from '../../PreflopTable';
-import type { Format, Seat } from '../../../lib/preflop/ranges';
+import {
+  buildSeats,
+  DEFAULT_OPENER_RAISE_BB,
+  seatsBeforeHero,
+  tableSeatLabel,
+  type TableSeat,
+} from '../../PreflopTable';
+import type { Format } from '../../../lib/preflop/ranges';
 
 export type SlotState = 'folded' | 'hero' | 'behind' | 'opener';
 
@@ -22,7 +28,10 @@ export interface LadderSlot {
   isButton: boolean;
   /** Posted blind, if any. */
   blind?: 'sb' | 'bb';
-  /** The open size, in bb — only set when `state === 'opener'`. */
+  /**
+   * The raise size, in bb: the opener's (`state === 'opener'`), or hero's own
+   * open in BTN / open vs 3-bet (`state === 'hero'`).
+   */
   raiseBb?: number;
 }
 
@@ -35,15 +44,21 @@ export interface LadderSlot {
  *
  * `opener` / `raiseBb` (PLAN-3bet F2, optional): forwarded to `buildSeats` — see
  * there for the constraint that the opener must be a seat before hero.
+ *
+ * `heroOpenBb` (BTN / open vs 3-bet, optional): hero has opened for this much and
+ * the action came back round — the 3-bettor (`opener`) and the folded seats sit
+ * after hero, and hero's slot carries the raise.
  */
 export function buildLadderSlots(
   position: TableSeat,
-  opener?: Seat,
+  opener?: TableSeat,
   raiseBb: number = DEFAULT_OPENER_RAISE_BB,
-  format: Format = 'mtt'
+  format: Format = 'mtt',
+  heroOpenBb?: number
 ): LadderSlot[] {
-  const seats = buildSeats(position, opener, raiseBb, format);
-  const beforeCount = seats.filter((s) => s.type === 'folded' || s.type === 'opener').length;
+  const heroOpened = heroOpenBb !== undefined;
+  const seats = buildSeats(position, opener, raiseBb, format, heroOpened);
+  const beforeCount = seatsBeforeHero(position, format);
 
   const before: LadderSlot[] = seats.slice(0, beforeCount).map((s) => ({
     label: s.label,
@@ -58,17 +73,23 @@ export function buildLadderSlots(
     state: 'hero',
     // When hero has the button no other seat carries it — the button must
     // never vanish from the row (it has done, once, and it is the seat every
-    // other seat is read relative to).
+    // other seat is read relative to). If hero has opened, the slot's mark
+    // shows the raise instead of the D, as a BTN opener's does; the slot
+    // still carries data-button and says "dealer button" to screen readers.
     isButton: position === 'BTN',
     // Hero in a blind has posted, so the slot carries it.
     blind: position === 'SB' ? 'sb' : position === 'BB' ? 'bb' : undefined,
+    raiseBb: heroOpenBb,
   };
 
+  // Behind hero: still to act — or, once hero has opened, the 3-bettor and
+  // the seats that folded to it.
   const after: LadderSlot[] = seats.slice(beforeCount).map((s) => ({
     label: s.label,
-    state: 'behind' as const,
+    state: s.type === 'opener' ? ('opener' as const) : s.type === 'folded' ? ('folded' as const) : ('behind' as const),
     isButton: s.isBtn === true,
-    blind: s.type === 'sb' ? ('sb' as const) : s.type === 'bb' ? ('bb' as const) : undefined,
+    raiseBb: s.type === 'opener' ? s.raiseBb : undefined,
+    blind: s.type === 'sb' ? ('sb' as const) : s.type === 'bb' ? ('bb' as const) : s.posted,
   }));
 
   return [...before, hero, ...after];

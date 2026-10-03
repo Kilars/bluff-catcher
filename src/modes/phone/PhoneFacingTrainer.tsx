@@ -4,7 +4,7 @@
  * The same flashcard frame as PhonePreflopTrainer (and its stylesheet, whose
  * height budget this inherits unchanged): seat ladder with the opener's raise
  * on it, the hero cards, and the decision panel — here with three thumb
- * buttons, Fold / Call / 3-bet.
+ * buttons, Fold / Call / 3-bet (or 4-bet, facing a 3-bet).
  *
  * No drill logic of its own: it renders the return value of `useFacingDrill`.
  * `renderRange` / `renderInfo` are the same seams the RFI phone tree uses.
@@ -17,14 +17,17 @@ import PhoneDecisionPanel, {
   type DecisionButtonConfig,
 } from '../../components/phone/preflop/PhoneDecisionPanel';
 import type { UseFacingDrillReturn } from '../../hooks/useFacingDrill';
-import { DRILL_HERO, type FacingAction } from '../../lib/preflop/facing';
+import type { FacingAction, RaiseAction } from '../../lib/preflop/facing';
 import styles from './PhonePreflopTrainer.module.css';
 
-const PHONE_ACTIONS: DecisionButtonConfig<FacingAction>[] = [
-  { action: 'fold', label: 'Fold', tone: 'fold' },
-  { action: 'call', label: 'Call', tone: 'call' },
-  { action: '3bet', label: '3-bet', tone: 'raise' },
-];
+/** Fold, call, and the drill's re-raise (3-bet facing an open, 4-bet facing a 3-bet). */
+function phoneActions(raise: RaiseAction, raiseWord: string): DecisionButtonConfig<FacingAction>[] {
+  return [
+    { action: 'fold', label: 'Fold', tone: 'fold' },
+    { action: 'call', label: 'Call', tone: 'call' },
+    { action: raise, label: raiseWord, tone: 'raise' },
+  ];
+}
 
 export interface PhoneFacingTrainerProps extends UseFacingDrillReturn {
   renderRange?: () => ReactNode;
@@ -34,6 +37,8 @@ export interface PhoneFacingTrainerProps extends UseFacingDrillReturn {
 export default function PhoneFacingTrainer({
   spot,
   bucketMeta,
+  sizes,
+  raiseWord,
   openerLabel,
   rangeOpen,
   infoOpen,
@@ -52,11 +57,16 @@ export default function PhoneFacingTrainer({
       <div className={styles.topPad} />
 
       <PhoneSeatLadder
-        position={DRILL_HERO[bucketMeta.drill]}
+        position={bucketMeta.hero}
         opener={spot.opener}
-        raiseBb={bucketMeta.raiseBb}
+        raiseBb={sizes.raiseBb}
+        heroOpenBb={bucketMeta.heroOpenBb}
         format={bucketMeta.format}
-        contextLine={[`${openerLabel} raises ${bucketMeta.raiseBb}bb`, bucketMeta.openerTag, bucketMeta.stackLabel]
+        contextLine={[
+          `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${sizes.raiseBb}bb`,
+          bucketMeta.openerTag,
+          bucketMeta.stackLabel,
+        ]
           .filter(Boolean)
           .join(' · ')}
       />
@@ -71,10 +81,11 @@ export default function PhoneFacingTrainer({
         isCommitted={isCommitted}
         wasCorrect={wasCorrect}
         verdictText={verdictText}
-        prompt="Fold, call or 3-bet?"
-        actionLabel="3-bet"
+        // Facing a 3-bet the size matters: at 40bb the 4-bet is a jam.
+        prompt={`Fold, call or ${raiseWord}${sizes.fourBetSize ? ` (${sizes.fourBetSize})` : ''}?`}
+        actionLabel={raiseWord}
         boundaryText={detailText}
-        actions={PHONE_ACTIONS}
+        actions={phoneActions(bucketMeta.raise, raiseWord)}
         onCommit={handleCommit}
         onNext={handleNext}
         onOpenRange={openRange}
