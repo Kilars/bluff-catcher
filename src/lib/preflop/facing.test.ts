@@ -27,7 +27,7 @@ import {
   facingAction,
   facingComboCounts,
 } from './facing';
-import { FACING_SOURCES } from './facingSources';
+import { FACING_SOURCES } from './facing';
 import { ALL_169, combosForClass } from './hands';
 import { POSITIONS } from './ranges';
 
@@ -125,7 +125,7 @@ describe('facing — bucket charts', () => {
   });
 });
 
-describe('facingSources — the six source charts', () => {
+describe('FACING_SOURCES — the six source charts', () => {
   it('matches the value / bluff / call counts printed under each chart', () => {
     const printed: Record<Opener, [number, number, number]> = {
       UTG: [34, 48, 108],

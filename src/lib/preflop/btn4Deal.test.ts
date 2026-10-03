@@ -7,9 +7,14 @@
 import { describe, it, expect } from 'vitest';
 import { dealFacingSpot, dealableClasses, facingTier, type FacingSpot } from './facingDeal';
 import { BUCKET_META, bucketChartAction, bucketsFor, spotSizes } from './facing';
-import { CASH_RFI } from './cashRanges';
-import { BTN4_OPEN } from './btn4BetRanges';
-import type { Format } from './ranges';
+import { CASH_RFI, type Format } from './ranges';
+import { requireOpenRange } from './range';
+
+/** The source's BTN open per format: the only hands this drill may deal. */
+const BTN4_OPEN = {
+  cash: requireOpenRange({ format: 'cash', stack: '100bb', hero: 'BTN' }),
+  mtt: requireOpenRange({ format: 'mtt', stack: '40bb', hero: 'BTN' }),
+};
 
 function makeRng(seed: number): () => number {
   let s = seed >>> 0;

@@ -18,8 +18,6 @@ import {
   lowStakesNote,
   type FourBetChart,
 } from './facing';
-import { BTN4_CASH_CHARTS } from './btn4BetRanges';
-import { OPEN4_CASH_CHARTS } from './open4BetRanges';
 
 const SOURCE = JSON.parse(
   readFileSync(resolve(__dirname, '../../../research/population-jam-equity.json'), 'utf8')
@@ -37,7 +35,8 @@ describe('jam equity', () => {
   });
 
   it('has a number for every cash value 4-bet', () => {
-    for (const chart of [...Object.values(BTN4_CASH_CHARTS), ...Object.values(OPEN4_CASH_CHARTS)]) {
+    const cash4Bets = BUCKETS.filter((b) => b.startsWith('btn4-cash-') || b.startsWith('open4-cash-'));
+    for (const chart of cash4Bets.map((b) => BUCKET_CHART[b] as FourBetChart)) {
       if (!('value' in chart.fourBet)) continue;
       for (const hc of chart.fourBet.value) expect(JAM_EQUITY[hc], hc).toBeDefined();
     }

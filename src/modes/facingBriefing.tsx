@@ -67,7 +67,7 @@ const MTT_BRIEFING: InfoSheetContent = {
 
 /**
  * Cash (6-max, 100bb, no ante). The chart facts are pinned by
- * `lib/preflop/cashRanges.test.ts`.
+ * `lib/preflop/facingCharts.test.ts`.
  */
 const CASH_BRIEFING: InfoSheetContent = {
   ...MTT_BRIEFING,
@@ -120,7 +120,7 @@ export const FACING_BRIEFING: Record<Format, InfoSheetContent> = {
 
 /**
  * BB defence (docs/PLAN-bb-defend.md). The defend percentages are pinned by
- * `lib/preflop/bbDefendRanges.test.ts`.
+ * `lib/preflop/facingCharts.test.ts`.
  */
 const BB_MTT_BRIEFING: InfoSheetContent = {
   ...MTT_BRIEFING,
@@ -182,7 +182,7 @@ export const BB_BRIEFING: Record<Format, InfoSheetContent> = {
 
 /**
  * BTN vs 3-bet (docs/PLAN-btn-4bet.md). The chart facts are pinned by
- * `lib/preflop/btn4BetRanges.test.ts`.
+ * `lib/preflop/facingCharts.test.ts`.
  */
 const BTN4_CASH_BRIEFING: InfoSheetContent = {
   ...MTT_BRIEFING,
@@ -272,7 +272,7 @@ export const BTN4_BRIEFING: Record<Format, InfoSheetContent> = {
 
 /**
  * Open vs 3-bet (cash only). The chart facts are pinned by
- * `lib/preflop/open4BetRanges.test.ts`.
+ * `lib/preflop/facingCharts.test.ts`.
  */
 const OPEN4_CASH_BRIEFING: InfoSheetContent = {
   ...BTN4_CASH_BRIEFING,

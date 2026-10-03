@@ -1,5 +1,9 @@
 # bluff-catcher — BB defend trainer plan
 
+> **Superseded data layout (2026-10-03):** the hand-copied `*Ranges.ts` files and the
+> `research/*-pto.json` excerpts are gone. Charts are read through `range(spot)` from a
+> generated dataset; see `docs/PLAN-range-generator.md`.
+
 A fourth drill, separate from the BTN facing-open drill. Someone opens, it folds to hero in the
 **big blind**, and hero chooses **Fold / Call / 3-bet**. Read `PLAN-3bet.md` and `PLAN-cash.md`
 first: this plan reuses their conventions (`lib/` pure and tested, injectable RNG, `tsc --noEmit`

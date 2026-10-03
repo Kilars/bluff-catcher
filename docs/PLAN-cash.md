@@ -1,5 +1,9 @@
 # bluff-catcher — Cash format plan
 
+> **Superseded data layout (2026-10-03):** the hand-copied `*Ranges.ts` files and the
+> `research/*-pto.json` excerpts are gone. Charts are read through `range(spot)` from a
+> generated dataset; see `docs/PLAN-range-generator.md`.
+
 A **cash version** of both preflop drills: the RFI drill (open / fold) and the facing-open
 drill (fold / call / 3-bet). Same app, same modes, same loop. The only new thing is a
 **format** switch: *Tournament* (everything that exists today) or *Cash* (6-max, 100bb, no

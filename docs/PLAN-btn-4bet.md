@@ -1,5 +1,9 @@
 # bluff-catcher — BTN vs 3-bet (4-bet) trainer plan
 
+> **Superseded data layout (2026-10-03):** the hand-copied `*Ranges.ts` files and the
+> `research/*-pto.json` excerpts are gone. Charts are read through `range(spot)` from a
+> generated dataset; see `docs/PLAN-range-generator.md`.
+
 A fifth drill. Hero **opens the button**, a blind **3-bets**, the other blind folds, and hero
 chooses **Fold / Call / 4-bet**. Read `PLAN-3bet.md` and `PLAN-bb-defend.md` first: this plan
 reuses their conventions (`lib/` pure and tested, injectable RNG, typecheck and tests green,

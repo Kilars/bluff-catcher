@@ -60,7 +60,7 @@
 
 import { combosForClass, type HandClass } from './hands.ts';
 import { RANKS } from '../odds.ts';
-import { CASH_RFI, CASH_SEATS } from './cashRanges.ts';
+import { requireOpenRange } from './range.ts';
 
 // ─── Position enum ────────────────────────────────────────────────────────────
 
@@ -113,6 +113,28 @@ export const FORMAT_META: Record<Format, { label: string; note: string }> = {
   mtt: { label: 'Tournament', note: '9-max · antes · three stack depths' },
   cash: { label: 'Cash', note: '6-max · 100bb · no ante' },
 };
+
+// ─── Cash RFI ─────────────────────────────────────────────────────────────────
+
+/** The five cash seats that can open, in action order. */
+export const CASH_SEATS = ['LJ', 'HJ', 'CO', 'BTN', 'SB'] as const;
+export type CashSeat = (typeof CASH_SEATS)[number];
+
+/**
+ * Cash raise-first-in ranges: 6-max, 100bb, no ante, 2.5bb opens (SB 3bb),
+ * read from the poker-practice `Cash_100_PTO` source through `range.ts` (see
+ * docs/PLAN-cash.md, "Source", for the cross-check and provenance).
+ *
+ *   LJ 16.6% (220) · HJ 21.3% (282) · CO 26.7% (354) · BTN 41.8% (554) · SB 43.3% (574)
+ *
+ * The LJ is the first seat to act; GGPoker calls it UTG. Same seats as the
+ * tournament charts, tighter ranges: no ante means less dead money to win,
+ * and rake taxes small pots. The SB raises or folds — the source has no
+ * limping range.
+ */
+export const CASH_RFI = Object.fromEntries(
+  CASH_SEATS.map((hero) => [hero, requireOpenRange({ format: 'cash', stack: '100bb', hero })])
+) as Record<CashSeat, ReadonlySet<HandClass>>;
 
 // ─── Stack depth ──────────────────────────────────────────────────────────────
 

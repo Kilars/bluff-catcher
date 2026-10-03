@@ -18,20 +18,17 @@ import {
   type Drill,
   type FacingAction,
   type ThreeBetKind,
-  type FacingChart,
   BUCKETS,
   BUCKET_CHART,
   BUCKET_META,
   BUCKET_REACHABLE,
-  OPENERS,
+  BTN_SOURCE_CHARTS,
   bucketChartAction,
   bucketsFor,
   chartAction,
 } from './facing.ts';
 import type { Opponents } from './lowStakes.ts';
 import type { Format, TableSeat } from './ranges.ts';
-import { CASH_VS_CO, CASH_VS_EARLY } from './cashRanges.ts';
-import { FACING_SOURCES } from './facingSources.ts';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -130,12 +127,6 @@ export const TIER_WEIGHT: Record<FacingTier, number> = {
   trash: 0.25,
 };
 
-/** The source charts "trash" is measured against: the format's own charts only. */
-const SOURCE_CHARTS: Record<Format, readonly FacingChart[]> = {
-  mtt: OPENERS.map((o) => FACING_SOURCES[o]),
-  cash: [CASH_VS_EARLY, CASH_VS_CO],
-};
-
 function computeTier(bucket: Bucket, hc: HandClass): FacingTier {
   const own = bucketChartAction(bucket, hc).action;
   const near = neighbours(hc);
@@ -144,7 +135,7 @@ function computeTier(bucket: Bucket, hc: HandClass): FacingTier {
   // their trash tier is measured against that chart alone — BB defends so
   // wide vs the late seats that almost nothing folds in all of them.
   const meta = BUCKET_META[bucket];
-  const sources = meta.drill === 'btn' ? SOURCE_CHARTS[meta.format] : [BUCKET_CHART[bucket]];
+  const sources = meta.drill === 'btn' ? BTN_SOURCE_CHARTS[meta.format] : [BUCKET_CHART[bucket]];
   const foldsEverywhere = (c: HandClass) =>
     sources.every((chart) => chartAction(chart, c).action === 'fold');
   if (foldsEverywhere(hc) && near.every(foldsEverywhere)) return 'trash';

@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { borderSkewFacingPool, dealFacingSpot, facingTier, TIER_WEIGHT, type FacingSpot } from './facingDeal';
 import { BUCKET_META, bucketChartAction, bucketsFor } from './facing';
-import { BB_CASH_OPENERS, BB_MTT_OPENERS } from './bbDefendRanges';
+import { BB_CASH_OPENERS, BB_MTT_OPENERS } from './facing';
 import { ALL_169 } from './hands';
 import type { Format } from './ranges';
 

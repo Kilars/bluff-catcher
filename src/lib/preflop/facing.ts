@@ -1,12 +1,15 @@
 /**
  * The facing drills: hero faces a raise and folds, calls or re-raises. Pure,
- * no UI imports. Three drills share this machinery:
+ * no UI imports. Four drills share this machinery:
  *   btn  — an open, hero on the button: fold, call or 3-bet (this header)
- *   bb   — an open, hero in the big blind (`bbDefendRanges.ts`)
+ *   bb   — an open, hero in the big blind (docs/PLAN-bb-defend.md)
  *   btn4 — hero opened the button, a blind 3-bets: fold, call or 4-bet
- *          (`btn4BetRanges.ts`, docs/PLAN-btn-4bet.md)
+ *          (docs/PLAN-btn-4bet.md)
  *   open4 — hero opened from LJ/HJ/CO, a seat behind 3-bets: fold, call or
- *          4-bet, cash only (`open4BetRanges.ts`)
+ *          4-bet, cash only
+ *
+ * Every chart is read from the sourced dataset through `range.ts`; this file
+ * only says which spot each drill bucket grades against.
  *
  * ── Where these charts come from ──────────────────────────────────────────
  * PokerCoaching's free preflop chart pack (`full-preflop-charts.pdf`, p.6,
@@ -18,7 +21,7 @@
  * The source is already pure — one colour per cell, value and bluff 3-bets
  * coloured apart — so nothing here is rounded by us. All six BTN charts were
  * extracted by colour sampling; every chart's value / bluff / call totals
- * match the counts printed under it. The six live in `facingSources.ts`.
+ * match the counts printed under it. The six are `FACING_SOURCES` below.
  *
  * ── Two charts, not six ───────────────────────────────────────────────────
  * Openers fall into two buckets and hero learns one chart per bucket:
@@ -42,19 +45,8 @@
  */
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
-import { SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
-import { CASH_VS_CO, CASH_VS_EARLY, type CashOpener } from './cashRanges.ts';
-import {
-  BB_CASH_CHARTS,
-  BB_CASH_OPENERS,
-  BB_MTT_CHARTS,
-  BB_MTT_OPENERS,
-  type BbCashOpener,
-  type BbMttOpener,
-} from './bbDefendRanges.ts';
-import { BTN4_CASH_CHARTS, BTN4_MTT_CHARTS, BTN4_OPEN, BTN4_THREE_BETTORS, type ThreeBettor } from './btn4BetRanges.ts';
-import { OPEN4_CASH_CHARTS, OPEN4_OPENERS, OPEN4_THREE_BETTORS, type Open4Opener } from './open4BetRanges.ts';
-import { CASH_RFI } from './cashRanges.ts';
+import { CASH_RFI, SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
+import { requireFacingRange, requireOpenRange, type Stack } from './range.ts';
 import { JAM_EQUITY, POPULATION_JAM, jamPrice, lowStakesChart, type Opponents } from './lowStakes.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -89,6 +81,33 @@ export interface FacingAnswer {
 export const OPENERS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO'] as const satisfies readonly Position[];
 export type Opener = (typeof OPENERS)[number];
 
+/** The seats that can open into the button in 6-max. */
+export const CASH_OPENERS = ['LJ', 'HJ', 'CO'] as const;
+export type CashOpener = (typeof CASH_OPENERS)[number];
+
+/** Seats that can open into the BB at a 9-max tournament table, in action order. */
+export const BB_MTT_OPENERS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN', 'SB'] as const;
+export type BbMttOpener = (typeof BB_MTT_OPENERS)[number];
+
+/** Seats that can open into the BB at a 6-max cash table, in action order. */
+export const BB_CASH_OPENERS = ['LJ', 'HJ', 'CO', 'BTN', 'SB'] as const;
+export type BbCashOpener = (typeof BB_CASH_OPENERS)[number];
+
+/** The blinds that can 3-bet a button open, in action order. */
+export const BTN4_THREE_BETTORS = ['SB', 'BB'] as const;
+export type ThreeBettor = (typeof BTN4_THREE_BETTORS)[number];
+
+/** The cash seats that open and can be 3-bet by a seat behind (the BTN has its own drill). */
+export const OPEN4_OPENERS = ['LJ', 'HJ', 'CO'] as const;
+export type Open4Opener = (typeof OPEN4_OPENERS)[number];
+
+/** The seats behind each opener that can 3-bet it, in action order. */
+export const OPEN4_THREE_BETTORS: Record<Open4Opener, readonly ('HJ' | 'CO' | 'BTN' | 'SB' | 'BB')[]> = {
+  LJ: ['HJ', 'CO', 'BTN', 'SB', 'BB'],
+  HJ: ['CO', 'BTN', 'SB', 'BB'],
+  CO: ['BTN', 'SB', 'BB'],
+};
+
 /**
  * Which facing drill a chart belongs to: hero on the button facing an open
  * (docs/PLAN-3bet.md), or hero in the big blind (docs/PLAN-bb-defend.md).
@@ -118,10 +137,15 @@ export type Open4Bucket = `open4-cash-${Open4Opener}`;
  * Everything the BB drill's buckets differ by, per format (source metadata,
  * docs/PLAN-bb-defend.md "Source"): tournament 40bb, 2.3bb opens with the SB
  * raising to 3.5bb; cash 100bb, 2.5bb opens, SB 3bb.
+ *
+ * Each opener gets its exact chart, no buckets: neighbouring openers differ
+ * by 74–304 combos (of 1326) at 40bb and 52–176 in cash, so any bucketing
+ * would grade hundreds of combos wrong. The source does not split 3-bets into
+ * value and bluff, so these are plain charts.
  */
 const BB_SOURCE = {
-  mtt: { openers: BB_MTT_OPENERS, charts: BB_MTT_CHARTS, stack: '40bb', open: 2.3, sbOpen: 3.5 },
-  cash: { openers: BB_CASH_OPENERS, charts: BB_CASH_CHARTS, stack: '100bb', open: 2.5, sbOpen: 3 },
+  mtt: { openers: BB_MTT_OPENERS, stack: '40bb', open: 2.3, sbOpen: 3.5 },
+  cash: { openers: BB_CASH_OPENERS, stack: '100bb', open: 2.5, sbOpen: 3 },
 } as const;
 
 /** One BB bucket per (format, opener): its id, metadata and chart, built in one place. */
@@ -144,7 +168,8 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       chartName: `BB vs ${seat} (${format === 'mtt' ? '40bb' : 'cash'})`,
       footnote: 'Pure chart: border hands are likely mixed in the full solve, so they are close.',
     };
-    return { id, meta, chart: (src.charts as Record<string, PlainChart>)[o] };
+    const chart = requireFacingRange({ format, stack: src.stack, node: 'vsOpen', hero: 'BB', villain: o });
+    return { id, meta, chart };
   });
 });
 
@@ -153,10 +178,17 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
  * profiles, docs/PLAN-btn-4bet.md): cash opens 2.5bb and the blind 3-bets to
  * 5× (12.5bb), hero 4-bets to 25bb; 40bb opens 2.3bb, 3-bet to 4× (9.2bb),
  * and hero's 4-bet is all-in.
+ *
+ * Cash 4-bets are split by what they do facing a 5-bet jam: a 4-bet that calls
+ * it is value, one that folds is a bluff (`range.ts`). At 40bb the 4-bet *is*
+ * the jam, so the charts are plain. Hero only gets here with a hand they
+ * opened, so the dealer deals from the source's own BTN open range — at 40bb
+ * that is the source's, not the RFI drill's PokerCoaching chart, so the spot
+ * and its chart agree.
  */
 const BTN4_SOURCE = {
-  mtt: { charts: BTN4_MTT_CHARTS, stack: '40bb', open: 2.3, threeBet: 9.2, fourBet: 'all-in' },
-  cash: { charts: BTN4_CASH_CHARTS, stack: '100bb', open: 2.5, threeBet: 12.5, fourBet: '25bb' },
+  mtt: { stack: '40bb', open: 2.3, threeBet: 9.2, fourBet: 'all-in' },
+  cash: { stack: '100bb', open: 2.5, threeBet: 12.5, fourBet: '25bb' },
 } as const;
 
 /** One BTN-vs-3-bet bucket per (format, 3-bettor), built in one place like `BB_SPOTS`. */
@@ -183,7 +215,8 @@ const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
           ? 'The source uses the same chart vs SB and vs BB. Pure chart: border hands are close.'
           : 'The 4-bet is all-in at 40bb, so there is no bluff split. Pure chart: border hands are close.',
     };
-    return { id, meta, chart: src.charts[seat], reachable: BTN4_OPEN[format] };
+    const chart = requireFacingRange({ format, stack: src.stack, node: 'vs3bet', hero: 'BTN', villain: seat }) as FourBetChart;
+    return { id, meta, chart, reachable: requireOpenRange({ format, stack: src.stack, hero: 'BTN' }) };
   });
 });
 
@@ -198,7 +231,12 @@ function open4Sizes(threeBettor: TableSeat): BetSizes {
     : { raiseBb: 7.5, fourBetSize: '19bb' };
 }
 
-/** One open-vs-3-bet bucket per cash opener; the 3-bettor is any seat behind. */
+/**
+ * One open-vs-3-bet bucket per cash opener; the 3-bettor is any seat behind.
+ * The pure source answers a 3-bet the same way whoever made it, so the chart
+ * read here (vs the BB) is the opener's chart against every 3-bettor; only
+ * the sizes change. Hero only reaches this spot with a hand they opened.
+ */
 const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
   const id: Open4Bucket = `open4-cash-${opener}`;
   const threeBettors = OPEN4_THREE_BETTORS[opener];
@@ -219,7 +257,8 @@ const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
     chartName: `${opener} vs 3-bet (cash)`,
     footnote: 'The source uses one chart whichever seat 3-bets. Pure chart: border hands are close.',
   };
-  return { id, meta, chart: OPEN4_CASH_CHARTS[opener], reachable: CASH_RFI[opener] };
+  const chart = requireFacingRange({ format: 'cash', stack: '100bb', node: 'vs3bet', hero: opener, villain: 'BB' }) as FourBetChart;
+  return { id, meta, chart, reachable: CASH_RFI[opener] };
 });
 
 /** Every chart any facing drill grades against. */
@@ -420,7 +459,7 @@ export interface PlainChart {
 }
 
 /**
- * A BTN-vs-3-bet chart (`btn4BetRanges.ts`). Its 4-bets are split into value
+ * A facing-a-3-bet chart (`range.ts`, node `vs3bet`). Its 4-bets are split into value
  * and bluff where the source can tell them apart (cash: by what calls a 5-bet
  * jam), or one plain set where it cannot (40bb, where the 4-bet is all-in).
  */
@@ -440,57 +479,58 @@ function isFourBetChart(chart: FacingChart): chart is FourBetChart {
   return 'fourBet' in chart;
 }
 
+/** The BTN drill's chart against one opener: PokerCoaching (tournament) or the cash source. */
+function btnChart(format: Format, opener: Opener): FacingChart {
+  const stack: Stack = format === 'mtt' ? '50bb+' : '100bb';
+  return requireFacingRange({ format, stack, node: 'vsOpen', hero: 'BTN', villain: opener });
+}
+
 /**
- * vs Early — BTN vs UTG+1 (source chart, verbatim).
+ * The six tournament BTN source charts, one per opener. The drill grades
+ * against two of them (`EARLY`, `LATE`); all six feed the dealer's "trash"
+ * tier and the tests that measure each opener's distance from its bucket.
+ */
+export const FACING_SOURCES = Object.fromEntries(OPENERS.map((o) => [o, btnChart('mtt', o)])) as Record<
+  Opener,
+  KindedChart
+>;
+
+/**
+ * vs Early — BTN vs UTG+1.
  *
  * value 34 + bluff 52 + call 116 = 202 combos = 15.2% continue.
  * Offsuit broadways 3-bet as *bluffs* here: they block the top of a tight
  * range and play badly as a flat.
  */
-export const EARLY: KindedChart = {
-  value: new Set<HandClass>(['AA', 'KK', 'QQ', 'AKs', 'AKo']),
-  bluff: new Set<HandClass>(['A5s', 'A4s', 'A3s', 'A2s', 'AQo', 'AJo', 'KQo']),
-  call: new Set<HandClass>([
-    'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'AQs', 'AJs', 'ATs',
-    'KQs', 'KJs', 'KTs',
-    'QJs', 'QTs',
-    'JTs', 'J9s',
-    'T9s', '98s', '87s', '76s',
-  ]),
-};
+export const EARLY: KindedChart = FACING_SOURCES.UTG1;
 
 /**
- * vs Late — BTN vs LJ (source chart, verbatim).
+ * vs Late — BTN vs LJ.
  *
  * value 50 + bluff 60 + call 140 = 250 combos = 18.9% continue.
  * AQ joins the value range, AJo/KQo become flats, and the bluffs move down
  * the suited aces (A8s–A2s) and pick up 65s/54s.
  */
-export const LATE: KindedChart = {
-  value: new Set<HandClass>(['AA', 'KK', 'QQ', 'AKs', 'AQs', 'AKo', 'AQo']),
-  bluff: new Set<HandClass>([
-    'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
-    '65s', '54s',
-    'ATo', 'KJo',
-  ]),
-  call: new Set<HandClass>([
-    'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'AJs', 'ATs', 'A9s',
-    'KQs', 'KJs', 'KTs',
-    'QJs', 'QTs',
-    'JTs', 'J9s',
-    'T9s', '98s', '87s', '76s',
-    'AJo', 'KQo',
-  ]),
+export const LATE: KindedChart = FACING_SOURCES.LJ;
+
+/**
+ * The BTN drill's charts per format, one per opener: the dealer measures its
+ * "trash" tier against all of them. Cash: the source uses one chart for vs LJ
+ * and vs HJ (3-bet 110 / call 40), and vs CO only adds 3-bets (178 / 40).
+ * Cash BTN is almost 3-bet or fold, and these are plain charts: the source
+ * does not split 3-bets into value and bluff.
+ */
+export const BTN_SOURCE_CHARTS: Record<Format, readonly FacingChart[]> = {
+  mtt: OPENERS.map((o) => FACING_SOURCES[o]),
+  cash: CASH_OPENERS.map((o) => btnChart('cash', o)),
 };
 
 /** The chart each bucket is graded against. */
 export const BUCKET_CHART = {
   early: EARLY,
   late: LATE,
-  cashEarly: CASH_VS_EARLY,
-  cashCo: CASH_VS_CO,
+  cashEarly: btnChart('cash', 'LJ'),
+  cashCo: btnChart('cash', 'CO'),
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.chart])),
