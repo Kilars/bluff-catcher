@@ -146,21 +146,23 @@ export function facingRange(spot: Spot): FacingChart | null {
 /**
  * Every other seat pair the source answers with the very same facing chart —
  * the cash source reuses one chart across many pairs, so cash CO vs HJ is
- * also CO vs LJ and BTN vs HJ. Empty when the chart is the pair's own.
+ * also CO vs LJ and SB vs HJ. Empty when the chart is the pair's own.
  */
 export function chartTwins(spot: Spot): { hero: TableSeat; villain: TableSeat }[] {
   const chart = facingRange(spot);
   if (!chart) return [];
   const seats = Object.keys(SOURCE_SEAT) as TableSeat[];
+  // Compared by contents: the 4-bet value/bluff sets are built fresh per call.
   const sets = (c: FacingChart) =>
-    Object.values(c).flatMap((v): ReadonlySet<HandClass>[] => (v instanceof Set ? [v] : Object.values(v)));
+    Object.values(c)
+      .flatMap((v): ReadonlySet<HandClass>[] => (v instanceof Set ? [v] : Object.values(v)))
+      .map((s) => [...s].sort().join(' '));
   const mine = sets(chart);
   const twins: { hero: TableSeat; villain: TableSeat }[] = [];
   for (const hero of seats) {
     for (const villain of seats) {
       if (hero === spot.hero && villain === spot.villain) continue;
       const other = facingRange({ ...spot, hero, villain });
-      // Decoded sets are shared per distinct chart, so equal charts are the same objects.
       if (other && sets(other).every((s, i) => s === mine[i])) twins.push({ hero, villain });
     }
   }

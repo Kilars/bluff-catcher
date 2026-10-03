@@ -61,7 +61,7 @@ export function tableSeatLabel(seat: TableSeat): string {
  *   cash (6-max):       LJ HJ CO BTN SB BB
  * Seats earlier in the ring than hero have already acted (folded, or opened);
  * later ones are still to act. The blinds are always posted — hero on the SB
- * (cash only) is the one case where a blind is hero's own seat.
+ * (cash RFI, Seat vs open) is the one case where a blind is hero's own seat.
  */
 function ringFor(format: Format): readonly string[] {
   const seats = CHART_META[chartKeyFor(format, DEFAULT_DEPTH)].seats.filter((s) => s !== 'SB');

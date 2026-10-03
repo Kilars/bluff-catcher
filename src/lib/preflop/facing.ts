@@ -47,7 +47,7 @@
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
 import { CASH_RFI, SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
 import { chartTwins, requireFacingRange, requireOpenRange, type Stack } from './range.ts';
-import { CURATED_SPOTS, OPEN_BB, SPOT_STACK } from './spots.ts';
+import { CURATED_SPOTS, SPOT_STACK, openSizeBb } from './spots.ts';
 import { JAM_EQUITY, POPULATION_JAM, jamPrice, lowStakesChart, type Opponents } from './lowStakes.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ const SEAT_SPOTS = CURATED_SPOTS.map(({ format, hero, villain }) => {
     openerTag: pair,
     openers: [villain],
     chartSeat: villain,
-    raiseBb: OPEN_BB[stack],
+    raiseBb: openSizeBb(format, villain),
     hero,
     raise: '3bet',
     chartName: `${pair} (${format === 'mtt' ? stack : 'cash'})`,
@@ -354,9 +354,10 @@ export interface BucketMeta {
   /** Plaque / tab label, e.g. "vs Early". */
   label: string;
   /**
-   * The label again, set only when several openers share the chart — shown
-   * beside the opener ("HJ opens · vs Late") so seat and chart read together.
-   * A per-opener chart (BB drill) would only repeat the seat.
+   * Shown beside the opener ("HJ opens · vs Late") so seat and chart read
+   * together. Set when several openers share the chart, or when hero's seat
+   * varies (Seat vs open: "CO vs HJ"); a per-opener chart with a fixed hero
+   * (BB drill) would only repeat the seat.
    */
   openerTag?: string;
   /**

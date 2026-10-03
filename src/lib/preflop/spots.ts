@@ -4,7 +4,7 @@
  *
  * Adding a spot is one line here. The chart comes from `range.ts`, the bucket
  * from `facing.ts`, and the briefing is generated from the charts
- * (`modes/spotsBriefing.ts`), so no other file changes
+ * (`seatBriefing` in `modes/facingBriefing.tsx`), so no other file changes
  * (docs/PLAN-range-generator.md, phase 4). A spot whose chart the source does
  * not have fails at module load and in `spots.test.ts`.
  */
@@ -20,16 +20,29 @@ export interface CuratedSpot {
   villain: TableSeat;
 }
 
-/** The open size per stack, as the sources solve it (2.5bb cash, 2.3bb at 40bb). */
-export const OPEN_BB: Record<Stack, number> = { '100bb': 2.5, '40bb': 2.3, '50bb+': 2.5 };
+/**
+ * The open hero faces, as the sources' sizing profiles solve it: 2.5bb in
+ * cash (the SB 3bb), 2.3bb at 40bb (the SB 3.5bb).
+ */
+export function openSizeBb(format: Format, opener: TableSeat): number {
+  if (format === 'cash') return opener === 'SB' ? 3 : 2.5;
+  return opener === 'SB' ? 3.5 : 2.3;
+}
 
 /** The stack each format's spots are drawn from: the one source per format with a full seat grid. */
 export const SPOT_STACK: Record<Format, Stack> = { cash: '100bb', mtt: '40bb' };
 
+/**
+ * Cash has only two distinct charts here: the source answers every open with
+ * one 3-bet-or-fold chart wherever hero sits outside the BTN and BB (CO vs HJ
+ * stands for HJ vs LJ, CO vs LJ and SB vs LJ/HJ/CO), and SB vs BTN is its own.
+ * The 40bb source solves every seat pair apart.
+ */
 export const CURATED_SPOTS: readonly CuratedSpot[] = [
-  { format: 'cash', hero: 'CO', villain: 'LJ' },
   { format: 'cash', hero: 'CO', villain: 'HJ' },
   { format: 'cash', hero: 'SB', villain: 'BTN' },
+  { format: 'mtt', hero: 'HJ', villain: 'LJ' },
   { format: 'mtt', hero: 'CO', villain: 'HJ' },
+  { format: 'mtt', hero: 'SB', villain: 'CO' },
   { format: 'mtt', hero: 'SB', villain: 'BTN' },
 ];

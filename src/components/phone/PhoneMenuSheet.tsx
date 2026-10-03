@@ -35,10 +35,19 @@ import {
   type Depth,
   type Format,
 } from '../../lib/preflop/ranges';
+import { CURATED_SPOTS } from '../../lib/preflop/spots';
+import { positionLabel } from '../../lib/preflop/boundary';
 import PhoneSheet from './PhoneSheet';
 import styles from './PhoneMenuSheet.module.css';
 
 // ─── Copy ─────────────────────────────────────────────────────────────────────
+
+/** "Fold, call or 3-bet an open from HJ, CO or SB": the seats the curated spots put hero in. */
+function seatSpotsNote(format: Format): string {
+  const heroes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format).map((s) => positionLabel(s.hero)))];
+  const seats = heroes.length > 1 ? `${heroes.slice(0, -1).join(', ')} or ${heroes.at(-1)}` : heroes[0];
+  return `Fold, call or 3-bet an open from ${seats}`;
+}
 
 /** A mode's note; the preflop drills name the format they are drilling. */
 const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
@@ -62,7 +71,7 @@ const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
   { mode: 'open4bet', note: 'Fold, call or 4-bet your LJ/HJ/CO open · cash only' },
   {
     mode: 'seatvsopen',
-    note: { mtt: 'Fold, call or 3-bet an open from CO or SB · 40bb', cash: 'Fold, call or 3-bet an open from CO or SB · cash 100bb' },
+    note: { mtt: `${seatSpotsNote('mtt')} · 40bb`, cash: `${seatSpotsNote('cash')} · cash 100bb` },
   },
 ];
 

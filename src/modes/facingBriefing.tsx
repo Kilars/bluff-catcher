@@ -7,7 +7,7 @@
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
 import { FORMATS, type Format } from '../lib/preflop/ranges';
 import { BUCKET_CHART, BUCKET_META, bucketsFor, facingComboCounts, type Drill } from '../lib/preflop/facing';
-import { OPEN_BB, SPOT_STACK } from '../lib/preflop/spots';
+import { CURATED_SPOTS, SPOT_STACK, openSizeBb } from '../lib/preflop/spots';
 import styles from './FacingTrainer.module.css';
 
 const MTT_BRIEFING: InfoSheetContent = {
@@ -387,7 +387,12 @@ const pct = (combos: number) => `${((combos / 1326) * 100).toFixed(1)}%`;
 function seatBriefing(format: Format): InfoSheetContent {
   const stack = SPOT_STACK[format];
   const table =
-    format === 'mtt' ? `9-handed tournament table · ${stack} effective, BB ante` : '6-max cash table · 100bb effective, no ante';
+    format === 'mtt' ? `9-handed tournament table · ${stack} effective, 1bb ante` : '6-max cash table · 100bb effective, no ante';
+  const buckets = bucketsFor(format, 'seat');
+  const counts = buckets.map((b) => facingComboCounts(BUCKET_CHART[b]));
+  // The cash source never flats outside the BTN and BB, so its spots are 3-bet or fold.
+  const anyCall = counts.some((c) => c.call > 0);
+  const sizes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format).map((s) => openSizeBb(format, s.villain)))];
   return {
     kicker: 'The situation',
     title: 'Fold, call or 3-bet from any seat',
@@ -395,18 +400,21 @@ function seatBriefing(format: Format): InfoSheetContent {
     steps: [
       {
         title: 'The spot',
-        body: `One player opens to ${OPEN_BB[stack]}bb and it folds to you. Seats behind you are still to act. Fold, call, or 3-bet.`,
+        body: `One player opens to ${sizes.join(' or ')}bb and it folds to you. Seats behind you are still to act. ${
+          anyCall ? 'Fold, call, or 3-bet.' : 'Fold or 3-bet: this source never flat-calls outside the button and big blind.'
+        }`,
       },
       {
         title: 'The spots',
         body: (
           <ul className={styles.briefList}>
-            {bucketsFor(format, 'seat').map((b) => {
-              const c = facingComboCounts(BUCKET_CHART[b]);
+            {buckets.map((b, i) => {
+              const c = counts[i];
               const raise = 'threeBet' in c ? c.threeBet : 'value' in c ? c.value + c.bluff : 0;
               return (
                 <li key={b}>
-                  <strong>{BUCKET_META[b].openerTag}</strong> — 3-bet {pct(raise)}, call {pct(c.call)}, fold the rest.
+                  <strong>{BUCKET_META[b].openerTag}</strong> — 3-bet {pct(raise)}
+                  {c.call > 0 ? `, call ${pct(c.call)}` : ''}, fold the rest.
                 </li>
               );
             })}

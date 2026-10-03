@@ -55,7 +55,9 @@ spots such as a CO 3-bet vs a HJ open. It does so with no fitting error.
 | MTT_20_PTO | 33 of 36 | 36 of 36 | (jam) | 27 of 37 | 22 of 36 |
 | Cash_100_GTO (mixed) | 36 of 36 | | | | |
 
-In cash, CO vs HJ = CO vs LJ = BTN vs HJ (one 110-combo chart).
+In cash, CO vs HJ = CO vs LJ = HJ vs LJ = SB vs LJ/HJ/CO: one 110-combo 3-bet-or-fold
+chart (BTN vs HJ shares the 3-bets but also flats). Outside the BTN and BB the cash
+source never flat-calls.
 
 ## Decisions (owner, 2026-10-03)
 
@@ -79,7 +81,10 @@ In cash, CO vs HJ = CO vs LJ = BTN vs HJ (one 110-combo chart).
 - **D7, multiple sources:** the dataset carries a `source` per chart. The MTT
   BTN-vs-open drill ("50bb+") resolves to the PokerCoaching charts with their
   kinds, so its answers do not change.
-- **D8, new spots:** a curated list. Each new spot is one descriptor line and
+- **D8, new spots:** a curated list. *(As built: the spots got their own mode,
+  "Seat vs open", rather than joining an existing one — no existing mode seats
+  hero outside the BTN/BB facing an open, so this needed one-time mode wiring;
+  after that, a spot is one line in `spots.ts`.)* Each new spot is one descriptor line and
   appears under the existing modes with an auto-generated briefing.
   Hand-written briefings remain an optional per-spot override.
 
@@ -101,11 +106,12 @@ In cash, CO vs HJ = CO vs LJ = BTN vs HJ (one 110-combo chart).
   `bucketChartAction` and the UI need no type changes. Returns `null` for an
   unknown spot.
 - **A6, provenance.** The personal-use status is unchanged. The generated module
-  carries the repo, commit and date header, and "revisit before the repo goes
+  carries a repo and commit header, and "revisit before the repo goes
   public" still applies, now to a bigger slice of the data.
 - **A7, first new spots.** After the migration, the first new curated spots are:
-  - Cash: CO vs HJ / LJ 3-bet and SB vs BTN 3-bet.
-  - MTT 40: one more BB-vs-SB style spot.
+  - Cash: CO vs HJ and SB vs BTN, the only two distinct charts outside the BTN
+    and BB (the source reuses one 3-bet-or-fold chart for every other pair).
+  - MTT 40: HJ vs LJ, CO vs HJ, SB vs CO and SB vs BTN, each solved on its own.
   - Picked to test the descriptor path, not for coverage.
 - **A8, hand-history pipeline.** `src/lib/hh/` (`faced3bets`, `flats`) imports only
   RFI today. Grading faced 3-bets and cold-calls against `range(spot)` is a natural
@@ -120,7 +126,7 @@ In cash, CO vs HJ = CO vs LJ = BTN vs HJ (one 110-combo chart).
      cell, to the generated module.
    - At the end of this phase, both systems exist side by side.
 2. **`range(spot)` plus `Spot` type.** `src/lib/preflop/range.ts`:
-   - `Spot = { format, depth, node, hero, villain? }`.
+   - `Spot = { format, stack, node, hero, villain? }`.
    - Resolves the source, applies D4's value/bluff split, returns `FacingChart | null`.
    - Unit tests for the key mapping, null on unknown spots, and the 4-bet value rule.
 3. **Migrate the drills.** Rewire `facing.ts` (`BUCKET_CHART`, `BUCKET_REACHABLE`,
