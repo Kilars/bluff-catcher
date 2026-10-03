@@ -23,6 +23,8 @@ function baseProps() {
     onDepthChange: noop,
     format: 'mtt' as const,
     onFormatChange: noop,
+    opponents: 'low' as const,
+    onOpponentsChange: noop,
     showDraw: true,
     onShowDrawChange: noop,
     onOpenRanges: noop,

@@ -123,7 +123,7 @@ function clamp(value: number, min: number, max: number): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { mode, setMode, depth, setDepth, format, setFormat, showDraw, setShowDraw } =
+  const { mode, setMode, depth, setDepth, format, setFormat, opponents, setOpponents, showDraw, setShowDraw } =
     useAppPrefs();
   // The RFI chart in play: the stored tier, or 'cash' (which ignores the tier
   // but keeps it for the return to tournament).
@@ -300,6 +300,8 @@ export default function App() {
         onDepthChange={setDepth}
         format={format}
         onFormatChange={setFormat}
+        opponents={opponents}
+        onOpponentsChange={setOpponents}
         showDraw={showDraw}
         onShowDrawChange={setShowDraw}
         onOpenRanges={() => setRangesOpen(true)}
@@ -352,9 +354,10 @@ export default function App() {
 
       {facingDrill && (
         <FacingTrainer
-          key={`${facingDrill}-${facingFormat}`}
+          key={`${facingDrill}-${facingFormat}-${opponents}`}
           drill={facingDrill}
           format={facingFormat}
+          opponents={opponents}
           stats={accuracyStats}
           keysSuspended={keysSuspended}
         />
@@ -389,6 +392,8 @@ export default function App() {
           onDepthChange={setDepth}
           format={format}
           onFormatChange={setFormat}
+          opponents={opponents}
+          onOpponentsChange={setOpponents}
           showDraw={showDraw}
           onShowDrawChange={setShowDraw}
           onOpenRanges={() => {

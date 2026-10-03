@@ -20,6 +20,7 @@
 import { useCallback, useState } from 'react';
 import { DEFAULT_DEPTH, DEPTHS, FORMATS, type Depth, type Format } from '../lib/preflop/ranges';
 import type { Drill } from '../lib/preflop/facing';
+import { OPPONENTS, type Opponents } from '../lib/preflop/lowStakes';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
 export const SHOW_DRAW_KEY = 'bluff-catcher:show-draw:v1';
 export const FORMAT_KEY = 'bluff-catcher:format:v1';
+export const OPPONENTS_KEY = 'bluff-catcher:opponents:v1';
 
 export function loadMode(): AppMode {
   try {
@@ -127,6 +129,39 @@ export function saveFormat(format: Format): void {
   }
 }
 
+// ─── Opponents ────────────────────────────────────────────────────────────────
+//
+// Who the cash 4-bet drills assume is across the table (lib/preflop/lowStakes.ts).
+// Default 'low': a low-stakes pool's 5-bet jam is value only, so fewer value
+// 4-bets call it. 'balanced' is the source chart as solved.
+
+/**
+ * Whether a mode offers the opponents choice: only the cash 4-bet drills,
+ * the one place it changes an answer (which 4-bets call a 5-bet jam).
+ */
+export function hasOpponentsChoice(mode: AppMode, format: Format): boolean {
+  return mode === 'open4bet' || (mode === 'btn4bet' && format === 'cash');
+}
+
+export function loadOpponents(): Opponents {
+  try {
+    if (typeof window === 'undefined') return 'low';
+    const raw = localStorage.getItem(OPPONENTS_KEY);
+    return (OPPONENTS as readonly string[]).includes(raw ?? '') ? (raw as Opponents) : 'low';
+  } catch {
+    return 'low';
+  }
+}
+
+export function saveOpponents(opponents: Opponents): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(OPPONENTS_KEY, opponents);
+  } catch {
+    // localStorage might be disabled — silently fail
+  }
+}
+
 // ─── Show the draw ────────────────────────────────────────────────────────────
 //
 // Default ON. You cannot practise counting outs for a draw you have not
@@ -167,6 +202,9 @@ export interface AppPrefs {
   /** Preflop drills: tournament or cash. */
   format: Format;
   setFormat: (next: Format) => void;
+  /** Cash 4-bet drills: a low-stakes pool or the solver's balanced player. */
+  opponents: Opponents;
+  setOpponents: (next: Opponents) => void;
   /** Odds drill: name the draw before the guess is committed. */
   showDraw: boolean;
   setShowDraw: (next: boolean) => void;
@@ -176,6 +214,7 @@ export function useAppPrefs(): AppPrefs {
   const [mode, setModeState] = useState<AppMode>(() => loadMode());
   const [depth, setDepthState] = useState<Depth>(() => loadDepth());
   const [format, setFormatState] = useState<Format>(() => loadFormat());
+  const [opponents, setOpponentsState] = useState<Opponents>(() => loadOpponents());
   const [showDraw, setShowDrawState] = useState<boolean>(() => loadShowDraw());
 
   const setMode = useCallback((next: AppMode) => {
@@ -193,10 +232,26 @@ export function useAppPrefs(): AppPrefs {
     saveFormat(next);
   }, []);
 
+  const setOpponents = useCallback((next: Opponents) => {
+    setOpponentsState(next);
+    saveOpponents(next);
+  }, []);
+
   const setShowDraw = useCallback((next: boolean) => {
     setShowDrawState(next);
     saveShowDraw(next);
   }, []);
 
-  return { mode, setMode, depth, setDepth, format, setFormat, showDraw, setShowDraw };
+  return {
+    mode,
+    setMode,
+    depth,
+    setDepth,
+    format,
+    setFormat,
+    opponents,
+    setOpponents,
+    showDraw,
+    setShowDraw,
+  };
 }

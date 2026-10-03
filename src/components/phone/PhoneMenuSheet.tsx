@@ -25,7 +25,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { FACING_DRILL_OF, MODE_LABEL, hasFormatChoice, type AppMode } from '../../hooks/useAppPrefs';
+import { FACING_DRILL_OF, MODE_LABEL, hasFormatChoice, hasOpponentsChoice, type AppMode } from '../../hooks/useAppPrefs';
+import { OPPONENTS, OPPONENTS_META, type Opponents } from '../../lib/preflop/lowStakes';
 import {
   DEPTHS,
   DEPTH_META,
@@ -73,6 +74,9 @@ export interface PhoneMenuSheetProps {
   /** Tournament or cash, for both preflop drills. */
   format: Format;
   onFormatChange: (format: Format) => void;
+  /** Cash 4-bet drills: who is across the table. */
+  opponents: Opponents;
+  onOpponentsChange: (opponents: Opponents) => void;
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
@@ -93,6 +97,8 @@ export default function PhoneMenuSheet({
   onDepthChange,
   format,
   onFormatChange,
+  opponents,
+  onOpponentsChange,
   showDraw,
   onShowDrawChange,
   onOpenRanges,
@@ -126,6 +132,14 @@ export default function PhoneMenuSheet({
   );
 
   // No onClose: see the header note.
+  const selectOpponents = useCallback(
+    (next: Opponents) => {
+      onOpponentsChange(next);
+      onClose();
+    },
+    [onOpponentsChange, onClose]
+  );
+
   const toggleShowDraw = useCallback(() => {
     onShowDrawChange(!showDraw);
   }, [onShowDrawChange, showDraw]);
@@ -196,6 +210,28 @@ export default function PhoneMenuSheet({
                   <span className={styles.rowNote}>{FORMAT_META[f].note}</span>
                 </span>
                 {f === format && <span className={styles.marker} aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {hasOpponentsChoice(mode, format) && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Opponents</span>
+            {OPPONENTS.map((o) => (
+              <button
+                key={o}
+                type="button"
+                role="menuitemradio"
+                aria-checked={o === opponents}
+                className={`${styles.row} ${o === opponents ? styles.rowActive : ''}`}
+                onClick={() => selectOpponents(o)}
+              >
+                <span className={styles.rowMain}>
+                  {OPPONENTS_META[o].label}
+                  <span className={styles.rowNote}>{OPPONENTS_META[o].note}</span>
+                </span>
+                {o === opponents && <span className={styles.marker} aria-hidden="true" />}
               </button>
             ))}
           </div>
