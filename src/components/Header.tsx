@@ -19,7 +19,7 @@ import Menu from './Menu';
 import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
 import type { Opponents } from '../lib/preflop/lowStakes';
-import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
+import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL, SEAT_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -74,6 +74,8 @@ function brandSub(mode: AppMode, depth: Depth, format: Format): string {
       return BTN4_CONTEXT_LABEL[format];
     case 'open4bet':
       return OPEN4_CONTEXT_LABEL[format];
+    case 'seatvsopen':
+      return SEAT_CONTEXT_LABEL[format];
   }
 }
 

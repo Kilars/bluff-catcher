@@ -46,7 +46,8 @@
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
 import { CASH_RFI, SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
-import { requireFacingRange, requireOpenRange, type Stack } from './range.ts';
+import { chartTwins, requireFacingRange, requireOpenRange, type Stack } from './range.ts';
+import { CURATED_SPOTS, OPEN_BB, SPOT_STACK } from './spots.ts';
 import { JAM_EQUITY, POPULATION_JAM, jamPrice, lowStakesChart, type Opponents } from './lowStakes.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ export const OPEN4_THREE_BETTORS: Record<Open4Opener, readonly ('HJ' | 'CO' | 'B
  * Which facing drill a chart belongs to: hero on the button facing an open
  * (docs/PLAN-3bet.md), or hero in the big blind (docs/PLAN-bb-defend.md).
  */
-export type Drill = 'btn' | 'bb' | 'btn4' | 'open4';
+export type Drill = 'btn' | 'bb' | 'btn4' | 'open4' | 'seat';
 
 /** The open hero faces in the BTN drill (PLAN-3bet: 2.5bb, every opener). */
 export const BTN_DRILL_RAISE_BB = 2.5;
@@ -261,13 +262,51 @@ const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
   return { id, meta, chart, reachable: CASH_RFI[opener] };
 });
 
+/** A seat's short name, the big blind included ("UTG+1", "BB"). */
+const seatShort = (seat: TableSeat): string => (seat === 'BB' ? 'BB' : SEAT_META[seat].short);
+
+/** Seat vs open: one bucket per curated spot (`spots.ts`). */
+export type SeatBucket = `seat-${Format}-${TableSeat}-${TableSeat}`;
+
+/**
+ * One bucket per curated spot, graded on that seat pair's own chart. Where the
+ * source reuses the chart for other pairs (cash does, a lot), the footnote
+ * says so rather than implying the chart was solved for this pair alone.
+ */
+const SEAT_SPOTS = CURATED_SPOTS.map(({ format, hero, villain }) => {
+  const id: SeatBucket = `seat-${format}-${hero}-${villain}`;
+  const stack = SPOT_STACK[format];
+  const spot = { format, stack, node: 'vsOpen', hero, villain } as const;
+  const twins = chartTwins(spot).map((t) => `${seatShort(t.hero)} vs ${seatShort(t.villain)}`);
+  const pair = `${seatShort(hero)} vs ${seatShort(villain)}`;
+  const meta: BucketMeta = {
+    id,
+    drill: 'seat',
+    format,
+    stackLabel: stack,
+    label: `vs ${seatShort(villain)}`,
+    openerTag: pair,
+    openers: [villain],
+    chartSeat: villain,
+    raiseBb: OPEN_BB[stack],
+    hero,
+    raise: '3bet',
+    chartName: `${pair} (${format === 'mtt' ? stack : 'cash'})`,
+    footnote: twins.length
+      ? `The source uses this chart for ${twins.length} other seat pairs too (e.g. ${twins.slice(0, 2).join(', ')}). Pure chart: border hands are close.`
+      : 'Pure chart: border hands are close.',
+  };
+  return { id, meta, chart: requireFacingRange(spot) };
+});
+
 /** Every chart any facing drill grades against. */
-export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket | Btn4Bucket | Open4Bucket;
+export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket | Btn4Bucket | Open4Bucket | SeatBucket;
 export const BUCKETS: readonly Bucket[] = [
   ...BTN_BUCKETS,
   ...BB_SPOTS.map((s) => s.id),
   ...BTN4_SPOTS.map((s) => s.id),
   ...OPEN4_SPOTS.map((s) => s.id),
+  ...SEAT_SPOTS.map((s) => s.id),
 ];
 
 /**
@@ -429,6 +468,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.meta])),
   ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.meta])),
   ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.meta])),
+  ...Object.fromEntries(SEAT_SPOTS.map((s) => [s.id, s.meta])),
 } as Record<Bucket, BucketMeta>;
 
 /**
@@ -534,6 +574,7 @@ export const BUCKET_CHART = {
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.chart])),
+  ...Object.fromEntries(SEAT_SPOTS.map((s) => [s.id, s.chart])),
 } as Record<Bucket, FacingChart>;
 
 /**

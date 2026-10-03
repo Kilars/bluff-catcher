@@ -394,3 +394,27 @@ describe('Open vs 3-bet menu', () => {
     expect(screen.getByText(/You opened the (LJ|HJ|CO) · Open vs 3-bet/)).toBeInTheDocument();
   });
 });
+
+describe('Seat vs open mode (docs/PLAN-range-generator.md)', () => {
+  it('seats hero in a curated seat facing an open, and records to its own stats', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'seatvsopen');
+    localStorage.setItem('bluff-catcher:format:v1', 'cash');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['seatvsopen-cash']));
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Seat vs open · Cash 100bb')).toBeInTheDocument();
+    expect(screen.getByText(/Folds to you in the (CO|SB) · /)).toBeInTheDocument();
+    expect(screen.getByText(/(LJ|HJ|BTN) opens 2\.5bb\. Fold, call or 3-bet\?/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /3-bet$/ }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:seatvsopen-cash:v1')!).hands).toBe(1);
+  });
+
+  it('opens the generated briefing the first time', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'seatvsopen');
+    localStorage.setItem('bluff-catcher:format:v1', 'mtt');
+    renderAt('desktop', <App />);
+    expect(screen.getByText('Fold, call or 3-bet from any seat')).toBeInTheDocument();
+    // One generated line per curated tournament spot (CO vs HJ, SB vs BTN).
+    expect(screen.getAllByText(/3-bet \d+\.\d%, call \d+\.\d%, fold the rest\./)).toHaveLength(2);
+  });
+});

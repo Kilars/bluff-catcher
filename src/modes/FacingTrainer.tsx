@@ -4,7 +4,8 @@
  * docs/PLAN-bb-defend.md), and hero chooses Fold / Call / 3-bet; or hero
  * opened the button and a blind 3-bets (`drill="btn4"`,
  * docs/PLAN-btn-4bet.md), and hero chooses Fold / Call / 4-bet; or the same
- * from an LJ/HJ/CO open, in cash (`drill="open4"`).
+ * from an LJ/HJ/CO open, in cash (`drill="open4"`); or a curated seat pair
+ * faces an open, hero anywhere but the button (`drill="seat"`, `spots.ts`).
  *
  * Presentation only, in the same split as PreflopTrainer: the spot, commit,
  * sheets, keys and verdict copy all live in `hooks/useFacingDrill`, and this
@@ -15,7 +16,7 @@
  * Props:
  *   stats — this mode's own `usePreflopStats()` instance
  *     (`bluff-catcher:facing:v1`, `bluff-catcher:bbdefend:v1`, …), separate from RFI's.
- *   drill — 'btn' (default), 'bb', 'btn4' or 'open4': charts, copy and briefing.
+ *   drill — 'btn' (default), 'bb', 'btn4', 'open4' or 'seat': charts, copy and briefing.
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
@@ -31,12 +32,18 @@ import {
   facingChartPages,
   useFacingDrill,
 } from '../hooks/useFacingDrill';
-import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
+import {
+  BB_CONTEXT_LABEL,
+  BTN4_CONTEXT_LABEL,
+  FACING_CONTEXT_LABEL,
+  OPEN4_CONTEXT_LABEL,
+  SEAT_CONTEXT_LABEL,
+} from '../lib/facingMeta';
 import type { Drill } from '../lib/preflop/facing';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { Format, Seat } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
-import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, LOW_STAKES_BRIEFING, OPEN4_BRIEFING } from './facingBriefing';
+import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, LOW_STAKES_BRIEFING, OPEN4_BRIEFING, SEAT_BRIEFING } from './facingBriefing';
 import type { Opponents } from '../lib/preflop/lowStakes';
 import styles from './PreflopTrainer.module.css';
 import own from './FacingTrainer.module.css';
@@ -80,6 +87,12 @@ const DRILL_VIEW = {
     kicker: 'Facing a 3-bet',
     where: 'You opened',
   },
+  seat: {
+    contextLabel: SEAT_CONTEXT_LABEL,
+    briefing: SEAT_BRIEFING,
+    kicker: 'Facing an open',
+    where: 'Folds to you',
+  },
 } as const;
 
 export function FacingTrainer({
@@ -94,6 +107,13 @@ export function FacingTrainer({
   const view = DRILL_VIEW[drillKind];
   const contextLabel = view.contextLabel[format];
   const heroOpened = drill.bucketMeta.heroOpenBb !== undefined;
+  // Drills whose hero seat varies name it; the rest have it in the fixed copy.
+  const centreWhere =
+    drillKind === 'open4'
+      ? `You opened the ${positionLabel(drill.bucketMeta.hero)}`
+      : drillKind === 'seat'
+        ? `Folds to you in the ${positionLabel(drill.bucketMeta.hero)}`
+        : view.where;
 
   const {
     spot,
@@ -166,7 +186,7 @@ export function FacingTrainer({
         centreTitle={[`${openerLabel} ${heroOpened ? '3-bets' : 'opens'}`, bucketMeta.openerTag]
           .filter(Boolean)
           .join(' · ')}
-        centreLine={`${drillKind === 'open4' ? `You opened the ${positionLabel(bucketMeta.hero)}` : view.where} · ${contextLabel}`}
+        centreLine={`${centreWhere} · ${contextLabel}`}
       />
 
       <div className={styles.dock}>

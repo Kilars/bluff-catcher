@@ -51,6 +51,18 @@ export const BTN4_CHIP_LABEL: Record<Format, string> = {
   cash: '3b cash',
 };
 
+/** Seat vs open mode's context string (docs/PLAN-range-generator.md): one stack per format. */
+export const SEAT_CONTEXT_LABEL: Record<Format, string> = {
+  mtt: 'Seat vs open · 40bb',
+  cash: 'Seat vs open · Cash 100bb',
+};
+
+/** Seat vs open mode's phone chip — kept to ~7 characters for the 390px bar. */
+export const SEAT_CHIP_LABEL: Record<Format, string> = {
+  mtt: 'Seat 40',
+  cash: 'Seat cash',
+};
+
 /** Open vs 3-bet mode's context string: cash only, whatever the format switch says. */
 export const OPEN4_CONTEXT_LABEL: Record<Format, string> = {
   mtt: 'Open vs 3-bet · Cash 100bb',

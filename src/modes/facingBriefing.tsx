@@ -5,8 +5,9 @@
  */
 
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
-import type { Format } from '../lib/preflop/ranges';
-import type { Drill } from '../lib/preflop/facing';
+import { FORMATS, type Format } from '../lib/preflop/ranges';
+import { BUCKET_CHART, BUCKET_META, bucketsFor, facingComboCounts, type Drill } from '../lib/preflop/facing';
+import { OPEN_BB, SPOT_STACK } from '../lib/preflop/spots';
 import styles from './FacingTrainer.module.css';
 
 const MTT_BRIEFING: InfoSheetContent = {
@@ -370,3 +371,60 @@ export const LOW_STAKES_BRIEFING: Partial<Record<Drill, InfoSheetContent>> = {
   btn4: BTN4_CASH_LOW_BRIEFING,
   open4: OPEN4_CASH_LOW_BRIEFING,
 };
+
+// ─── Seat vs open: generated from the charts ──────────────────────────────────
+
+/** "8.3%" — a share of the 1326 combos, one decimal. */
+const pct = (combos: number) => `${((combos / 1326) * 100).toFixed(1)}%`;
+
+/**
+ * Seat vs open (docs/PLAN-range-generator.md, phase 4). Unlike the briefings
+ * above, this one is built from the charts, so a spot added to `spots.ts`
+ * shows up here with no copy to write. It states widths only — the source
+ * does not say which 3-bets are value and which are bluffs, so neither does
+ * the briefing.
+ */
+function seatBriefing(format: Format): InfoSheetContent {
+  const stack = SPOT_STACK[format];
+  const table =
+    format === 'mtt' ? `9-handed tournament table · ${stack} effective, BB ante` : '6-max cash table · 100bb effective, no ante';
+  return {
+    kicker: 'The situation',
+    title: 'Fold, call or 3-bet from any seat',
+    subline: table,
+    steps: [
+      {
+        title: 'The spot',
+        body: `One player opens to ${OPEN_BB[stack]}bb and it folds to you. Seats behind you are still to act. Fold, call, or 3-bet.`,
+      },
+      {
+        title: 'The spots',
+        body: (
+          <ul className={styles.briefList}>
+            {bucketsFor(format, 'seat').map((b) => {
+              const c = facingComboCounts(BUCKET_CHART[b]);
+              const raise = 'threeBet' in c ? c.threeBet : 'value' in c ? c.value + c.bluff : 0;
+              return (
+                <li key={b}>
+                  <strong>{BUCKET_META[b].openerTag}</strong> — 3-bet {pct(raise)}, call {pct(c.call)}, fold the rest.
+                </li>
+              );
+            })}
+          </ul>
+        ),
+      },
+      {
+        title: 'Pure charts',
+        body: 'Each hand has one right answer, straight from the source. Hands on the border of a range are close in the full solve. The 3-bets are not split into value and bluff.',
+      },
+    ],
+    keys: MTT_BRIEFING.keys,
+    keysNote: MTT_BRIEFING.keysNote,
+    cta: 'Start drilling',
+  };
+}
+
+export const SEAT_BRIEFING = Object.fromEntries(FORMATS.map((f) => [f, seatBriefing(f)])) as Record<
+  Format,
+  InfoSheetContent
+>;

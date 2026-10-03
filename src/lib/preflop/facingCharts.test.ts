@@ -27,7 +27,7 @@ const combos = (s: ReadonlySet<HandClass>) => [...s].reduce((n, hc) => n + combo
 
 /** Every set a chart holds, flattened: its raises (any kind) and its calls. */
 function actionSets(chart: FacingChart): ReadonlySet<HandClass>[] {
-  return Object.values(chart).flatMap((v) => (v instanceof Set ? [v] : Object.values(v)));
+  return Object.values(chart).flatMap((v): ReadonlySet<HandClass>[] => (v instanceof Set ? [v] : Object.values(v)));
 }
 
 describe('every bucket chart', () => {

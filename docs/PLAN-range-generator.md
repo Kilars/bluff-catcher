@@ -1,6 +1,6 @@
 # PLAN: range lookup (`range(spot)`)
 
-Status: **planned, not started.** Written 2026-10-03 from three investigations
+Status: **implemented on branch `range-lookup` (phases 1–4).** Written 2026-10-03 from three investigations
 (a code inventory, web research, and a fit experiment on our own charts) and a
 grilling session with the owner.
 

@@ -24,10 +24,10 @@ import { OPPONENTS, type Opponents } from '../lib/preflop/lowStakes';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet';
+export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen';
 
 /** Every valid mode, in menu order. Same list `loadMode` validates against. */
-export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet', 'open4bet'];
+export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet', 'open4bet', 'seatvsopen'];
 
 /** Each mode's name in menus and sheet subtitles. */
 export const MODE_LABEL: Record<AppMode, string> = {
@@ -37,6 +37,7 @@ export const MODE_LABEL: Record<AppMode, string> = {
   bbdefend: 'BB defend',
   btn4bet: 'BTN vs 3-bet',
   open4bet: 'Open vs 3-bet',
+  seatvsopen: 'Seat vs open',
 };
 
 /** The facing drill each facing mode runs; the other modes have none. */
@@ -45,6 +46,7 @@ export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = {
   bbdefend: 'bb',
   btn4bet: 'btn4',
   open4bet: 'open4',
+  seatvsopen: 'seat',
 };
 
 /**

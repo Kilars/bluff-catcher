@@ -97,7 +97,7 @@ export type PhoneStatsSheetProps = CommonProps &
         perCategory: Record<string, CategoryStat>;
       }
     | ({ mode: 'preflop' } & PreflopLikeVariant)
-    | ({ mode: 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' } & PreflopLikeVariant)
+    | ({ mode: 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen' } & PreflopLikeVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────

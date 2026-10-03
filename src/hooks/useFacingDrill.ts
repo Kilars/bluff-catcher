@@ -51,6 +51,7 @@ export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
   btn4: { mtt: 'btn4bet', cash: 'btn4bet-cash' },
   // Cash only: the drill always runs in cash, whatever the format switch says.
   open4: { mtt: 'open4bet', cash: 'open4bet' },
+  seat: { mtt: 'seatvsopen', cash: 'seatvsopen-cash' },
 };
 
 /** A re-raise as the copy and buttons write it. */

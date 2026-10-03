@@ -60,6 +60,10 @@ const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
     note: { mtt: 'Fold, call or 4-bet after a blind 3-bets · 40bb', cash: 'Fold, call or 4-bet after a blind 3-bets · cash 100bb' },
   },
   { mode: 'open4bet', note: 'Fold, call or 4-bet your LJ/HJ/CO open · cash only' },
+  {
+    mode: 'seatvsopen',
+    note: { mtt: 'Fold, call or 3-bet an open from CO or SB · 40bb', cash: 'Fold, call or 3-bet an open from CO or SB · cash 100bb' },
+  },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
