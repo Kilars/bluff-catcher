@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { FACING_DRILL_OF, MODE_LABEL, type AppMode } from '../../hooks/useAppPrefs';
+import { FACING_DRILL_OF, MODE_LABEL, hasFormatChoice, type AppMode } from '../../hooks/useAppPrefs';
 import {
   DEPTHS,
   DEPTH_META,
@@ -179,7 +179,7 @@ export default function PhoneMenuSheet({
           ))}
         </div>
 
-        {mode !== 'odds' && (
+        {hasFormatChoice(mode) && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Format</span>
             {FORMATS.map((f) => (

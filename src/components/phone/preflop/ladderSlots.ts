@@ -30,7 +30,7 @@ export interface LadderSlot {
   blind?: 'sb' | 'bb';
   /**
    * The raise size, in bb: the opener's (`state === 'opener'`), or hero's own
-   * open in BTN vs 3-bet (`state === 'hero'`).
+   * open in BTN / open vs 3-bet (`state === 'hero'`).
    */
   raiseBb?: number;
 }
@@ -45,8 +45,8 @@ export interface LadderSlot {
  * `opener` / `raiseBb` (PLAN-3bet F2, optional): forwarded to `buildSeats` — see
  * there for the constraint that the opener must be a seat before hero.
  *
- * `heroOpenBb` (BTN vs 3-bet, optional): hero has opened for this much and the
- * action came back round — the 3-bettor (`opener`) and the folded blind sit
+ * `heroOpenBb` (BTN / open vs 3-bet, optional): hero has opened for this much and
+ * the action came back round — the 3-bettor (`opener`) and the folded seats sit
  * after hero, and hero's slot carries the raise.
  */
 export function buildLadderSlots(
@@ -82,8 +82,8 @@ export function buildLadderSlots(
     raiseBb: heroOpenBb,
   };
 
-  // Behind hero: still to act — or, once hero has opened, the 3-bettor and a
-  // folded blind.
+  // Behind hero: still to act — or, once hero has opened, the 3-bettor and
+  // the seats that folded to it.
   const after: LadderSlot[] = seats.slice(beforeCount).map((s) => ({
     label: s.label,
     state: s.type === 'opener' ? ('opener' as const) : s.type === 'folded' ? ('folded' as const) : ('behind' as const),

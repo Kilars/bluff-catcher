@@ -84,9 +84,9 @@ const RING: Record<Format, readonly string[]> = { mtt: ringFor('mtt'), cash: rin
  * With hero in the BB the SB acts before hero: it is the opener, or it folded
  * and leaves its posted blind behind (`posted: 'sb'`).
  *
- * When hero has opened (BTN vs 3-bet), the raiser is a blind *behind* hero —
+ * When hero has opened (BTN / open vs 3-bet), the raiser is a seat *behind* hero —
  * still an `opener`-type seat, the raise hero faces — and the other blind has
- * folded, leaving its posted blind behind (`posted: 'sb' | 'bb'`).
+ * folded — a folded blind leaving its posted blind behind (`posted: 'sb' | 'bb'`).
  */
 export interface SeatInfo {
   label: string;
@@ -164,8 +164,8 @@ export const DEFAULT_OPENER_RAISE_BB = BTN_DRILL_RAISE_BB;
  * A seat after hero is never turned into an opener; that spot is reserved for
  * the RFI drill's `toAct` seats and isn't a legal facing-open deal anyway.
  *
- * `heroOpened` (BTN vs 3-bet): hero has already raised, so the action has come
- * back round. `opener` is then the blind that 3-bet, behind hero; every other
+ * `heroOpened` (BTN / open vs 3-bet): hero has already raised, so the action has
+ * come back round. `opener` is then the seat that 3-bet, behind hero; every other
  * seat has folded, and a folded blind leaves its posted blind behind.
  */
 export function buildSeats(
@@ -272,7 +272,7 @@ interface PreflopTableProps {
   format?: Format;
   /**
    * The facing drills' raiser (PLAN-3bet F2): a seat before hero that opened
-   * instead of folding, or with `heroOpenBb` the blind that 3-bet hero. Omit
+   * instead of folding, or with `heroOpenBb` the seat behind hero that 3-bet. Omit
    * it and the table renders exactly as the RFI drill always has — every seat
    * before hero folded, no raise chip.
    */
@@ -280,8 +280,8 @@ interface PreflopTableProps {
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
   /**
-   * Hero's own open, in bb (BTN vs 3-bet): hero's raise chip goes beside
-   * hero's cards, and `opener` is a 3-bettor behind hero.
+   * Hero's own open, in bb (BTN / open vs 3-bet): hero's raise chip goes
+   * beside hero's cards, and `opener` is a 3-bettor behind hero.
    */
   heroOpenBb?: number;
   /**

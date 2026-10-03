@@ -131,8 +131,7 @@ folds, calls or 4-bets, with the same value/bluff split (`Call 5Bet<opener>vs<se
 
 ## Out of scope
 
-- Facing a 3-bet from other seats (CO/HJ/LJ opens). The source has these keys (`4Bet<seat>vs…`
-  only for vs BTN, not vs blinds), so a follow-up has the data for only part of it.
+- Opener vs 3-bet at 40bb (see the follow-up above for why it is cash only).
 - Facing a 4-bet (5-bet / call) after hero 3-bets.
 - Cold 4-bets and squeezes.
 - `lib/hh` support for BTN-vs-3-bet decisions (`faced3Bets[]` already lists the real hands).

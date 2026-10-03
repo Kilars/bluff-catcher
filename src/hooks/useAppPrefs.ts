@@ -46,6 +46,14 @@ export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = {
   open4bet: 'open4',
 };
 
+/**
+ * Whether a mode follows the tournament/cash switch. Odds has no format, and
+ * Open vs 3-bet has cash charts only, so neither offers the choice.
+ */
+export function hasFormatChoice(mode: AppMode): boolean {
+  return mode !== 'odds' && mode !== 'open4bet';
+}
+
 export const MODE_KEY = 'bluff-catcher:mode:v1';
 export const DEPTH_KEY = 'bluff-catcher:preflop-depth:v1';
 export const SHOW_DRAW_KEY = 'bluff-catcher:show-draw:v1';

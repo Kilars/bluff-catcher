@@ -383,3 +383,14 @@ describe('Open vs 3-bet mode (cash only)', () => {
     expect(JSON.parse(localStorage.getItem('bluff-catcher:open4bet:v1')!).hands).toBe(1);
   });
 });
+
+describe('Open vs 3-bet menu', () => {
+  it('offers no format choice, since the mode is cash only', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'open4bet');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['open4bet']));
+    renderAt('desktop', <App />);
+    fireEvent.click(screen.getByRole('button', { name: /menu/i }));
+    expect(screen.queryByText('Format')).not.toBeInTheDocument();
+    expect(screen.getByText(/You opened the (LJ|HJ|CO) · Open vs 3-bet/)).toBeInTheDocument();
+  });
+});

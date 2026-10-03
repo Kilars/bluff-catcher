@@ -32,7 +32,8 @@ import type { Format } from '../../../lib/preflop/ranges';
 import styles from './PhoneSeatLadder.module.css';
 
 /** Screen-reader description for one slot: never just a bare position label. */
-function slotDescription(slot: LadderSlot): string {
+/** `threeBet`: hero opened, so the raiser hero faces made a 3-bet. */
+function slotDescription(slot: LadderSlot, threeBet = false): string {
   const parts: string[] = [slot.label];
   if (slot.state === 'folded') parts.push('folded');
   else if (slot.state === 'hero')
@@ -45,7 +46,8 @@ function slotDescription(slot: LadderSlot): string {
             ? 'you, big blind'
             : 'you'
     );
-  else if (slot.state === 'opener') parts.push(`raises ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
+  else if (slot.state === 'opener')
+    parts.push(`${threeBet ? '3-bets to' : 'raises'} ${slot.raiseBb ?? DEFAULT_OPENER_RAISE_BB}bb`);
   else parts.push('to act');
   if (slot.isButton) parts.push('dealer button');
   return parts.join(', ');
@@ -64,7 +66,7 @@ export interface PhoneSeatLadderProps {
   opener?: TableSeat;
   /** The opener's raise size, in bb. Defaults to 2.5bb. Ignored without `opener`. */
   raiseBb?: number;
-  /** Hero's own open, in bb (BTN vs 3-bet): `opener` is then a 3-bettor behind hero. */
+  /** Hero's own open, in bb (BTN / open vs 3-bet): `opener` is then a 3-bettor behind hero. */
   heroOpenBb?: number;
   /** Overrides the line under the row (default: "3 folded · 5 behind"). */
   contextLine?: string;
@@ -100,7 +102,7 @@ export default function PhoneSeatLadder({
             data-label={slot.label}
             data-button={slot.isButton ? 'true' : undefined}
             data-blind={slot.blind}
-            aria-label={slotDescription(slot)}
+            aria-label={slotDescription(slot, heroOpenBb !== undefined)}
           >
             <span className={styles.mark} aria-hidden="true">
               {/* A raise outranks the D: when the BTN opens, the size is what matters. */}

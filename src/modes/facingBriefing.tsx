@@ -284,13 +284,16 @@ const OPEN4_CASH_BRIEFING: InfoSheetContent = {
     },
     {
       title: 'One chart per seat',
-      body: 'The source answers a 3-bet the same way whoever made it, so each opener has one chart. Value 4-bets call a 5-bet jam; bluffs fold to it (the blue half).',
+      body: 'The simplified source answers a 3-bet the same way whoever made it, so each opener has one chart. (The full solve flats more, JJ and QQ included, against a blind.) Value 4-bets call a 5-bet jam; bluffs fold to it (the blue half).',
     },
     {
       title: 'Three rules',
       body: (
         <ul className={styles.briefList}>
-          <li>Value: AA–QQ and AK; JJ too from HJ and CO. From the LJ, JJ is a bluff.</li>
+          <li>
+            Value: AA–QQ and AK; JJ too from HJ and CO. From the LJ, JJ 4-bets but folds to a jam: an
+            LJ open only gets jammed by AA, KK and AK.
+          </li>
           <li>Bluffs are blockers: ATs, A5s, KTs, plus AQo from the CO.</li>
           <li>Calls: 77–TT (66 too from HJ/CO), AQs, AJs, KQs, KJs. Everything else folds: about 6 in 10 LJ opens, 7 in 10 CO opens.</li>
         </ul>

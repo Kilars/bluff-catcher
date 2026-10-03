@@ -11,12 +11,15 @@
  * 3-bettor. Same provenance caveat (licence unclear; personal use).
  *
  * ── One chart per opener ──────────────────────────────────────────────────
- * The source answers a 3-bet the same way whoever made it, so each opener has
- * one chart. Only the sizes change with the 3-bettor (`facing.ts`).
+ * The simplified (PTO) source answers a 3-bet the same way whoever made it,
+ * so each opener has one chart. Only the sizes change with the 3-bettor (`facing.ts`).
  *
  * ── Value and bluff ───────────────────────────────────────────────────────
  * As in the BTN chart: a 4-bet that calls a 5-bet jam is value, one that
- * folds to it is a bluff. JJ is a bluff from the LJ only.
+ * folds to it is a bluff. From the LJ, JJ 4-bets and folds to a jam (only AA,
+ * KK and AK jam over an LJ open), so it is graded with the bluffs. The mixed
+ * solve flats more against the blinds (QQ and JJ included); the pure chart
+ * does not show that.
  *
  * Hero only reaches this spot with a hand they opened, so the dealer deals
  * from `CASH_RFI[opener]`. Hands not listed fold.

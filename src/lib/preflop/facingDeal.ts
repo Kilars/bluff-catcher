@@ -222,6 +222,9 @@ export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const rng = opts?.rng ?? Math.random;
   const pool = opts?.pool ?? ACTIVE_FACING_POOL;
   const buckets = bucketsFor(opts?.format ?? 'mtt', opts?.drill);
+  if (buckets.length === 0) {
+    throw new Error(`No ${opts?.drill ?? 'btn'} charts in ${opts?.format ?? 'mtt'} (open vs 3-bet is cash only)`);
+  }
 
   // 1. Bucket, then opener within it
   const bucket = buckets[Math.floor(rng() * buckets.length)];

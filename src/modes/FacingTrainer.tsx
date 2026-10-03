@@ -33,6 +33,7 @@ import {
 } from '../hooks/useFacingDrill';
 import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
 import type { Drill } from '../lib/preflop/facing';
+import { positionLabel } from '../lib/preflop/boundary';
 import type { Format, Seat } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
 import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, OPEN4_BRIEFING } from './facingBriefing';
@@ -156,7 +157,7 @@ export function FacingTrainer({
         centreTitle={[`${openerLabel} ${heroOpened ? '3-bets' : 'opens'}`, bucketMeta.openerTag]
           .filter(Boolean)
           .join(' · ')}
-        centreLine={`${view.where} · ${contextLabel}`}
+        centreLine={`${drillKind === 'open4' ? `You opened the ${positionLabel(bucketMeta.hero)}` : view.where} · ${contextLabel}`}
       />
 
       <div className={styles.dock}>

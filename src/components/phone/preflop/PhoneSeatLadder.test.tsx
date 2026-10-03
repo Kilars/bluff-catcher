@@ -230,3 +230,22 @@ describe('hero opened the button, a blind 3-bets', () => {
     expect(bb.querySelector('[aria-hidden]')).toHaveTextContent(/^12\.5$/);
   });
 });
+
+describe('hero opened from the CO, the BTN 3-bets', () => {
+  it('puts the D on the 3-bettor\'s slot under its raise and folds the blinds', () => {
+    renderAt('phone', <PhoneSeatLadder position="CO" opener="BTN" raiseBb={7.5} heroOpenBb={2.5} format="cash" />);
+    const slots = screen.getAllByTestId('seat-slot');
+    expect(slots.map((s) => [s.getAttribute('data-label'), s.getAttribute('data-state')])).toEqual([
+      ['LJ', 'folded'],
+      ['HJ', 'folded'],
+      ['CO', 'hero'],
+      ['BTN', 'opener'],
+      ['SB', 'folded'],
+      ['BB', 'folded'],
+    ]);
+    const btn = slots[3];
+    expect(btn).toHaveAttribute('data-button', 'true');
+    expect(btn).toHaveAttribute('aria-label', 'BTN, 3-bets to 7.5bb, dealer button');
+    expect(btn.querySelector('[aria-hidden]')).toHaveTextContent(/^7\.5$/);
+  });
+});

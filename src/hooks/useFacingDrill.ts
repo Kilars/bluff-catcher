@@ -138,9 +138,11 @@ export interface UseFacingDrillOptions {
 export function useFacingDrill({
   onRecord,
   keysSuspended = false,
-  format = 'mtt',
+  format: formatOpt = 'mtt',
   drill = 'btn',
 }: UseFacingDrillOptions) {
+  // Open vs 3-bet has cash charts only (docs/PLAN-btn-4bet.md, "Follow-up").
+  const format: Format = drill === 'open4' ? 'cash' : formatOpt;
   const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, drill }));
   const [committed, setCommitted] = useState<FacingAction | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);

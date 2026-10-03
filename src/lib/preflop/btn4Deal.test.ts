@@ -119,3 +119,9 @@ describe('open vs 3-bet deals (cash only)', () => {
     expect(spotSizes('btn4-cash-SB', 'SB')).toEqual({ raiseBb: 12.5, fourBetSize: '25bb' });
   });
 });
+
+describe('open vs 3-bet guards', () => {
+  it('throws a clear error when asked for tournament charts', () => {
+    expect(() => dealFacingSpot({ format: 'mtt', drill: 'open4' })).toThrow(/cash only/);
+  });
+});

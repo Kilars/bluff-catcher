@@ -10,6 +10,7 @@ import type { FacingSpot } from '../lib/preflop/facingDeal';
 import {
   facingAnswerWord,
   facingCellAction,
+  facingChartPages,
   facingChartTitle,
   facingVerdictText,
   useFacingDrill,
@@ -286,5 +287,19 @@ describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
     expect(facingChartTitle('btn4-cash-SB')).toBe('BTN vs SB 3-bet');
     expect(facingChartTitle('btn4-mtt-BB')).toBe('BTN vs BB 3-bet');
     expect(facingAnswerWord({ correct: '4bet' })).toBe('4-bet');
+  });
+});
+
+describe('open vs 3-bet (cash only)', () => {
+  it('pages LJ, HJ, CO and deals cash even when asked for tournament', () => {
+    expect(facingChartPages('cash', 'open4', 'k').map((p) => [p.tab, p.title])).toEqual([
+      ['LJ', 'LJ vs 3-bet'],
+      ['HJ', 'HJ vs 3-bet'],
+      ['CO', 'CO vs 3-bet'],
+    ]);
+    localStorage.clear();
+    const { result } = renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', drill: 'open4' }));
+    expect(result.current.bucketMeta.format).toBe('cash');
+    expect(['LJ', 'HJ', 'CO']).toContain(result.current.bucketMeta.hero);
   });
 });
