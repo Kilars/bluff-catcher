@@ -18,7 +18,7 @@
 import Menu from './Menu';
 import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
-import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL } from '../lib/facingMeta';
+import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -69,6 +69,8 @@ function brandSub(mode: AppMode, depth: Depth, format: Format): string {
       return BB_CONTEXT_LABEL[format];
     case 'btn4bet':
       return BTN4_CONTEXT_LABEL[format];
+    case 'open4bet':
+      return OPEN4_CONTEXT_LABEL[format];
   }
 }
 
@@ -91,7 +93,13 @@ export default function Header({
   const isFacingDrill = FACING_DRILL_OF[mode] !== undefined;
   const preflopLikeStats = mode === 'preflop' ? preflopStats : isFacingDrill ? facingStats : undefined;
   const preflopLikeLabel =
-    mode === 'bbdefend' ? 'BB defend' : mode === 'btn4bet' ? 'vs 3-bet' : isFacingDrill ? 'facing' : 'preflop';
+    mode === 'bbdefend'
+      ? 'BB defend'
+      : mode === 'btn4bet' || mode === 'open4bet'
+        ? 'vs 3-bet'
+        : isFacingDrill
+          ? 'facing'
+          : 'preflop';
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`

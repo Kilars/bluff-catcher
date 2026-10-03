@@ -5,6 +5,8 @@
  *   bb   — an open, hero in the big blind (`bbDefendRanges.ts`)
  *   btn4 — hero opened the button, a blind 3-bets: fold, call or 4-bet
  *          (`btn4BetRanges.ts`, docs/PLAN-btn-4bet.md)
+ *   open4 — hero opened from LJ/HJ/CO, a seat behind 3-bets: fold, call or
+ *          4-bet, cash only (`open4BetRanges.ts`)
  *
  * ── Where these charts come from ──────────────────────────────────────────
  * PokerCoaching's free preflop chart pack (`full-preflop-charts.pdf`, p.6,
@@ -51,6 +53,8 @@ import {
   type BbMttOpener,
 } from './bbDefendRanges.ts';
 import { BTN4_CASH_CHARTS, BTN4_MTT_CHARTS, BTN4_OPEN, BTN4_THREE_BETTORS, type ThreeBettor } from './btn4BetRanges.ts';
+import { OPEN4_CASH_CHARTS, OPEN4_OPENERS, OPEN4_THREE_BETTORS, type Open4Opener } from './open4BetRanges.ts';
+import { CASH_RFI } from './cashRanges.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -88,10 +92,7 @@ export type Opener = (typeof OPENERS)[number];
  * Which facing drill a chart belongs to: hero on the button facing an open
  * (docs/PLAN-3bet.md), or hero in the big blind (docs/PLAN-bb-defend.md).
  */
-export type Drill = 'btn' | 'bb' | 'btn4';
-
-/** Hero's seat in each drill. */
-export const DRILL_HERO = { btn: 'BTN', bb: 'BB', btn4: 'BTN' } as const satisfies Record<Drill, string>;
+export type Drill = 'btn' | 'bb' | 'btn4' | 'open4';
 
 /** The open hero faces in the BTN drill (PLAN-3bet: 2.5bb, every opener). */
 export const BTN_DRILL_RAISE_BB = 2.5;
@@ -108,6 +109,9 @@ export type BbBucket = `bb-mtt-${BbMttOpener}` | `bb-cash-${BbCashOpener}`;
 
 /** BTN vs 3-bet: one bucket per (format, 3-bettor). */
 export type Btn4Bucket = `btn4-${Format}-${ThreeBettor}`;
+
+/** Open vs 3-bet: one bucket per opener, cash only. */
+export type Open4Bucket = `open4-cash-${Open4Opener}`;
 
 /**
  * Everything the BB drill's buckets differ by, per format (source metadata,
@@ -134,6 +138,7 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       openers: [o],
       chartSeat: o,
       raiseBb: o === 'SB' ? src.sbOpen : src.open,
+      hero: 'BB',
       raise: '3bet',
       chartName: `BB vs ${seat} (${format === 'mtt' ? '40bb' : 'cash'})`,
       footnote: 'Pure chart: border hands are likely mixed in the full solve, so they are close.',
@@ -168,6 +173,7 @@ const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       chartSeat: seat,
       raiseBb: src.threeBet,
       heroOpenBb: src.open,
+      hero: 'BTN',
       raise: '4bet',
       fourBetSize: src.fourBet,
       chartName: `BTN vs ${seat} 3-bet (${format === 'mtt' ? '40bb' : 'cash'})`,
@@ -180,12 +186,48 @@ const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
   });
 });
 
+/**
+ * Open vs 3-bet sizes (source profile cash_default): a seat in position
+ * 3-bets 3× (7.5bb) and hero's out-of-position 4-bet is 2.5× (19bb); a blind
+ * 3-bets 5× (12.5bb) and hero's in-position 4-bet is 2× (25bb).
+ */
+function open4Sizes(threeBettor: TableSeat): BetSizes {
+  return threeBettor === 'SB' || threeBettor === 'BB'
+    ? { raiseBb: 12.5, fourBetSize: '25bb' }
+    : { raiseBb: 7.5, fourBetSize: '19bb' };
+}
+
+/** One open-vs-3-bet bucket per cash opener; the 3-bettor is any seat behind. */
+const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
+  const id: Open4Bucket = `open4-cash-${opener}`;
+  const threeBettors = OPEN4_THREE_BETTORS[opener];
+  const meta: BucketMeta = {
+    id,
+    drill: 'open4',
+    format: 'cash',
+    stackLabel: '100bb',
+    label: 'vs 3-bet',
+    openers: threeBettors,
+    chartSeat: opener,
+    // The figures for a blind 3-bet; `spotSizes` gives each 3-bettor's own.
+    ...open4Sizes('BB'),
+    sizesBy: Object.fromEntries(threeBettors.map((t) => [t, open4Sizes(t)])),
+    heroOpenBb: 2.5,
+    hero: opener,
+    raise: '4bet',
+    chartName: `${opener} vs 3-bet (cash)`,
+    footnote: 'The source uses one chart whichever seat 3-bets. Pure chart: border hands are close.',
+  };
+  return { id, meta, chart: OPEN4_CASH_CHARTS[opener], reachable: CASH_RFI[opener] };
+});
+
 /** Every chart any facing drill grades against. */
-export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket | Btn4Bucket;
+export type Bucket = (typeof BTN_BUCKETS)[number] | BbBucket | Btn4Bucket | Open4Bucket;
 export const BUCKETS: readonly Bucket[] = [
   ...BTN_BUCKETS,
   ...BB_SPOTS.map((s) => s.id),
   ...BTN4_SPOTS.map((s) => s.id),
+  ...OPEN4_SPOTS.map((s) => s.id),
 ];
 
 /**
@@ -248,16 +290,35 @@ export interface BucketMeta {
   chartSeat: TableSeat;
   /** The raise hero faces, in bb: the open, or (BTN vs 3-bet) the 3-bet. */
   raiseBb: number;
-  /** Hero's own open, in bb — set only when hero opened (BTN vs 3-bet). */
+  /** Hero's own open, in bb — set only when hero opened (BTN / open vs 3-bet). */
   heroOpenBb?: number;
+  /** Hero's seat. */
+  hero: TableSeat;
+  /**
+   * Per-raiser sizes, where the raise hero faces depends on who made it
+   * (open vs 3-bet: in position or from a blind). Read through `spotSizes`.
+   */
+  sizesBy?: Partial<Record<TableSeat, BetSizes>>;
   /** The re-raise hero answers with on K. */
   raise: RaiseAction;
-  /** Hero's 4-bet size as the prompt states it ("25bb", "all-in"); BTN vs 3-bet only. */
+  /** Hero's 4-bet size as the prompt states it ("25bb", "all-in"); 4-bet drills only. */
   fourBetSize?: string;
   /** The source chart's name as the pack prints it, e.g. "BTN vs UTG+1". */
   chartName: string;
   /** One-line range-sheet footnote on where the bucket chart is off. */
   footnote?: string;
+}
+
+/** The raise hero faces and hero's 4-bet size, as the felt and prompt state them. */
+export interface BetSizes {
+  raiseBb: number;
+  fourBetSize?: string;
+}
+
+/** The sizes in a spot: the raiser's own where the bucket has them, else the bucket's. */
+export function spotSizes(bucket: Bucket, raiser: TableSeat): BetSizes {
+  const meta = BUCKET_META[bucket];
+  return meta.sizesBy?.[raiser] ?? { raiseBb: meta.raiseBb, fourBetSize: meta.fourBetSize };
 }
 
 function openersIn(format: Format, bucket: Bucket): readonly Opener[] {
@@ -275,6 +336,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('mtt', 'early'),
     chartSeat: 'UTG1',
     raiseBb: BTN_DRILL_RAISE_BB,
+    hero: 'BTN',
     raise: '3bet',
     chartName: 'BTN vs UTG+1',
     footnote: 'UTG is a touch tighter than this.',
@@ -289,6 +351,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('mtt', 'late'),
     chartSeat: 'LJ',
     raiseBb: BTN_DRILL_RAISE_BB,
+    hero: 'BTN',
     raise: '3bet',
     chartName: 'BTN vs LJ',
     footnote: 'vs HJ/CO the exact chart is a bit wider: more suited calls and bluffs.',
@@ -303,6 +366,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('cash', 'cashEarly'),
     chartSeat: 'LJ',
     raiseBb: BTN_DRILL_RAISE_BB,
+    hero: 'BTN',
     raise: '3bet',
     chartName: 'BTN vs LJ/HJ (cash)',
     footnote: 'The source uses one chart for LJ and HJ. Flats are the simplified chart’s: 66–99, A9s, A8s, QTs, JTs.',
@@ -317,12 +381,14 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     openers: openersIn('cash', 'cashCo'),
     chartSeat: 'CO',
     raiseBb: BTN_DRILL_RAISE_BB,
+    hero: 'BTN',
     raise: '3bet',
     chartName: 'BTN vs CO (cash)',
     footnote: 'Same flats as vs LJ/HJ; only 3-bets are added.',
   },
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.meta])),
   ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.meta])),
+  ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.meta])),
 } as Record<Bucket, BucketMeta>;
 
 /**
@@ -330,7 +396,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
  * 169: BTN vs 3-bet only happens to hands hero opened.
  */
 export const BUCKET_REACHABLE: Partial<Record<Bucket, ReadonlySet<HandClass>>> = Object.fromEntries(
-  BTN4_SPOTS.map((s) => [s.id, s.reachable])
+  [...BTN4_SPOTS, ...OPEN4_SPOTS].map((s) => [s.id, s.reachable])
 );
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
@@ -426,6 +492,7 @@ export const BUCKET_CHART = {
   cashCo: CASH_VS_CO,
   ...Object.fromEntries(BB_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(BTN4_SPOTS.map((s) => [s.id, s.chart])),
+  ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.chart])),
 } as Record<Bucket, FacingChart>;
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────

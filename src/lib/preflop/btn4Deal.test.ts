@@ -6,7 +6,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { dealFacingSpot, dealableClasses, facingTier, type FacingSpot } from './facingDeal';
-import { BUCKET_META, bucketChartAction, bucketsFor } from './facing';
+import { BUCKET_META, bucketChartAction, bucketsFor, spotSizes } from './facing';
+import { CASH_RFI } from './cashRanges';
 import { BTN4_OPEN } from './btn4BetRanges';
 import type { Format } from './ranges';
 
@@ -90,5 +91,31 @@ describe('BTN vs 3-bet tiers', () => {
     expect(facingTier('btn4-cash-SB', 'J4s')).toBe('trash');
     // A5s is a bluff 4-bet next to calls and folds: border.
     expect(facingTier('btn4-cash-SB', 'A5s')).toBe('border');
+  });
+});
+
+describe('open vs 3-bet deals (cash only)', () => {
+  const rng = makeRng(5);
+  const spots: FacingSpot[] = [];
+  for (let i = 0; i < N; i++) spots.push(dealFacingSpot({ rng, format: 'cash', drill: 'open4' }));
+
+  it('seats hero at LJ/HJ/CO with a 3-bettor behind, dealing only opened hands', () => {
+    expect(bucketsFor('cash', 'open4')).toEqual(['open4-cash-LJ', 'open4-cash-HJ', 'open4-cash-CO']);
+    expect(bucketsFor('mtt', 'open4')).toEqual([]);
+    for (const s of spots.slice(0, 2000)) {
+      const meta = BUCKET_META[s.bucket];
+      expect(meta.openers).toContain(s.opener);
+      expect(CASH_RFI[meta.hero as 'LJ' | 'HJ' | 'CO'].has(s.handClass)).toBe(true);
+      expect(s.correct).toBe(bucketChartAction(s.bucket, s.handClass).action);
+    }
+  });
+
+  it('sizes the 3-bet by who made it: 7.5bb in position, 12.5bb from a blind', () => {
+    expect(spotSizes('open4-cash-LJ', 'HJ')).toEqual({ raiseBb: 7.5, fourBetSize: '19bb' });
+    expect(spotSizes('open4-cash-CO', 'BTN')).toEqual({ raiseBb: 7.5, fourBetSize: '19bb' });
+    expect(spotSizes('open4-cash-HJ', 'SB')).toEqual({ raiseBb: 12.5, fourBetSize: '25bb' });
+    expect(spotSizes('open4-cash-HJ', 'BB')).toEqual({ raiseBb: 12.5, fourBetSize: '25bb' });
+    // Buckets without per-raiser sizes fall back to their own.
+    expect(spotSizes('btn4-cash-SB', 'SB')).toEqual({ raiseBb: 12.5, fourBetSize: '25bb' });
   });
 });

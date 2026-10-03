@@ -1,7 +1,7 @@
 /**
  * App — root shell. Holds mode state and routes to the active mode.
  *
- * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet'
+ * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet'
  *   Persisted to localStorage key bluff-catcher:mode:v1.
  *   Default 'odds' on first load or corrupt value.
  *
@@ -49,7 +49,7 @@ import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopSt
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
-import { BB_CHIP_LABEL, BTN4_CHIP_LABEL, FACING_CHIP_LABEL } from './lib/facingMeta';
+import { BB_CHIP_LABEL, BTN4_CHIP_LABEL, FACING_CHIP_LABEL, OPEN4_CHIP_LABEL } from './lib/facingMeta';
 import { FACING_DRILL_OF, useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
@@ -71,6 +71,8 @@ const STATS_KEY = {
   facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
   bbdefend: { mtt: 'bluff-catcher:bbdefend:v1', cash: 'bluff-catcher:bbdefend-cash:v1' },
   btn4bet: { mtt: 'bluff-catcher:btn4bet:v1', cash: 'bluff-catcher:btn4bet-cash:v1' },
+  // Cash only: one key whatever the format switch says.
+  open4bet: 'bluff-catcher:open4bet:v1',
 } as const;
 
 /** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
@@ -90,6 +92,8 @@ function contextLabelFor(
       return BB_CHIP_LABEL[format];
     case 'btn4bet':
       return BTN4_CHIP_LABEL[format];
+    case 'open4bet':
+      return OPEN4_CHIP_LABEL;
   }
 }
 
@@ -164,6 +168,7 @@ export default function App() {
   const facingStats = facingStatsByFormat[format];
   const bbStats = bbStatsByFormat[format];
   const btn4Stats = btn4StatsByFormat[format];
+  const open4Stats = usePreflopStats(STATS_KEY.open4bet);
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -240,8 +245,11 @@ export default function App() {
     facing: facingStats,
     bbdefend: bbStats,
     btn4bet: btn4Stats,
+    open4bet: open4Stats,
   }[mode];
   const facingDrill = FACING_DRILL_OF[mode];
+  // Open vs 3-bet has cash charts only, so it plays cash whatever the switch says.
+  const facingFormat: Format = facingDrill === 'open4' ? 'cash' : format;
   const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 
   const phoneStats: PhoneStatsPillProps =
@@ -344,9 +352,9 @@ export default function App() {
 
       {facingDrill && (
         <FacingTrainer
-          key={`${facingDrill}-${format}`}
+          key={`${facingDrill}-${facingFormat}`}
           drill={facingDrill}
-          format={format}
+          format={facingFormat}
           stats={accuracyStats}
           keysSuspended={keysSuspended}
         />

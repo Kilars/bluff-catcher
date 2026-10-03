@@ -109,6 +109,26 @@ keeps its blind tint. That matches BB defend.
 
 ---
 
+## Follow-up: Open vs 3-bet (cash only)
+
+A second mode on the same machinery (owner request, 2026-10-03), `open4bet` / drill `open4`:
+hero opens 2.5bb from **LJ, HJ or CO**, any seat behind 3-bets, the rest fold, and hero
+folds, calls or 4-bets, with the same value/bluff split (`Call 5Bet<opener>vs<seat>`).
+
+- `Cash_100_PTO` answers a 3-bet the same way whoever made it, so there is **one chart per
+  opener** (`open4BetRanges.ts`, vendored in `research/open-4bet-pto.json`; the test checks it
+  against every 3-bettor). Value / bluff / call combos: LJ 34/18/40 of 220 opened, HJ 40/12/46
+  of 282, CO 40/24/46 of 354.
+- Sizes come from the 3-bettor (`BucketMeta.sizesBy`, read through `spotSizes`): a seat in
+  position 3-bets to 7.5bb and hero's out-of-position 4-bet is 19bb. A blind 3-bets to 12.5bb
+  and hero 4-bets to 25bb.
+- `BucketMeta.hero` replaces the per-drill `DRILL_HERO`, since this drill's hero seat varies.
+- **Cash only.** At 40bb every (opener, 3-bettor) pair has its own noisy chart (35 of them),
+  the 4-bet is all-in, and there is no split. The mode plays cash whatever the format switch
+  says. It has one stats key, `bluff-catcher:open4bet:v1`.
+
+---
+
 ## Out of scope
 
 - Facing a 3-bet from other seats (CO/HJ/LJ opens). The source has these keys (`4Bet<seat>vs…`

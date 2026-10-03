@@ -268,3 +268,42 @@ export const BTN4_BRIEFING: Record<Format, InfoSheetContent> = {
   mtt: BTN4_MTT_BRIEFING,
   cash: BTN4_CASH_BRIEFING,
 };
+
+/**
+ * Open vs 3-bet (cash only). The chart facts are pinned by
+ * `lib/preflop/open4BetRanges.test.ts`.
+ */
+const OPEN4_CASH_BRIEFING: InfoSheetContent = {
+  ...BTN4_CASH_BRIEFING,
+  title: 'Fold, call or 4-bet after you open',
+  subline: '6-max cash table · 100bb effective, no ante · cash only',
+  steps: [
+    {
+      title: 'The spot',
+      body: 'You open 2.5bb from LJ, HJ or CO and a seat behind you 3-bets: to 7.5bb in position, 12.5bb from a blind. Everyone else folds. Fold, call, or 4-bet (19bb out of position, 25bb vs a blind). Only hands you open are dealt.',
+    },
+    {
+      title: 'One chart per seat',
+      body: 'The source answers a 3-bet the same way whoever made it, so each opener has one chart. Value 4-bets call a 5-bet jam; bluffs fold to it (the blue half).',
+    },
+    {
+      title: 'Three rules',
+      body: (
+        <ul className={styles.briefList}>
+          <li>Value: AA–QQ and AK; JJ too from HJ and CO. From the LJ, JJ is a bluff.</li>
+          <li>Bluffs are blockers: ATs, A5s, KTs, plus AQo from the CO.</li>
+          <li>Calls: 77–TT (66 too from HJ/CO), AQs, AJs, KQs, KJs. Everything else folds: about 6 in 10 LJ opens, 7 in 10 CO opens.</li>
+        </ul>
+      ),
+    },
+    {
+      title: 'Cash only',
+      body: 'The tournament source has a different, noisy chart for every 3-bettor and a jam for a 4-bet, so this drill always plays cash.',
+    },
+  ],
+};
+
+export const OPEN4_BRIEFING: Record<Format, InfoSheetContent> = {
+  mtt: OPEN4_CASH_BRIEFING,
+  cash: OPEN4_CASH_BRIEFING,
+};

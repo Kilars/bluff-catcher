@@ -28,8 +28,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealFacingSpot, type FacingSpot } from '../lib/preflop/facingDeal';
 import {
   BUCKET_META,
-  DRILL_HERO,
   bucketChartAction,
+  spotSizes,
   bucketsFor,
   type Bucket,
   type Drill,
@@ -47,6 +47,8 @@ export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
   btn: { mtt: 'facing', cash: 'facing-cash' },
   bb: { mtt: 'bbdefend', cash: 'bbdefend-cash' },
   btn4: { mtt: 'btn4bet', cash: 'btn4bet-cash' },
+  // Cash only: the drill always runs in cash, whatever the format switch says.
+  open4: { mtt: 'open4bet', cash: 'open4bet' },
 };
 
 /** A re-raise as the copy and buttons write it. */
@@ -72,7 +74,7 @@ export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
  */
 export function facingChartTitle(bucket: Bucket): string {
   const meta = BUCKET_META[bucket];
-  const hero = DRILL_HERO[meta.drill];
+  const hero = positionLabel(meta.hero);
   if (meta.drill !== 'btn' || meta.format === 'cash') return `${hero} ${meta.label}`;
   return `BTN ${meta.label} (${meta.openers.map(positionLabel).join(', ')})`;
 }
@@ -244,6 +246,8 @@ export function useFacingDrill({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const bucketMeta = BUCKET_META[spot.bucket];
+  /** The raise hero faces and hero's 4-bet size — open vs 3-bet varies them by 3-bettor. */
+  const sizes = spotSizes(spot.bucket, spot.opener);
   const raiseWord = RAISE_WORD[bucketMeta.raise];
   const isCommitted = committed !== null;
   const wasCorrect = isCommitted ? committed === spot.correct : null;
@@ -261,6 +265,7 @@ export function useFacingDrill({
   return {
     spot,
     bucketMeta,
+    sizes,
     raiseWord,
     openerLabel,
     committed,

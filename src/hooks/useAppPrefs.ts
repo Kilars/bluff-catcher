@@ -23,10 +23,10 @@ import type { Drill } from '../lib/preflop/facing';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet';
+export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet';
 
 /** Every valid mode, in menu order. Same list `loadMode` validates against. */
-export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet'];
+export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet', 'open4bet'];
 
 /** Each mode's name in menus and sheet subtitles. */
 export const MODE_LABEL: Record<AppMode, string> = {
@@ -35,6 +35,7 @@ export const MODE_LABEL: Record<AppMode, string> = {
   facing: 'Facing open',
   bbdefend: 'BB defend',
   btn4bet: 'BTN vs 3-bet',
+  open4bet: 'Open vs 3-bet',
 };
 
 /** The facing drill each facing mode runs; the other modes have none. */
@@ -42,6 +43,7 @@ export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = {
   facing: 'btn',
   bbdefend: 'bb',
   btn4bet: 'btn4',
+  open4bet: 'open4',
 };
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';

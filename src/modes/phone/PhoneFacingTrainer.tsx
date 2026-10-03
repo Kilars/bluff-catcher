@@ -17,7 +17,7 @@ import PhoneDecisionPanel, {
   type DecisionButtonConfig,
 } from '../../components/phone/preflop/PhoneDecisionPanel';
 import type { UseFacingDrillReturn } from '../../hooks/useFacingDrill';
-import { DRILL_HERO, type FacingAction, type RaiseAction } from '../../lib/preflop/facing';
+import type { FacingAction, RaiseAction } from '../../lib/preflop/facing';
 import styles from './PhonePreflopTrainer.module.css';
 
 /** Fold, call, and the drill's re-raise (3-bet facing an open, 4-bet facing a 3-bet). */
@@ -37,6 +37,7 @@ export interface PhoneFacingTrainerProps extends UseFacingDrillReturn {
 export default function PhoneFacingTrainer({
   spot,
   bucketMeta,
+  sizes,
   raiseWord,
   openerLabel,
   rangeOpen,
@@ -56,13 +57,13 @@ export default function PhoneFacingTrainer({
       <div className={styles.topPad} />
 
       <PhoneSeatLadder
-        position={DRILL_HERO[bucketMeta.drill]}
+        position={bucketMeta.hero}
         opener={spot.opener}
-        raiseBb={bucketMeta.raiseBb}
+        raiseBb={sizes.raiseBb}
         heroOpenBb={bucketMeta.heroOpenBb}
         format={bucketMeta.format}
         contextLine={[
-          `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${bucketMeta.raiseBb}bb`,
+          `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${sizes.raiseBb}bb`,
           bucketMeta.openerTag,
           bucketMeta.stackLabel,
         ]
@@ -81,7 +82,7 @@ export default function PhoneFacingTrainer({
         wasCorrect={wasCorrect}
         verdictText={verdictText}
         // Facing a 3-bet the size matters: at 40bb the 4-bet is a jam.
-        prompt={`Fold, call or ${raiseWord}${bucketMeta.fourBetSize ? ` (${bucketMeta.fourBetSize})` : ''}?`}
+        prompt={`Fold, call or ${raiseWord}${sizes.fourBetSize ? ` (${sizes.fourBetSize})` : ''}?`}
         actionLabel={raiseWord}
         boundaryText={detailText}
         actions={phoneActions(bucketMeta.raise, raiseWord)}

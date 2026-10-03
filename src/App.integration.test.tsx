@@ -368,3 +368,18 @@ describe('BTN vs 3-bet mode (docs/PLAN-btn-4bet.md)', () => {
     expect(JSON.parse(localStorage.getItem('bluff-catcher:btn4bet:v1')!).hands).toBe(1);
   });
 });
+
+describe('Open vs 3-bet mode (cash only)', () => {
+  it('plays cash even with the tournament switch on, hero opens and a seat behind 3-bets', () => {
+    localStorage.setItem('bluff-catcher:mode:v1', 'open4bet');
+    localStorage.setItem('bluff-catcher:briefed:v1', JSON.stringify(['open4bet']));
+    renderAt('desktop', <App />);
+
+    expect(screen.getByText('Open vs 3-bet · Cash 100bb')).toBeInTheDocument();
+    expect(screen.queryByText('UTG')).not.toBeInTheDocument();
+    expect(screen.getByTestId('hero-raise-chip')).toHaveTextContent(/^2\.5$/);
+    expect(screen.getByText(/You open 2\.5bb, (HJ|CO|BTN|SB|BB) 3-bets to (7\.5|12\.5)bb\. Fold, call or 4-bet \((19|25)bb\)\?/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /4-bet$/ }));
+    expect(JSON.parse(localStorage.getItem('bluff-catcher:open4bet:v1')!).hands).toBe(1);
+  });
+});

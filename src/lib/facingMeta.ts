@@ -50,3 +50,12 @@ export const BTN4_CHIP_LABEL: Record<Format, string> = {
   mtt: 'vs 3b',
   cash: '3b cash',
 };
+
+/** Open vs 3-bet mode's context string: cash only, whatever the format switch says. */
+export const OPEN4_CONTEXT_LABEL: Record<Format, string> = {
+  mtt: 'Open vs 3-bet · Cash 100bb',
+  cash: 'Open vs 3-bet · Cash 100bb',
+};
+
+/** Open vs 3-bet mode's phone chip — kept to ~7 characters for the 390px bar. */
+export const OPEN4_CHIP_LABEL = 'op v 3b';
