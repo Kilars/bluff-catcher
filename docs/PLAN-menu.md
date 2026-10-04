@@ -1,6 +1,6 @@
 # Plan: menu cleanup — group the preflop drills by the decision
 
-Status: proposed, 2026-10-04. Base: `origin/main` (3260020). Local `main` and
+Status: decided, 2026-10-04. Base: `origin/main` (3260020). Local `main` and
 `btn-4bet` are behind it and do not have Seat vs open.
 
 ## Goal
@@ -119,20 +119,15 @@ says" special case goes away (`hasFormatChoice`, `FACING_BRIEFING_ID.open4`,
 - `App.integration.test.tsx`, `PhoneMenuSheet.test.tsx` and `PhoneTopBar.test.tsx`
   test against the new labels, and add a test for the mode-id migration.
 
-## Open questions (recommendation first)
+## Decisions (2026-10-04)
 
-1. **Labels.** Open / 3-bet / 4-bet / Blinds, or keep "Preflop RFI" for the first
-   one? *Recommend "Open"*: it's short, it sits under a Preflop header, and it
-   names the decision like the others do.
-2. **Mix vs pick within a merged mode.** Deal a weighted mix of every spot (family
-   first, then bucket), or add a "Spot" sub-picker like Stack depth? *Recommend
-   the mix for v1.* A sub-picker can come later as an optional filter group.
-3. **Old stats.** Seat vs open stats can't be split between 3-bet and Blinds.
-   *Recommend:* fold them into 3-bet and migrate everything else exactly. The
-   alternative is to start the three merged modes from zero.
-4. **4-bet in MTT** only has the BTN spots (there are no MTT open-vs-3-bet
-   charts). Is that fine, or should 4-bet stay cash-only? *Recommend: follow the
-   switch.*
+1. **Labels:** Open / 3-bet / 4-bet / Blinds. "Preflop RFI" becomes "Open".
+2. **Spot choice:** merged modes deal a weighted mix (family first, then
+   bucket). There's no sub-picker in v1.
+3. **Old stats:** migrated exactly, and Seat vs open's counts go to 3-bet. The
+   old keys are kept.
+4. **4-bet** follows the format switch. Tournament deals the BTN spots, cash
+   deals the BTN and open-vs-3-bet spots.
 
 ## Order and size
 
