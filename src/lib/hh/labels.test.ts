@@ -337,8 +337,9 @@ Board [9d 6c 2s]`,
 /**
  * Hero is the caller, not the preflop raiser: the SB opens, Hero calls on the
  * button and the BB comes along, so three see the flop. Hero leads the flop
- * with air — but `cbet-multiway-air` gates on `d.pfa`, and a caller's flop lead
- * is a `donk-bet`, never a c-bet. Proves the `d.pfa` gate.
+ * with air — but `cbet-multiway-air` gates on `d.pfa`, so it is not a c-bet.
+ * The SB checked first, so it is not a donk either: a stab at a declined c-bet.
+ * Proves the `d.pfa` gate and the donk's raiser-yet-to-act gate.
  */
 const CBET_MULTIWAY_CALLER = multiway(
   'Ac Kd',
@@ -538,6 +539,23 @@ Hero collected 500 from pot
 *** SUMMARY ***
 Total pot 500 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 Board [Jh 7c 2d 4s]`,
+);
+
+/**
+ * Hero defends the big blind and leads the flop before the button raiser acts:
+ * the strict meaning of a donk bet.
+ */
+const DONK_INTO_RAISER = caller(
+  'Ac Kd',
+  `*** FLOP *** [Jh 7c 2d]
+Hero: bets 300
+Villain: folds
+Uncalled bet (300) returned to Hero
+*** SHOWDOWN ***
+Hero collected 500 from pot
+*** SUMMARY ***
+Total pot 500 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d]`,
 );
 
 /**
@@ -793,8 +811,13 @@ const CASES = [
     want: [],
   },
   {
-    name: 'leads the flop with air multiway as the caller — a donk, not a c-bet',
+    name: 'bets the flop as the caller after the raiser checked — a stab, not a donk',
     text: CBET_MULTIWAY_CALLER,
+    want: [],
+  },
+  {
+    name: 'leads the flop into the raiser from the big blind — a donk',
+    text: DONK_INTO_RAISER,
     want: [['flop:bet', ['donk-bet']]],
   },
   {

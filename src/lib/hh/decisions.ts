@@ -64,7 +64,7 @@ function shoved(a: Action): boolean {
  * `amount / potBefore` for a bet and `raiseBy / (potBefore + toCall)` for a
  * raise, with no fallback when `raiseBy` is absent.
  */
-function sizing(a: Action): number | null {
+export function sizing(a: Action): number | null {
   if (a.kind === 'bet') return a.potBefore > 0 ? a.amount / a.potBefore : null;
   if (a.kind !== 'raise' || a.raiseBy === undefined) return null;
   const pot = a.potBefore + a.toCall;

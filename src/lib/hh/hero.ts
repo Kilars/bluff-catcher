@@ -113,6 +113,14 @@ export interface HeroHand {
   /** Hero opened and someone raised over the top. */
   faced3Bet: boolean;
   foldedTo3Bet: boolean;
+  /** Seat of the villain who raised over Hero's raise; null unless faced3Bet. */
+  threeBettorPos: string | null;
+  /** A caller was already in when that raise landed — a squeeze, pot heading multiway. */
+  faced3BetMultiway: boolean;
+  /** The raise's size as a fraction of the pot it raised over; null if unreadable. */
+  faced3BetSizing: number | null;
+  /** How Hero answered it. '4bet' is the re-raise whatever street of the war it is. */
+  faced3BetResponse: 'fold' | 'call' | '4bet' | null;
   /** Hero was in the BB facing a lone steal-position open. */
   stealDefenceOpp: boolean;
   stealDefence: 'fold' | 'call' | '3bet' | null;
@@ -220,6 +228,10 @@ function classifyPreflop(
   | 'threeBet'
   | 'faced3Bet'
   | 'foldedTo3Bet'
+  | 'threeBettorPos'
+  | 'faced3BetMultiway'
+  | 'faced3BetSizing'
+  | 'faced3BetResponse'
   | 'stealDefenceOpp'
   | 'stealDefence'
 > {
@@ -237,6 +249,10 @@ function classifyPreflop(
   let threeBet = false;
   let faced3Bet = false;
   let foldedTo3Bet = false;
+  let threeBettorPos: string | null = null;
+  let faced3BetMultiway = false;
+  let faced3BetSizing: number | null = null;
+  let faced3BetResponse: HeroHand['faced3BetResponse'] = null;
   let stealDefenceOpp = false;
   let stealDefence: HeroHand['stealDefence'] = null;
   let heroRaised = false;
@@ -277,11 +293,29 @@ function classifyPreflop(
           stealDefenceOpp = true;
           stealDefence = a.kind === 'raise' ? '3bet' : a.kind === 'call' ? 'call' : 'fold';
         }
-      } else if (heroRaised && faced3Bet && foldedTo3Bet === false && a.kind === 'fold') {
-        foldedTo3Bet = true;
+      } else if (heroRaised && faced3Bet && faced3BetResponse === null) {
+        // Hero's first answer to the raise over the top: the fold keeps the
+        // existing foldedTo3Bet flag the stat reads, and call/4bet fill in the
+        // rest so the spot can be coached without a result.
+        if (a.kind === 'fold') {
+          foldedTo3Bet = true;
+          faced3BetResponse = 'fold';
+        } else if (a.kind === 'call') {
+          faced3BetResponse = 'call';
+        } else if (a.kind === 'raise') {
+          faced3BetResponse = '4bet';
+        }
       }
     } else if (seenHero && heroRaised && a.kind === 'raise' && !faced3Bet) {
       faced3Bet = true;
+      threeBettorPos = hand.position[a.player] ?? null;
+      // callersSinceRaise is still pre-`a` here (the bottom of the loop updates
+      // it after), so it counts the flats of Hero's raise — i.e. a squeeze.
+      faced3BetMultiway = callersSinceRaise > 0;
+      faced3BetSizing =
+        a.raiseBy !== undefined && a.potBefore + a.toCall > 0
+          ? a.raiseBy / (a.potBefore + a.toCall)
+          : null;
     }
 
     if (a.kind === 'raise') {
@@ -304,6 +338,10 @@ function classifyPreflop(
     threeBet,
     faced3Bet,
     foldedTo3Bet,
+    threeBettorPos,
+    faced3BetMultiway,
+    faced3BetSizing,
+    faced3BetResponse,
     stealDefenceOpp,
     stealDefence,
   };

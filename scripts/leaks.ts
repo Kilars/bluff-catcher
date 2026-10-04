@@ -32,7 +32,9 @@ import { assertBlind, stubJudge, validateFamilyVerdict } from '../src/lib/hh/jud
 import { LABELS, labelGroups } from '../src/lib/hh/labels.ts';
 import { familyBriefs } from '../src/lib/hh/packet.ts';
 import { rankGroups } from '../src/lib/hh/priority.ts';
+import { bigSpots } from '../src/lib/hh/bigspots.ts';
 import { coldCalls } from '../src/lib/hh/flats.ts';
+import { faced3Bets } from '../src/lib/hh/faced3bets.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
 import { summarise } from '../src/lib/hh/stats.ts';
 import {
@@ -221,11 +223,13 @@ if (mode === 'pots') {
   const summary = summarise(hands);
   const folds = rfiFolds(hands);
   const flats = coldCalls(hands);
+  const faced3 = faced3Bets(hands);
+  const big = bigSpots(hands);
   const all = labelGroups(hands);
   const groups = label ? all.filter((g) => g.label === label) : all;
   const perLabel = label ? Infinity : undefined;
   output = asJson
-    ? JSON.stringify(renderJson(summary, meta, folds, flats, groups, perLabel), null, 2)
+    ? JSON.stringify(renderJson(summary, meta, folds, flats, faced3, big, groups, perLabel), null, 2)
     : renderText(summary, meta, folds, groups, perLabel);
 }
 

@@ -106,6 +106,7 @@ interface LabelFlags {
   betTurn: boolean;
   multiwayFlop: boolean;
   pfaCheckedFlop: boolean;
+  pfaYetToActFlop: boolean;
   villainBetFlop: boolean;
   villainBetTurn: boolean;
 }
@@ -119,6 +120,7 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
     betTurn,
     multiwayFlop,
     pfaCheckedFlop,
+    pfaYetToActFlop,
     villainBetFlop,
     villainBetTurn,
   } = f;
@@ -181,7 +183,10 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
   // the caller's range is capped and the PFR keeps the top — but correct on low
   // connected boards (6-5-4), where the caller owns the straights and sets. A
   // fact either way; `shared.boardType` is what tells a good lead from a leak.
-  if (d.street === 'flop' && !d.pfa && d.kind === 'bet' && !d.facedBet) out.push('donk-bet');
+  // `pfaYetToActFlop` is what makes it a lead *into* the raiser: a bet after the
+  // raiser checked is a stab at a declined c-bet, not a donk.
+  if (d.street === 'flop' && !d.pfa && d.kind === 'bet' && !d.facedBet && pfaYetToActFlop)
+    out.push('donk-bet');
 
   // §3: the caller bets the turn after the preflop raiser CHECKED BACK the flop
   // — betting into a *declined* c-bet, which is the strict meaning of "probe".
@@ -313,6 +318,18 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   // declined it. This is what `turn-probe` bets into. Read heads-up; multiway a
   // third player could be the one who checked, hence the rubric caveat.
   const pfaCheckedFlop = Boolean(flop && flop.checked && !flop.bet && !flop.facedBetEver);
+  // The preflop raiser had not acted on the flop when Hero first did — Hero was
+  // leading into them. False in a limped pot (no raiser to lead into) and when
+  // the raiser already checked, which turns a caller's bet into a stab.
+  const preflop = h.streets.find((s) => s.street === 'preflop');
+  const pfaPlayer = preflop?.allActions.filter((a) => a.kind === 'raise').at(-1)?.player ?? null;
+  const pfaYetToActFlop = Boolean(
+    flop &&
+      pfaPlayer &&
+      !flop.allActions
+        .slice(0, flop.allActions.indexOf(flop.actions[0]))
+        .some((a) => a.player === pfaPlayer),
+  );
   // A villain barrelled a street: Hero faced a bet on it (`facedBetEver`, which
   // also catches Hero checking and the villain betting behind) and Hero was not
   // the one betting (`!bet`, so a bet Hero made and was raised on is not a
@@ -337,6 +354,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
       betTurn,
       multiwayFlop,
       pfaCheckedFlop,
+      pfaYetToActFlop,
       villainBetFlop,
       villainBetTurn,
     });

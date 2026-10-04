@@ -33,3 +33,6 @@ leaks-log.md
 
 # Scraped coaching transcripts — third-party content, never committed
 research/coaching-transcripts/
+
+# personal coaching reviews (not committed)
+leaks-review-*.md

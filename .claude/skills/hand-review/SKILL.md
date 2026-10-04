@@ -5,79 +5,77 @@ description: Coach a session from the local GGPoker hand-history archive. Use wh
 
 # Hand review
 
-Coach from the report. Never from the hands.
+Coach from the report, never from the raw hands. Use real hand IDs, not
+theoretical ranges.
 
 ## Run
 
 ```bash
-npm run leaks -- --json --from YYYY-MM-DD --to YYYY-MM-DD   # both optional
-npm run leaks -- --json --label check-draw                  # one label, in full
+npm run leaks -- --json --variant cash|mtt [--from YYYY-MM-DD] [--to YYYY-MM-DD] --out FILE
+npm run leaks -- --json --variant cash --label NAME --out FILE   # every instance of one label
 ```
 
-No path argument: `hands/` is the default and is read recursively. Both dates
-are inclusive and either works alone. With no window, the whole archive is
-reported on — say so.
+No path argument means `hands/` is read recursively. Dates are inclusive. With
+no window, the whole archive is reported. Say so.
 
-Read `docs/leak-coaching.md` before writing anything; it holds the bands, the
-finding catalogue and the output contract.
+Read `docs/leak-coaching.md` first. It has the bands, the label meanings and the
+finding catalogue.
 
-## Lead with the labelled hands
+## Read everything
 
-`labels[]` is why hands are in the payload at all. Each entry is one label,
-the facets **every** instance of it shares, and a stride-sampled set of the
-decisions themselves — street, seat, stack depth, SPR, sizing, hand class,
-flop texture, removals and the hand id.
+1. **Preflop, per hand:** `rfiFolds[]` (chart opens folded), `coldCalls[]`
+   (flats), `faced3Bets[]` (a raise over your raise: `heroRole` `open` means you
+   faced a 3-bet, `3bet`/`squeeze` means you faced a 4-bet). Each is sound at
+   n=1. Argue each hand from seat, raiser's seat, sizing and whether it's
+   multiway.
+2. **Postflop, every label family:** for each `labels[]` group with `stride` > 1,
+   re-run with `--label NAME` and read every instance, not the 5-hand sample.
+   Sort each group's instances into correct and leak, and name the IDs. A label
+   is not a mistake: many fire on correct lines.
+3. **Stats last:** `stats[]` and `byBoard` are context. Quote `byBoard` for
+   direction only, with its caveat. Never coach a `thin` stat, and never coach
+   opening frequency.
 
-Work it in this order:
+## Big spots
 
-1. Take the groups whose `shared` is non-empty. That is the finding: "four
-   flop checks as the raiser, all from the blind, all on dry high-card boards"
-   is a rule being carried. An empty `shared` means these instances have
-   nothing to do with each other — leave them.
-2. Open one decision from `decisions[]` and argue it from its own board, hand
-   class, SPR and sizing. Name the hand id so the user can pull it up.
-3. Only then look at `rfiFolds[]`, and only then at the percentages.
+`bigSpots[]` is the 20 hands where Hero committed the most. For each one it lists
+every decision with the pot, the price, the sizing and the hand strength at the
+time, plus the board up to the last street Hero acted on. It contains no
+outcome. Use it to judge how Hero plays under pressure, and look for patterns
+across the spots: sizing with strong hands, river stack-offs, bluff targets,
+preflop wars.
 
-**A label is not a mistake.** `overbet-strong` is the recommended line with
-nut advantage and a readable one without it; `check-draw` on a monotone flop
-is standard. The code says what happened; deciding what was wrong is your
-whole job. If you cannot say why one named instance was wrong, drop it.
-
-**Never turn `instances` into a rate.** There is no denominator in the payload
-and inventing one is the counting this tool was built without. `stride` above
-1 means `decisions[]` is a sample of the group, not all of it.
-
-**Never run `--mode pots`.** It ranks hands by what they returned, and it
-exists for a human asking where the chips went. Reading it would tell you which
-hands lost, and the hands that lost are not the hands played worst.
+Never run `--mode pots`, even if the user asks for results. It shows who won,
+and a lost pot reads as a bad decision. If asked, explain that and coach from
+`bigSpots` instead.
 
 ## Hard rules
 
-- **Never read `hands/`.** The JSON payload is the only input. It is already
-  stripped of villain hole cards and the board stops where Hero stopped.
-- **Never state a number that is not in the payload.** Code counts; you read.
-- **Never say how the session went.** No result reaches you — not net chips,
-  not won-at-showdown, not a pot list. That is deliberate. Do not ask for it,
-  do not reach for `--mode pots`, and do not imply a direction you cannot know.
-- **Only `meta.window` may be described.** `meta.archive` tells you how thin
-  the slice is — it is not yours to narrate.
-- **Never coach opening frequency.** `rfiFolds[]` is the carve-out: those are
-  per-hand facts and sound at n=1.
-- **Never quote a `byBoard.splits` percentage.** Direction only, with the
-  caveat attached.
-- **A group ships five instances, not all of them.** `instances` is the true
-  count and `stride` says how the five were picked. When a group looks like a
-  real pattern and five is not enough to argue from, re-run with `--label
-  <name>` for every instance. Never read the five as the whole.
-- **Two of the same mistake beat one of each.** When a `labels[]` group has a
-  non-empty `shared`, or `rfiFolds[]` has more than one entry, say what they
-  share — seat, depth, texture, hand family. The shared thing is the finding;
-  the count is not.
-- **At most three findings. Fewer than three is a correct output.** Say nothing
-  rather than reach for a third.
+- Never read `hands/` or `--mode pots` while coaching. The `--json` leaks
+  payload is the only input. (Dev work on the parser is a different hat; see
+  `CLAUDE.md`.)
+- Never state a number that isn't in the payload.
+- Never claim how a hand or session went. You don't know.
+- Describe only `meta.window`. `meta.archive` only tells you how thin the slice
+  is.
+- Never turn `instances` into a rate.
+- Population-dependent spots (bluff-catches, river bluffs): say which pool read
+  you're making.
 
-## Write
+## Output
 
-Append each session's findings to `leaks-log.md` (gitignored) under a dated
-heading, and give the user a short summary in chat — the log is the record, the
-chat is the conversation.
+Write `leaks-review-<YYYY-MM-DD>.md` (gitignored), with these sections in order:
+
+1. **Sample:** window, hand count, variant, and how reliable the numbers are.
+2. **What's going well**, with hand IDs.
+3. **Preflop:** RFI folds, cold-calls, faced 3-bets and 4-bets.
+4. **Postflop:** one subsection per label family, each with correct vs leak hands.
+5. **Big spots:** every `bigSpots` hand in a table with a **Do differently**
+   column (one short fix, or ✅ if the hand was played fine), then the patterns.
+6. **One thing to focus on.**
+
+Append a short dated summary to `leaks-log.md`. Send the review file to the user
+with SendUserFile, and keep the chat reply to the headline findings.
+
+If a label misfires (it tags a line it shouldn't), say so in a tooling note in
+the review. Don't coach from it.

@@ -20,7 +20,9 @@ import type { HeroHand } from './hero.ts';
 import type { FamilyBrief, FamilyVerdict } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { spotWrongness, throughlineHolds } from './priority.ts';
+import type { BigSpot } from './bigspots.ts';
 import type { ColdCall } from './flats.ts';
+import type { Faced3Bet } from './faced3bets.ts';
 import type { RfiFold } from './rfi.ts';
 import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 
@@ -230,6 +232,8 @@ export function renderJson(
   meta: ReportMeta,
   folds: RfiFold[],
   flats: ColdCall[],
+  faced3: Faced3Bet[],
+  big: BigSpot[],
   groups: LabelGroup[],
   perLabel?: number,
 ) {
@@ -259,6 +263,12 @@ export function renderJson(
     // per-hand preflop facts, sound to coach at n=1 (docs/leak-coaching.md §2).
     rfiFolds: folds,
     coldCalls: flats,
+    // Facing a raise over Hero's own raise: the hands behind the foldTo3Bet
+    // stat, named so the over-fold can be argued one spot at a time.
+    faced3Bets: faced3,
+    // The biggest hands by what Hero committed, every decision with its pot and
+    // price and no outcome — the blind answer to "how do I play the big spots".
+    bigSpots: big,
     byBoard: {
       caveat: SPLIT_CAVEAT,
       splits: s.byBoard.map((b) => ({

@@ -15,7 +15,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { readArchive, selectWindow, type ArchiveFile } from './archive.ts';
+import { bigSpots } from './bigspots.ts';
 import { coldCalls } from './flats.ts';
+import { faced3Bets } from './faced3bets.ts';
 import { LABELS, labelGroups } from './labels.ts';
 import { rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
@@ -48,7 +50,15 @@ function sampleReport() {
   const archive = readArchive(files);
   const { hands, window } = selectWindow(archive.hands);
   const meta = { archive: archive.meta, window };
-  return renderJson(summarise(hands), meta, rfiFolds(hands), coldCalls(hands), labelGroups(hands));
+  return renderJson(
+    summarise(hands),
+    meta,
+    rfiFolds(hands),
+    coldCalls(hands),
+    faced3Bets(hands),
+    bigSpots(hands),
+    labelGroups(hands),
+  );
 }
 
 describe('docs/leak-coaching.md', () => {
@@ -76,10 +86,18 @@ describe('docs/leak-coaching.md', () => {
     for (const key of ['wwsf', 'wtsd', 'wsd']) {
       expect(report.stats.map((x) => x.key), key).not.toContain(key);
     }
-    // Nothing that survives may carry a chip count or a big-blind figure.
+    // Nothing that survives may carry a result. Big-blind figures are allowed
+    // only where they are a decision-time fact: the stack, and bigSpots' chips
+    // committed, pot and price — never a net, a win or a showdown.
     const money = /net|won|invested|cost|chips|BB\b/i;
+    const decisionTime = /^"(stackBB|committedBB|amountBB|potBB|toCallBB)"/;
     const leaked = JSON.stringify(report).match(/"(\w*(?:net|won|invested|cost|BB))"\s*:/gi) ?? [];
-    expect(leaked.filter((k) => !/stackBB/i.test(k) && money.test(k))).toEqual([]);
+    expect(leaked.filter((k) => !decisionTime.test(k) && money.test(k))).toEqual([]);
+    for (const spot of report.bigSpots) {
+      for (const key of ['showdown', 'netBB', 'grossBB', 'won', 'streetReached']) {
+        expect(spot, key).not.toHaveProperty(key);
+      }
+    }
   });
 
   it('documents exactly the stats the report emits', () => {

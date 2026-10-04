@@ -22,6 +22,11 @@ meta.levels, meta.tournaments — of the window
 labels[]     {label, shared, instances, stride, decisions[]}
 rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
 coldCalls[]  {id, position, vsPos, cards, hand, stackBB, depth, limpersAhead}
+bigSpots[]   {id, position, role, pfa, cards, hand, stackBB, depth, committedBB,
+              board, decisions[{street, action, amountBB, potBB, toCallBB,
+              sizing, allIn, equityNeeded, handClass}]}
+faced3Bets[] {id, position, heroRole, threeBettorPos, cards, hand, stackBB,
+              depth, multiway, sizing, response}
 byBoard      {caveat, splits[]}
 byRole[]     {role, hands}
 stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
@@ -40,11 +45,16 @@ net by role, no loss-ranked pot list and no won-when/won-at-showdown. Hands
 that lost are not hands that were played badly — a cooler played perfectly
 loses a stack, and a bad fold costs nothing and leaves no trace — so an agent
 given the money coaches the wrong hands. `--mode pots` is the one place results
-are visible, and it is for a human asking where the chips went, not for you.
+are visible, and it is for a human asking where the chips went, never for you.
+The big hands reach you through `bigSpots[]` instead: ranked by what Hero
+committed, with every decision's pot and price and no outcome.
 
 **Hands reach you because they carry a label, never because of what they
-returned.** `labels[]` is the selector, and `rfiFolds[]` is the preflop one.
-Everything in a labelled decision was knowable before the next card came.
+returned.** `labels[]` is the selector, and `rfiFolds[]`, `coldCalls[]` and
+`faced3Bets[]` are the per-hand preflop ones — each sound at n=1. `faced3Bets[]`
+is every hand where Hero's raise was raised over the top: the record behind the
+`foldTo3Bet` stat, which otherwise names no hand. Everything in a labelled
+decision was knowable before the next card came.
 
 `labels[].decisions[]` = `{id, street, action, position, stackBB, depth, spr,
 sizing, allIn, pfa, facedBet, cards, board, handClass, boardType, removals,
@@ -105,8 +115,9 @@ full runout. Villain hole cards are not in the payload at any point.
 5. **On a sample under 200 hands, lead with `rfiFolds` and `byRole`,** not with
    percentages. Only `vpip`, `pfr` and `threeBet` settle early; postflop stats
    need thousands.
-7. **Report at most 3 findings.** Ranked by rule 2 below. More is noise, and
-   **fewer than three is a correct output** — say nothing rather than reach.
+7. **Rank, don't pad.** Within each section of the review, lead with the
+   findings ranked by rule 2 below. A section with nothing real in it says so in
+   one line — say nothing rather than reach.
 8. **Describe only `meta.window`.** `meta.archive` is there so you know how
    thin a slice you were handed. Never describe hands outside the window, and
    never call the window "your session" unless the dates say it is one.
@@ -208,6 +219,44 @@ barrels against them.
 is usually a fold — the middle option is the leak. A 3-bet builds the pot when
 ahead, folds out equity that would otherwise draw cheaply, claims the
 initiative, and shrinks the field.
+
+---
+
+### `LEAK-FOLD3BET` — folding too much (or continuing wrong) to a raise over your raise
+
+**trigger**
+```
+stats[foldTo3Bet].flag = 'missed' AND verdict != 'thin'
+  OR faced3Bets[] has two or more entries that share a facet
+```
+**cite** `stats[foldTo3Bet].pct` and `made/opportunities` when not thin, and for
+the per-hand drill-down the specific `faced3Bets[]` entries: name the `id`,
+`cards`, `position`, `threeBettorPos`, `heroRole`, `sizing`, `multiway` and
+`response`, and argue each one. A fold is not automatically a leak — `faced3Bets`
+is full of correct folds (junk opens, dominated offsuit hands out of position
+against a big size), and the stat being high only points you at the list; the
+coaching is per hand.
+
+`heroRole` splits the list in two: an `open`/`iso-raise` entry is **facing a
+3-bet**, a `3bet`/`squeeze` entry is **facing a 4-bet** (`response: '4bet'` is
+then Hero's 5-bet). `threeBettorPos` vs `position` fixes who is in position — a
+hand folded in position to a blind's 3-bet is a tighter fold than the same hand
+out of position to the seat on your left. `multiway: true` is a squeeze: a caller
+was already in, so Hero's continuing range tightens and the 4-bet denies the
+cold-caller's equity too.
+
+**why it costs** The same way `LEAK-COLDCALL` does, inverted: refusing to
+continue hands good enough to call or 4-bet lets opponents 3-bet you for free, and
+it is self-reinforcing — a player who never 4-bet-bluffs gets value-owned by every
+4-bet they do make. The mirror leak is continuing *wrong*: flatting a dominated
+offsuit broadway out of position, or calling a 4-bet with a hand the 4-bet range
+dominates, spews the chips the fold would have saved.
+
+**fix** Read the whole list before judging. The common shapes: (1) a genuinely
+too-tight fold of a strong, playable hand — flat it in position, flat or 4-bet it
+out; (2) only value 4-bets and no bluff 4-bets — a few blocker hands (suited aces)
+keep the value ones paid; (3) a too-loose continue out of position — fold or
+3-bet it rather than cold-call. Name which shape each cited hand is.
 
 ---
 
@@ -485,8 +534,10 @@ hundred hands with it as the only focus, then re-run.
 
 - Never open with how the session went. You do not know, and saying it anyway
   is the failure mode this payload exists to prevent.
-- At most 3 findings, ranked per §2. Each: what happened, why it costs, the
-  fix. Cite the finding's required evidence.
+- A full review in the sections the `hand-review` skill lists: what's going
+  well, preflop, every postflop label family, big spots, and one focus.
+  Each finding: what happened, why it costs, the fix. Cite the finding's
+  required evidence, and name the correct instances alongside the leaks.
 - Close with `MINDSET-ONELEAK`.
 - State `meta.window.hands` as the sample size and, when under 200, that
   percentages are not yet reliable. If `meta.archive.hands` is much larger, say
