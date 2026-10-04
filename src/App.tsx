@@ -1,17 +1,17 @@
 /**
  * App — root shell. Holds mode state and routes to the active mode.
  *
- * mode: 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen'
- *   Persisted to localStorage key bluff-catcher:mode:v1.
- *   Default 'odds' on first load or corrupt value.
+ * mode: 'odds' | 'preflop' | 'threebet' | 'fourbet' | 'blinds'   (docs/PLAN-menu.md)
+ *   Persisted to localStorage key bluff-catcher:mode:v1; the retired drill ids
+ *   read forward (`LEGACY_MODE`). Default 'odds' on first load or corrupt value.
  *
  * depth: 'deep' | 'mid' | 'short'   (60bb+ / 20bb / 10bb jam)
  *   The stack tier the preflop trainer drills. Persisted to
  *   bluff-catcher:preflop-depth:v1, default 'deep'. Lives here rather than in
  *   PreflopTrainer because the header menu owns the switch and the standalone
- *   range browser opens on the same tier. Facing mode has no depth picker (its
- *   source chart is one span, 50bb+ — see docs/PLAN-3bet.md, "Depth caveat"),
- *   so this is simply unused while mode === 'facing'.
+ *   range browser opens on the same tier. The facing modes have no depth
+ *   picker (one source depth per format — see docs/PLAN-3bet.md, "Depth
+ *   caveat"), so this is simply unused in 3-bet, 4-bet and Blinds.
  *
  * format: 'mtt' | 'cash'   (docs/PLAN-cash.md)
  *   Tournament or cash, for both preflop drills. Persisted to
@@ -45,12 +45,12 @@
 import { useEffect, useState } from 'react';
 import { useLayoutMode } from './hooks/useLayoutMode';
 import { useStats } from './hooks/useStats';
-import { DEFAULT_PREFLOP_STATS_KEY, usePreflopStats } from './hooks/usePreflopStats';
+import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
 import RangeSheet from './components/RangeSheet';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
-import { BB_CHIP_LABEL, BTN4_CHIP_LABEL, FACING_CHIP_LABEL, OPEN4_CHIP_LABEL, SEAT_CHIP_LABEL } from './lib/facingMeta';
-import { FACING_DRILL_OF, useAppPrefs } from './hooks/useAppPrefs';
+import { MODE_CHIP_LABEL } from './lib/facingMeta';
+import { STATS_KEY, isFacingMode, useAppPrefs } from './hooks/useAppPrefs';
 import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
@@ -62,42 +62,15 @@ import PreflopTrainer from './modes/PreflopTrainer';
 import FacingTrainer from './modes/FacingTrainer';
 import styles from './App.module.css';
 
-/**
- * Stats keys per drill and format. RFI's tournament key predates the format
- * (it is usePreflopStats' default); cash stats never mix with tournament ones.
- */
-const STATS_KEY = {
-  preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
-  facing: { mtt: 'bluff-catcher:facing:v1', cash: 'bluff-catcher:facing-cash:v1' },
-  bbdefend: { mtt: 'bluff-catcher:bbdefend:v1', cash: 'bluff-catcher:bbdefend-cash:v1' },
-  btn4bet: { mtt: 'bluff-catcher:btn4bet:v1', cash: 'bluff-catcher:btn4bet-cash:v1' },
-  seatvsopen: { mtt: 'bluff-catcher:seatvsopen:v1', cash: 'bluff-catcher:seatvsopen-cash:v1' },
-  // Cash only: one key whatever the format switch says.
-  open4bet: 'bluff-catcher:open4bet:v1',
-} as const;
-
 /** The context-chip / brand-sub label for each mode, so no call site special-cases 'odds'. */
 function contextLabelFor(
   mode: ReturnType<typeof useAppPrefs>['mode'],
   depthLabel: string,
   format: Format
 ): string {
-  switch (mode) {
-    case 'odds':
-      return 'Odds';
-    case 'preflop':
-      return depthLabel;
-    case 'facing':
-      return FACING_CHIP_LABEL[format];
-    case 'bbdefend':
-      return BB_CHIP_LABEL[format];
-    case 'btn4bet':
-      return BTN4_CHIP_LABEL[format];
-    case 'seatvsopen':
-      return SEAT_CHIP_LABEL[format];
-    case 'open4bet':
-      return OPEN4_CHIP_LABEL;
-  }
+  if (mode === 'odds') return 'Odds';
+  if (mode === 'preflop') return depthLabel;
+  return MODE_CHIP_LABEL[mode][format];
 }
 
 // ─── Viewport scaling constants ───────────────────────────────────────────────
@@ -147,36 +120,17 @@ export default function App() {
   // full-screen sheet, so a single slot is the whole state machine.
   const [phoneSheet, setPhoneSheet] = useState<'menu' | 'context' | 'stats' | null>(null);
   const stats = useStats();
-  // One instance per drill × format, picked below. Four instances rather than
+  // One instance per mode × format, picked below. Eight instances rather than
   // one with a changing key: usePreflopStats reads storage only on mount, so
   // switching one instance's key would copy the tournament numbers into the
   // cash key on its next save.
-  const preflopStatsByFormat = {
-    mtt: usePreflopStats(STATS_KEY.preflop.mtt),
-    cash: usePreflopStats(STATS_KEY.preflop.cash),
+  const statsByMode = {
+    preflop: { mtt: usePreflopStats(STATS_KEY.preflop.mtt), cash: usePreflopStats(STATS_KEY.preflop.cash) },
+    threebet: { mtt: usePreflopStats(STATS_KEY.threebet.mtt), cash: usePreflopStats(STATS_KEY.threebet.cash) },
+    fourbet: { mtt: usePreflopStats(STATS_KEY.fourbet.mtt), cash: usePreflopStats(STATS_KEY.fourbet.cash) },
+    blinds: { mtt: usePreflopStats(STATS_KEY.blinds.mtt), cash: usePreflopStats(STATS_KEY.blinds.cash) },
   };
-  const facingStatsByFormat = {
-    mtt: usePreflopStats(STATS_KEY.facing.mtt),
-    cash: usePreflopStats(STATS_KEY.facing.cash),
-  };
-  const bbStatsByFormat = {
-    mtt: usePreflopStats(STATS_KEY.bbdefend.mtt),
-    cash: usePreflopStats(STATS_KEY.bbdefend.cash),
-  };
-  const btn4StatsByFormat = {
-    mtt: usePreflopStats(STATS_KEY.btn4bet.mtt),
-    cash: usePreflopStats(STATS_KEY.btn4bet.cash),
-  };
-  const preflopStats = preflopStatsByFormat[format];
-  const facingStats = facingStatsByFormat[format];
-  const bbStats = bbStatsByFormat[format];
-  const btn4Stats = btn4StatsByFormat[format];
-  const seatStatsByFormat = {
-    mtt: usePreflopStats(STATS_KEY.seatvsopen.mtt),
-    cash: usePreflopStats(STATS_KEY.seatvsopen.cash),
-  };
-  const seatStats = seatStatsByFormat[format];
-  const open4Stats = usePreflopStats(STATS_KEY.open4bet);
+  const preflopStats = statsByMode.preflop[format];
 
   // ── Viewport scaling — desktop tree only ──────────────────────────────────
   // Two unitless factors, both computed here because CSS calc cannot divide a
@@ -244,21 +198,10 @@ export default function App() {
   // felt completely.
   const keysSuspended = rangesOpen || phoneSheet !== null;
 
-  // RFI and both facing drills share a stats shape (hands / streak /
-  // accuracy), so the phone chrome only has to tell odds apart from "an
-  // accuracy drill".
-  const accuracyStats = {
-    odds: preflopStats,
-    preflop: preflopStats,
-    facing: facingStats,
-    bbdefend: bbStats,
-    btn4bet: btn4Stats,
-    seatvsopen: seatStats,
-    open4bet: open4Stats,
-  }[mode];
-  const facingDrill = FACING_DRILL_OF[mode];
-  // Open vs 3-bet has cash charts only, so it plays cash whatever the switch says.
-  const facingFormat: Format = facingDrill === 'open4' ? 'cash' : format;
+  // RFI and the facing modes share a stats shape (hands / streak / accuracy),
+  // so the phone chrome only has to tell odds apart from "an accuracy drill".
+  const accuracyStats = statsByMode[mode === 'odds' ? 'preflop' : mode][format];
+  const facingMode = isFacingMode(mode) ? mode : undefined;
   const resetActiveStats = mode === 'odds' ? stats.reset : accuracyStats.reset;
 
   const phoneStats: PhoneStatsPillProps =
@@ -336,7 +279,7 @@ export default function App() {
             : undefined
         }
         facingStats={
-          facingDrill
+          facingMode
             ? {
                 hands: accuracyStats.hands,
                 streak: accuracyStats.streak,
@@ -361,11 +304,11 @@ export default function App() {
         />
       )}
 
-      {facingDrill && (
+      {facingMode && (
         <FacingTrainer
-          key={`${facingDrill}-${facingFormat}-${opponents}`}
-          drill={facingDrill}
-          format={facingFormat}
+          key={`${facingMode}-${format}-${opponents}`}
+          mode={facingMode}
+          format={format}
           opponents={opponents}
           stats={accuracyStats}
           keysSuspended={keysSuspended}

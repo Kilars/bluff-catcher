@@ -15,7 +15,21 @@ import {
   neighbours,
   type FacingTier,
 } from './facingDeal';
-import { bucketsFor, bucketFor, BUCKET_OF, OPENERS, bucketChartAction, facingAction, type Bucket, type Opener } from './facing';
+import {
+  BUCKETS,
+  BUCKET_META,
+  FACING_MODES,
+  bucketsFor,
+  bucketsForMode,
+  bucketFor,
+  BUCKET_OF,
+  OPENERS,
+  bucketChartAction,
+  facingAction,
+  facingModeOf,
+  type Bucket,
+  type Opener,
+} from './facing';
 import { ALL_169, combosForClass, handClass as computeHandClass } from './hands';
 
 /** These suites cover the tournament charts; cash has its own below. */
@@ -189,5 +203,32 @@ describe('dealFacingSpot() — cash format', () => {
     expect(facingTier('cashEarly', '72o')).toBe('trash');
     // A7s folds vs LJ/HJ but 3-bets vs CO, so it is never trash in cash.
     expect(facingTier('cashEarly', 'A7s')).not.toBe('trash');
+  });
+});
+
+describe('dealFacingSpot — menu modes (docs/PLAN-menu.md)', () => {
+  const N = 4000;
+
+  it.each(['mtt', 'cash'] as const)('deals every bucket of each mode in %s, and only those', (format) => {
+    for (const mode of FACING_MODES) {
+      const rng = makeRng(7);
+      const seen = new Set<Bucket>();
+      for (let i = 0; i < N; i++) seen.add(dealFacingSpot({ rng, format, mode }).bucket);
+      expect(seen).toEqual(new Set(bucketsForMode(format, mode)));
+    }
+  });
+
+  it('picks the drill first, so the SB is half of Blinds, not 2 charts in 10', () => {
+    const rng = makeRng(11);
+    let sb = 0;
+    for (let i = 0; i < N; i++) if (BUCKET_META[dealFacingSpot({ rng, format: 'mtt', mode: 'blinds' }).bucket].hero === 'SB') sb++;
+    expect(sb / N).toBeGreaterThan(0.45);
+    expect(sb / N).toBeLessThan(0.55);
+  });
+
+  it('puts every chart in exactly one mode', () => {
+    for (const b of BUCKETS) expect(FACING_MODES).toContain(facingModeOf(BUCKET_META[b]));
+    expect(facingModeOf({ drill: 'seat', hero: 'SB' })).toBe('blinds');
+    expect(facingModeOf({ drill: 'seat', hero: 'CO' })).toBe('threebet');
   });
 });

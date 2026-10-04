@@ -53,7 +53,7 @@ describe('Header', () => {
     expect(screen.queryByText('Accuracy')).not.toBeInTheDocument();
   });
 
-  it('preflop mode: "Preflop RFI · <depth>" subtitle and the preflop stat block', () => {
+  it('preflop mode: "Open · <depth>" subtitle and the preflop stat block', () => {
     renderAt(
       'desktop',
       <Header
@@ -63,24 +63,24 @@ describe('Header', () => {
       />
     );
 
-    expect(screen.getByText(/Preflop RFI/)).toBeInTheDocument();
+    expect(screen.getByText(/^Open · /)).toBeInTheDocument();
     expect(screen.getByText('20')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('80%')).toBeInTheDocument();
   });
 
-  it('facing mode: "Facing open" subtitle and facing\'s own stats, not preflop\'s', () => {
+  it('3-bet mode: "3-bet · <stack>" subtitle and its own stats, not preflop\'s', () => {
     renderAt(
       'desktop',
       <Header
         {...baseProps()}
-        mode="facing"
+        mode="threebet"
         preflopStats={{ hands: 999, streak: 999, accuracy: 1 }}
         facingStats={{ hands: 7, streak: 2, accuracy: 40 }}
       />
     );
 
-    expect(screen.getByText(/Facing open/)).toBeInTheDocument();
+    expect(screen.getByText('3-bet · 40–50bb+')).toBeInTheDocument();
     // The RFI stats, still passed in, must not leak into the facing block.
     expect(screen.queryByText('999')).not.toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
@@ -88,14 +88,14 @@ describe('Header', () => {
     expect(screen.getByText('40%')).toBeInTheDocument();
   });
 
-  it('facing mode: reset calls facing\'s own reset, not RFI\'s', () => {
+  it('3-bet mode: reset calls its own reset, not RFI\'s', () => {
     const onResetFacing = vi.fn();
     const onResetPreflop = vi.fn();
     renderAt(
       'desktop',
       <Header
         {...baseProps()}
-        mode="facing"
+        mode="threebet"
         preflopStats={{ hands: 1, streak: 1, accuracy: 1, onResetStats: onResetPreflop }}
         facingStats={{ hands: 1, streak: 1, accuracy: 1, onResetStats: onResetFacing }}
       />

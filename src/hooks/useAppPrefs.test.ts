@@ -27,6 +27,9 @@ import {
   loadOpponents,
   saveOpponents,
   hasOpponentsChoice,
+  LEGACY_STATS,
+  STATS_KEY,
+  migrateLegacyStats,
 } from './useAppPrefs';
 import { DEFAULT_DEPTH, DEPTHS } from '../lib/preflop/ranges';
 
@@ -61,10 +64,26 @@ describe('mode persistence', () => {
     expect(loadMode()).toBe('preflop');
   });
 
-  it('round-trips "facing" correctly', () => {
-    saveMode('facing');
-    expect(localStorage.getItem(MODE_KEY)).toBe('facing');
-    expect(loadMode()).toBe('facing');
+  it('round-trips each facing mode', () => {
+    for (const mode of ['threebet', 'fourbet', 'blinds'] as const) {
+      saveMode(mode);
+      expect(localStorage.getItem(MODE_KEY)).toBe(mode);
+      expect(loadMode()).toBe(mode);
+    }
+  });
+
+  it('reads the retired drill ids forward to their mode (docs/PLAN-menu.md)', () => {
+    const expected = {
+      facing: 'threebet',
+      seatvsopen: 'threebet',
+      btn4bet: 'fourbet',
+      open4bet: 'fourbet',
+      bbdefend: 'blinds',
+    };
+    for (const [old, mode] of Object.entries(expected)) {
+      localStorage.setItem(MODE_KEY, old);
+      expect(loadMode()).toBe(mode);
+    }
   });
 
   it('overwrites a previous mode value', () => {
@@ -73,10 +92,10 @@ describe('mode persistence', () => {
     expect(loadMode()).toBe('odds');
   });
 
-  it('overwrites preflop with facing and back', () => {
+  it('overwrites preflop with a facing mode and back', () => {
     saveMode('preflop');
-    saveMode('facing');
-    expect(loadMode()).toBe('facing');
+    saveMode('threebet');
+    expect(loadMode()).toBe('threebet');
     saveMode('preflop');
     expect(loadMode()).toBe('preflop');
   });
@@ -195,11 +214,44 @@ describe('opponents persistence', () => {
     expect(loadOpponents()).toBe('balanced');
   });
 
-  it('is offered only in the cash 4-bet drills', () => {
-    expect(hasOpponentsChoice('open4bet', 'mtt')).toBe(true);
-    expect(hasOpponentsChoice('btn4bet', 'cash')).toBe(true);
-    expect(hasOpponentsChoice('btn4bet', 'mtt')).toBe(false);
-    expect(hasOpponentsChoice('facing', 'cash')).toBe(false);
+  it('is offered only in cash 4-bet mode', () => {
+    expect(hasOpponentsChoice('fourbet', 'cash')).toBe(true);
+    expect(hasOpponentsChoice('fourbet', 'mtt')).toBe(false);
+    expect(hasOpponentsChoice('threebet', 'cash')).toBe(false);
+    expect(hasOpponentsChoice('blinds', 'cash')).toBe(false);
+    expect(hasOpponentsChoice('preflop', 'cash')).toBe(false);
     expect(hasOpponentsChoice('odds', 'cash')).toBe(false);
+  });
+});
+
+describe('legacy stats migration (docs/PLAN-menu.md)', () => {
+  beforeEach(() => localStorage.clear());
+  const put = (key: string, hands: number, correct: number, streak: number, bestStreak: number) =>
+    localStorage.setItem(key, JSON.stringify({ hands, correct, streak, bestStreak }));
+  const get = (key: string) => JSON.parse(localStorage.getItem(key) ?? 'null');
+
+  it('sums the sources of each new key, best of the best streaks, streak reset', () => {
+    put('bluff-catcher:facing:v1', 10, 7, 3, 5);
+    put('bluff-catcher:seatvsopen:v1', 4, 2, 1, 6);
+    put('bluff-catcher:open4bet:v1', 3, 3, 3, 3);
+    migrateLegacyStats();
+    expect(get(STATS_KEY.threebet.mtt)).toEqual({ hands: 14, correct: 9, streak: 0, bestStreak: 6 });
+    expect(get(STATS_KEY.fourbet.cash)).toEqual({ hands: 3, correct: 3, streak: 0, bestStreak: 3 });
+    // Nothing to fold, nothing written; the old keys stay.
+    expect(get(STATS_KEY.blinds.mtt)).toBeNull();
+    expect(get('bluff-catcher:facing:v1')).not.toBeNull();
+  });
+
+  it('runs once, so a reset of a new mode does not bring the old numbers back', () => {
+    put('bluff-catcher:bbdefend:v1', 5, 4, 0, 2);
+    migrateLegacyStats();
+    localStorage.removeItem(STATS_KEY.blinds.mtt); // what a reset does
+    migrateLegacyStats();
+    expect(get(STATS_KEY.blinds.mtt)).toBeNull();
+  });
+
+  it('every new key it writes is one the app reads', () => {
+    const read = Object.values(STATS_KEY).flatMap((k) => Object.values(k));
+    for (const target of Object.keys(LEGACY_STATS)) expect(read).toContain(target);
   });
 });

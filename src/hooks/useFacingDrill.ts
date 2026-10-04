@@ -19,9 +19,8 @@
  *  - Escape = close whichever sheet is open
  *  While a sheet is open the game keys are inert.
  *
- * The briefing opens the first time the player ever meets this drill in each
- * format (both layouts), then only via Info / I — `needsBriefing('facing')` /
- * `needsBriefing('facing-cash')`.
+ * The briefing opens the first time the player ever meets this mode in each
+ * format (both layouts), then only via Info / I — `FACING_BRIEFING_ID`.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,9 +30,9 @@ import {
   bucketChartAction,
   lowStakesNote,
   spotSizes,
-  bucketsFor,
+  bucketsForMode,
   type Bucket,
-  type Drill,
+  type FacingMode,
   type FacingAction,
   type RaiseAction,
 } from '../lib/preflop/facing';
@@ -44,14 +43,14 @@ import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
 import type { Format } from '../lib/preflop/ranges';
 import type { Opponents } from '../lib/preflop/lowStakes';
 
-/** The briefing id in `briefed.ts` per drill and format — separate from every RFI tier. */
-export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
-  btn: { mtt: 'facing', cash: 'facing-cash' },
-  bb: { mtt: 'bbdefend', cash: 'bbdefend-cash' },
-  btn4: { mtt: 'btn4bet', cash: 'btn4bet-cash' },
-  // Cash only: the drill always runs in cash, whatever the format switch says.
-  open4: { mtt: 'open4bet', cash: 'open4bet' },
-  seat: { mtt: 'seatvsopen', cash: 'seatvsopen-cash' },
+/**
+ * The briefing id in `briefed.ts` per mode and format — separate from every
+ * RFI tier, and from the retired per-drill ids, so each merged mode briefs once.
+ */
+export const FACING_BRIEFING_ID: Record<FacingMode, Record<Format, string>> = {
+  threebet: { mtt: 'threebet', cash: 'threebet-cash' },
+  fourbet: { mtt: 'fourbet', cash: 'fourbet-cash' },
+  blinds: { mtt: 'blinds', cash: 'blinds-cash' },
 };
 
 /** A re-raise as the copy and buttons write it. */
@@ -83,21 +82,23 @@ export function facingChartTitle(bucket: Bucket): string {
 }
 
 /**
- * Every chart of a drill in a format, as range-sheet pages in seat order —
- * the BTN drill's opener groups, or one page per opener in BB defend — so
- * the sheet can step between them like the RFI seats. `kicker` heads each page.
+ * Every chart a mode deals in a format, as range-sheet pages grouped by drill —
+ * the BTN drill's opener groups, one page per opener in the BB, each seat pair
+ * — so the sheet can step between them like the RFI seats. `kicker` heads each page.
  */
 export function facingChartPages(
   format: Format,
-  drill: Drill,
+  mode: FacingMode,
   kicker: string,
   opponents: Opponents = 'balanced'
 ): ChartPage[] {
-  return bucketsFor(format, drill).map((b) => {
+  return bucketsForMode(format, mode).map((b) => {
     const meta = BUCKET_META[b];
     return {
       id: b,
-      tab: meta.openerTag ?? positionLabel(meta.chartSeat),
+      // The raiser alone ("Early", "UTG+1", "SB", "3-bet"): the strip reads as "vs …".
+      tab: meta.label.replace(/^vs /, '').replace(/ 3-bet$/, ''),
+      group: positionLabel(meta.hero),
       kicker,
       title: facingChartTitle(b),
       subline: `Graded on the ${meta.chartName} chart`,
@@ -139,8 +140,8 @@ export interface UseFacingDrillOptions {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App remounts the drill on a change. */
   format?: Format;
-  /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
-  drill?: Drill;
+  /** Which charts are dealt: facing an open (default), facing a 3-bet, or in the blinds. */
+  mode?: FacingMode;
   /** Who the grade assumes across the table (`lib/preflop/lowStakes.ts`). App remounts on a change. */
   opponents?: Opponents;
 }
@@ -148,16 +149,14 @@ export interface UseFacingDrillOptions {
 export function useFacingDrill({
   onRecord,
   keysSuspended = false,
-  format: formatOpt = 'mtt',
-  drill = 'btn',
+  format = 'mtt',
+  mode = 'threebet',
   opponents = 'balanced',
 }: UseFacingDrillOptions) {
-  // Open vs 3-bet has cash charts only (docs/PLAN-btn-4bet.md, "Follow-up").
-  const format: Format = drill === 'open4' ? 'cash' : formatOpt;
-  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, drill, opponents }));
+  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, mode, opponents }));
   const [committed, setCommitted] = useState<FacingAction | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
-  const briefingId = FACING_BRIEFING_ID[drill][format];
+  const briefingId = FACING_BRIEFING_ID[mode][format];
   const [infoOpen, setInfoOpen] = useState(() => needsBriefing(briefingId));
 
   useEffect(() => {
@@ -183,11 +182,11 @@ export function useFacingDrill({
   );
 
   const handleNext = useCallback(() => {
-    setSpot(dealFacingSpot({ format, drill, opponents }));
+    setSpot(dealFacingSpot({ format, mode, opponents }));
     committedRef.current = null;
     setCommitted(null);
     setRangeOpen(false);
-  }, [format, drill, opponents]);
+  }, [format, mode, opponents]);
 
   const openInfo = useCallback(() => {
     setRangeOpen(false);

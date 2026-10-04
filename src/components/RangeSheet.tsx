@@ -32,15 +32,17 @@
  *   legend      — forwarded to RangeGrid; only meaningful with `cellAction`.
  *   footnote    — optional one-line note forwarded to RangeGrid, rendered under the chart.
  *   pages       — optional: page through these charts instead of the RFI
- *                 seats (the facing drills: one page per opener group, or per
- *                 opener in BB defend). Same arrows, tabs, keys and swipe; no
- *                 depth strip. Each page brings its own colouring and copy.
+ *                 seats (the facing modes: every chart the mode deals). Same
+ *                 arrows, tabs, keys and swipe; no depth strip. Pages with a
+ *                 `group` (hero's seat) spanning several seats get a seat
+ *                 strip above the tabs, which then show that seat's charts.
+ *                 Each page brings its own colouring and copy.
  *   startPage   — the page to open on (hero's chart); `highlight` is marked
  *                 there only. Default 0.
  *   onClose     — called when the sheet should close.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RangeGrid, { type CellAction } from './RangeGrid';
 import {
   CHART_KEYS,
@@ -54,7 +56,7 @@ import {
   type Seat,
 } from '../lib/preflop/ranges';
 import type { HandClass } from '../lib/preflop/hands';
-import type { ChartPage } from '../lib/preflop/grid';
+import { pageGroups, type ChartPage } from '../lib/preflop/grid';
 import styles from './ExplainSheet.module.css';
 import nav from './RangeSheet.module.css';
 
@@ -114,6 +116,7 @@ export default function RangeSheet({
   // Paged mode (facing drills): the same navigator over a list of charts.
   const [pageIdx, setPageIdx] = useState(startPage);
   const page = pages?.[pageIdx];
+  const groups = useMemo(() => pageGroups(pages), [pages]);
 
   const idx = pages ? pageIdx : seats.indexOf(viewPos);
   const count = pages ? pages.length : seats.length;
@@ -295,10 +298,35 @@ export default function RangeSheet({
           </div>
           )}
 
-          {/* Chart tab strip (paged mode) */}
+          {/* Hero-seat strip (paged mode, a mode spanning seats) — styled as
+              the tier strip: it is the level above the chart tabs. */}
+          {groups.length > 0 && (
+          <div className={nav.depths} role="tablist" aria-label="Your seat">
+            {groups.map((g) => (
+              <button
+                key={g.group}
+                type="button"
+                role="tab"
+                aria-selected={g.group === page?.group}
+                className={`${nav.depthTab} ${g.group === page?.group ? nav.depthTabActive : ''}`}
+                onClick={() => setPageIdx(g.indices.includes(startPage) ? startPage : g.indices[0])}
+              >
+                <span className={nav.depthLabel}>
+                  {g.group}
+                  {g.indices.includes(startPage) && <span className={nav.heroDot} aria-label="(your seat)" />}
+                </span>
+                <span className={nav.depthName}>
+                  {g.indices.length} chart{g.indices.length === 1 ? '' : 's'}
+                </span>
+              </button>
+            ))}
+          </div>
+          )}
+
+          {/* Chart tab strip (paged mode): this seat's charts when grouped */}
           {pages && (
-          <div className={nav.tabs} role="tablist" aria-label="Chart">
-            {pages.map((p, i) => (
+          <div className={nav.tabs} role="tablist" aria-label={groups.length > 0 ? `${page?.group} vs` : 'Chart'}>
+            {pages.map((p, i) => (groups.length > 0 && p.group !== page?.group ? null :
               <button
                 key={p.id}
                 type="button"
@@ -307,7 +335,7 @@ export default function RangeSheet({
                 className={`${nav.tab} ${i === pageIdx ? nav.tabActive : ''}`}
                 onClick={() => setPageIdx(i)}
               >
-                {p.tab}
+                {groups.length > 0 ? `vs ${p.tab}` : p.tab}
                 {i === startPage && <span className={nav.heroDot} aria-label="(your chart)" />}
               </button>
             ))}

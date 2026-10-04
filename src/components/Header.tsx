@@ -6,20 +6,20 @@
  * The right-side content slot is mode-aware:
  *   mode='odds'    → shows odds stat pairs
  *   mode='preflop' → shows preflop RFI stat pairs (hands/streak/accuracy)
- *   mode='facing' / 'bbdefend' → that drill's stat pairs, same shape as
- *                    preflop's, fed through `facingStats` from the drill's
- *                    own `usePreflopStats()` instance
+ *   mode='threebet' / 'fourbet' / 'blinds' → that mode's stat pairs, same
+ *                    shape as preflop's, fed through `facingStats` from the
+ *                    mode's own `usePreflopStats()` instance
  *
  * Every mode branch below is a `switch`/lookup on `mode`, deliberately, rather
  * than a two-way `mode === 'odds' ? … : …` check — the latter silently treats
- * 'facing' as 'preflop' (see docs/PLAN-3bet.md, phase F2).
+ * a facing mode as 'preflop' (see docs/PLAN-3bet.md, phase F2).
  */
 
 import Menu from './Menu';
-import { FACING_DRILL_OF, type AppMode } from '../hooks/useAppPrefs';
+import { MODE_LABEL, isFacingMode, type AppMode } from '../hooks/useAppPrefs';
 import { CHART_META, chartKeyFor, type Depth, type Format } from '../lib/preflop/ranges';
 import type { Opponents } from '../lib/preflop/lowStakes';
-import { BB_CONTEXT_LABEL, BTN4_CONTEXT_LABEL, FACING_CONTEXT_LABEL, OPEN4_CONTEXT_LABEL, SEAT_CONTEXT_LABEL } from '../lib/facingMeta';
+import { MODE_CONTEXT_LABEL } from '../lib/facingMeta';
 import styles from './Header.module.css';
 
 interface OddsStatsProps {
@@ -65,17 +65,11 @@ function brandSub(mode: AppMode, depth: Depth, format: Format): string {
     case 'odds':
       return 'Odds trainer';
     case 'preflop':
-      return `Preflop RFI · ${CHART_META[chartKeyFor(format, depth)].label}`;
-    case 'facing':
-      return `Facing open · ${FACING_CONTEXT_LABEL[format]}`;
-    case 'bbdefend':
-      return BB_CONTEXT_LABEL[format];
-    case 'btn4bet':
-      return BTN4_CONTEXT_LABEL[format];
-    case 'open4bet':
-      return OPEN4_CONTEXT_LABEL[format];
-    case 'seatvsopen':
-      return SEAT_CONTEXT_LABEL[format];
+      return `Open · ${CHART_META[chartKeyFor(format, depth)].label}`;
+    case 'threebet':
+    case 'fourbet':
+    case 'blinds':
+      return MODE_CONTEXT_LABEL[mode][format];
   }
 }
 
@@ -95,18 +89,10 @@ export default function Header({
   facingStats,
   onOpenRanges,
 }: HeaderProps) {
-  // 'preflop' and both facing drills render an identical stat block
+  // 'preflop' and the facing modes render an identical stat block
   // (hands/streak/accuracy); this picks which props feed it.
-  const isFacingDrill = FACING_DRILL_OF[mode] !== undefined;
-  const preflopLikeStats = mode === 'preflop' ? preflopStats : isFacingDrill ? facingStats : undefined;
-  const preflopLikeLabel =
-    mode === 'bbdefend'
-      ? 'BB defend'
-      : mode === 'btn4bet' || mode === 'open4bet'
-        ? 'vs 3-bet'
-        : isFacingDrill
-          ? 'facing'
-          : 'preflop';
+  const preflopLikeStats = mode === 'preflop' ? preflopStats : isFacingMode(mode) ? facingStats : undefined;
+  const preflopLikeLabel = MODE_LABEL[mode];
   const avgError =
     oddsStats && oddsStats.errors.length > 0
       ? `±${(oddsStats.errors.reduce((a, b) => a + b, 0) / oddsStats.errors.length).toFixed(1)}`

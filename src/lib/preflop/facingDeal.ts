@@ -25,7 +25,9 @@ import {
   BTN_SOURCE_CHARTS,
   bucketChartAction,
   bucketsFor,
+  bucketsForMode,
   chartAction,
+  type FacingMode,
 } from './facing.ts';
 import type { Opponents } from './lowStakes.ts';
 import type { Format, TableSeat } from './ranges.ts';
@@ -66,6 +68,11 @@ export interface DealFacingOpts {
   format?: Format;
   /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
+  /**
+   * A menu mode: deal from every drill in it, picking the drill first so a
+   * family with few charts (the SB in Blinds) is not drowned out. Overrides `drill`.
+   */
+  mode?: FacingMode;
   /**
    * Who the grade assumes across the table (default 'balanced', the source).
    * Only changes the value/bluff kind of a cash 4-bet, never the action, so
@@ -207,8 +214,9 @@ function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): H
 /**
  * Deal a random facing-open spot.
  *
- * 1. Pick a bucket 50/50, then an opener uniformly within it. Both charts get
- *    equal practice; a uniform pick over six seats would give Late 4/6.
+ * 1. With a mode, pick one of its drills uniformly first. Then pick a bucket
+ *    uniformly (the BTN drill: 50/50), then an opener uniformly within it. Both
+ *    charts get equal practice; a uniform pick over six seats would give Late 4/6.
  * 2. Sample a hand class via the pool (default: borderSkewFacingPool).
  * 3. Deal one of that class's concrete combos uniformly.
  * 4. Grade it against the bucket's chart (`bucketChartAction`).
@@ -219,12 +227,18 @@ function sampleHandClass(bucket: Bucket, pool: FacingPool, rng: () => number): H
 export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const rng = opts?.rng ?? Math.random;
   const pool = opts?.pool ?? ACTIVE_FACING_POOL;
-  const buckets = bucketsFor(opts?.format ?? 'mtt', opts?.drill);
+  const format = opts?.format ?? 'mtt';
+  let buckets = opts?.mode ? bucketsForMode(format, opts.mode) : bucketsFor(format, opts?.drill);
   if (buckets.length === 0) {
-    throw new Error(`No ${opts?.drill ?? 'btn'} charts in ${opts?.format ?? 'mtt'} (open vs 3-bet is cash only)`);
+    throw new Error(`No ${opts?.mode ?? opts?.drill ?? 'btn'} charts in ${format} (open vs 3-bet is cash only)`);
   }
 
-  // 1. Bucket, then opener within it
+  // 1. Drill (mode only), then bucket, then opener within it
+  if (opts?.mode) {
+    const drills = [...new Set(buckets.map((b) => BUCKET_META[b].drill))];
+    const drill = drills[Math.floor(rng() * drills.length)];
+    buckets = buckets.filter((b) => BUCKET_META[b].drill === drill);
+  }
   const bucket = buckets[Math.floor(rng() * buckets.length)];
   const seats = BUCKET_META[bucket].openers;
   const opener = seats[Math.floor(rng() * seats.length)];

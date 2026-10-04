@@ -19,42 +19,93 @@
 
 import { useCallback, useState } from 'react';
 import { DEFAULT_DEPTH, DEPTHS, FORMATS, type Depth, type Format } from '../lib/preflop/ranges';
-import type { Drill } from '../lib/preflop/facing';
+import { FACING_MODES, bucketsForMode, hasOpponentsRead, type FacingMode } from '../lib/preflop/facing';
+import { DEFAULT_PREFLOP_STATS_KEY, mergeStatsKeys } from './usePreflopStats';
 import { OPPONENTS, type Opponents } from '../lib/preflop/lowStakes';
 
 // ─── Mode ─────────────────────────────────────────────────────────────────────
 
-export type AppMode = 'odds' | 'preflop' | 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen';
+export type AppMode = 'odds' | 'preflop' | FacingMode;
 
 /** Every valid mode, in menu order. Same list `loadMode` validates against. */
-export const MODES: readonly AppMode[] = ['odds', 'preflop', 'facing', 'bbdefend', 'btn4bet', 'open4bet', 'seatvsopen'];
+export const MODES: readonly AppMode[] = ['odds', 'preflop', ...FACING_MODES];
 
 /** Each mode's name in menus and sheet subtitles. */
 export const MODE_LABEL: Record<AppMode, string> = {
-  odds: 'Odds trainer',
-  preflop: 'Preflop RFI',
-  facing: 'Facing open',
-  bbdefend: 'BB defend',
-  btn4bet: 'BTN vs 3-bet',
-  open4bet: 'Open vs 3-bet',
-  seatvsopen: 'Seat vs open',
+  odds: 'Odds',
+  preflop: 'Open',
+  threebet: '3-bet',
+  fourbet: '4-bet',
+  blinds: 'Blinds',
 };
 
-/** The facing drill each facing mode runs; the other modes have none. */
-export const FACING_DRILL_OF: Partial<Record<AppMode, Drill>> = {
-  facing: 'btn',
-  bbdefend: 'bb',
-  btn4bet: 'btn4',
-  open4bet: 'open4',
-  seatvsopen: 'seat',
+/** The menu's sections, in order (docs/PLAN-menu.md). */
+export const MODE_SECTIONS: readonly { label: string; modes: readonly AppMode[] }[] = [
+  { label: 'Postflop', modes: ['odds'] },
+  { label: 'Preflop', modes: ['preflop', ...FACING_MODES] },
+];
+
+/** Whether a mode runs the facing drill (everything but odds and RFI). */
+export function isFacingMode(mode: AppMode): mode is FacingMode {
+  return (FACING_MODES as readonly string[]).includes(mode);
+}
+
+/** Whether a mode follows the tournament/cash switch. Odds has no format. */
+export function hasFormatChoice(mode: AppMode): boolean {
+  return mode !== 'odds';
+}
+
+/**
+ * Stats keys per mode and format. RFI's tournament key predates the format
+ * (it is usePreflopStats' default); cash stats never mix with tournament ones.
+ */
+export const STATS_KEY: Record<Exclude<AppMode, 'odds'>, Record<Format, string>> = {
+  preflop: { mtt: DEFAULT_PREFLOP_STATS_KEY, cash: 'bluff-catcher:preflop-cash:v1' },
+  threebet: { mtt: 'bluff-catcher:threebet:v1', cash: 'bluff-catcher:threebet-cash:v1' },
+  fourbet: { mtt: 'bluff-catcher:fourbet:v1', cash: 'bluff-catcher:fourbet-cash:v1' },
+  blinds: { mtt: 'bluff-catcher:blinds:v1', cash: 'bluff-catcher:blinds-cash:v1' },
+};
+
+// ─── Before the menu cleanup ──────────────────────────────────────────────────
+//
+// Five drills became three modes (docs/PLAN-menu.md). Old ids and stats are
+// read forward, never deleted: phones keep localStorage for a long time.
+
+/** The mode each retired mode id now opens. */
+export const LEGACY_MODE: Record<string, AppMode> = {
+  facing: 'threebet',
+  seatvsopen: 'threebet',
+  btn4bet: 'fourbet',
+  open4bet: 'fourbet',
+  bbdefend: 'blinds',
 };
 
 /**
- * Whether a mode follows the tournament/cash switch. Odds has no format, and
- * Open vs 3-bet has cash charts only, so neither offers the choice.
+ * The retired stats keys each new key sums. Seat vs open cannot be split
+ * between 3-bet and Blinds, so all of it goes to 3-bet. Open vs 3-bet was cash
+ * only, under one key.
  */
-export function hasFormatChoice(mode: AppMode): boolean {
-  return mode !== 'odds' && mode !== 'open4bet';
+export const LEGACY_STATS: Record<string, readonly string[]> = {
+  [STATS_KEY.threebet.mtt]: ['bluff-catcher:facing:v1', 'bluff-catcher:seatvsopen:v1'],
+  [STATS_KEY.threebet.cash]: ['bluff-catcher:facing-cash:v1', 'bluff-catcher:seatvsopen-cash:v1'],
+  [STATS_KEY.fourbet.mtt]: ['bluff-catcher:btn4bet:v1'],
+  [STATS_KEY.fourbet.cash]: ['bluff-catcher:btn4bet-cash:v1', 'bluff-catcher:open4bet:v1'],
+  [STATS_KEY.blinds.mtt]: ['bluff-catcher:bbdefend:v1'],
+  [STATS_KEY.blinds.cash]: ['bluff-catcher:bbdefend-cash:v1'],
+};
+
+/** Set once the stats are folded, so a reset of a new mode does not bring them back. */
+export const STATS_MIGRATED_KEY = 'bluff-catcher:stats-migrated:menu-v1';
+
+/** Fold the retired drills' stats into the new modes, once. Call before the stats hooks mount. */
+export function migrateLegacyStats(): void {
+  try {
+    if (typeof window === 'undefined' || localStorage.getItem(STATS_MIGRATED_KEY)) return;
+    for (const [target, sources] of Object.entries(LEGACY_STATS)) mergeStatsKeys(target, sources);
+    localStorage.setItem(STATS_MIGRATED_KEY, '1');
+  } catch {
+    // localStorage might be disabled — nothing to migrate
+  }
 }
 
 export const MODE_KEY = 'bluff-catcher:mode:v1';
@@ -66,8 +117,9 @@ export const OPPONENTS_KEY = 'bluff-catcher:opponents:v1';
 export function loadMode(): AppMode {
   try {
     if (typeof window === 'undefined') return 'odds';
-    const raw = localStorage.getItem(MODE_KEY);
-    return (MODES as readonly string[]).includes(raw ?? '') ? (raw as AppMode) : 'odds';
+    const raw = localStorage.getItem(MODE_KEY) ?? '';
+    if ((MODES as readonly string[]).includes(raw)) return raw as AppMode;
+    return LEGACY_MODE[raw] ?? 'odds';
   } catch {
     return 'odds';
   }
@@ -138,11 +190,12 @@ export function saveFormat(format: Format): void {
 // 4-bets call it. 'balanced' is the source chart as solved.
 
 /**
- * Whether a mode offers the opponents choice: only the cash 4-bet drills,
- * the one place it changes an answer (which 4-bets call a 5-bet jam).
+ * Whether a mode offers the opponents choice: only where one of its charts
+ * has a low-stakes read (the cash 4-bets, where it changes which 4-bets call
+ * a 5-bet jam).
  */
 export function hasOpponentsChoice(mode: AppMode, format: Format): boolean {
-  return mode === 'open4bet' || (mode === 'btn4bet' && format === 'cash');
+  return isFacingMode(mode) && bucketsForMode(format, mode).some(hasOpponentsRead);
 }
 
 export function loadOpponents(): Opponents {

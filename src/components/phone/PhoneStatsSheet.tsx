@@ -17,6 +17,7 @@ import { useCallback, useState } from 'react';
 import { BAND_COLOR, BAND_LABEL, type Band } from '../../lib/band';
 import type { Bands, CategoryStat } from '../../hooks/useStats';
 import { MODE_LABEL } from '../../hooks/useAppPrefs';
+import type { FacingMode } from '../../lib/preflop/facing';
 import type { Category } from '../../lib/classify';
 import PhoneSheet from './PhoneSheet';
 import styles from './PhoneStatsSheet.module.css';
@@ -97,7 +98,7 @@ export type PhoneStatsSheetProps = CommonProps &
         perCategory: Record<string, CategoryStat>;
       }
     | ({ mode: 'preflop' } & PreflopLikeVariant)
-    | ({ mode: 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen' } & PreflopLikeVariant)
+    | ({ mode: FacingMode } & PreflopLikeVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -68,6 +68,22 @@ function saveState(storageKey: string, state: PreflopStatsState): void {
   }
 }
 
+/**
+ * Fold old keys' stats into `target` (docs/PLAN-menu.md): hands and correct
+ * add up, the best streak is the best of them, and the running streak starts
+ * over. The source keys are left in place.
+ */
+export function mergeStatsKeys(target: string, sources: readonly string[]): void {
+  const states = sources.map(loadState).filter((s) => s.hands > 0);
+  if (states.length === 0) return;
+  saveState(target, {
+    hands: states.reduce((n, s) => n + s.hands, 0),
+    correct: states.reduce((n, s) => n + s.correct, 0),
+    streak: 0,
+    bestStreak: Math.max(...states.map((s) => s.bestStreak)),
+  });
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**

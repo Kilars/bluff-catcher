@@ -8,7 +8,7 @@
  *      brand      context chip            stats slot          menu
  *
  * What died from the desktop `Header`:
- *   - `brandSub` ("Odds trainer" / "Preflop RFI · 60bb+"). It was a label; here
+ *   - `brandSub` ("Odds trainer" / "Open · 60bb+"). It was a label; here
  *     the same content becomes the **context chip**, a 44px target that opens
  *     the mode + depth sheet. One tap to change tier, instead of hamburger →
  *     scroll → pick.

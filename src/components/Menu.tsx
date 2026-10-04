@@ -2,16 +2,17 @@
  * Menu — hamburger button + mode-selection dropdown.
  *
  * Placed at the top-left of the Header. Opens a small dropdown listing
- * the available modes; the active one is marked. Selecting a mode switches
- * it and closes the menu.
+ * the available modes in the menu's sections (Postflop, Preflop —
+ * docs/PLAN-menu.md), each with its `modeNote`; the active one is marked.
+ * Selecting a mode switches it and closes the menu.
  *
- * Below the modes sits a "Format" group — tournament or cash, for both preflop
- * drills — then a "Stack depth" group — the three tournament tiers the preflop
+ * Below the modes sits a "Format" group — tournament or cash, for every
+ * preflop mode — then a "Stack depth" group — the three tournament tiers the preflop
  * trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group with the
  * RFI range charts, so the charts are reachable without playing a hand first.
- * An "Opponents" group (low stakes or balanced) follows it in the cash 4-bet
- * drills, the only place that read changes an answer.
- * The format group is shown in the two preflop modes; the depth group only in
+ * An "Opponents" group (low stakes or balanced) follows it in cash 4-bet
+ * mode, the only place that read changes an answer.
+ * The format group is shown in the preflop modes; the depth group only in
  * preflop mode with the tournament format, since cash has one depth and the
  * odds trainer has none; the "Drill" group, holding the one odds
  * preference (name the draw before you guess), is shown only in odds mode for
@@ -28,17 +29,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MODES, MODE_LABEL, hasFormatChoice, hasOpponentsChoice, type AppMode } from '../hooks/useAppPrefs';
+import { MODE_LABEL, MODE_SECTIONS, hasFormatChoice, hasOpponentsChoice, type AppMode } from '../hooks/useAppPrefs';
+import { modeNote } from '../lib/modeMeta';
 import { OPPONENTS, OPPONENTS_META, type Opponents } from '../lib/preflop/lowStakes';
 import { DEPTHS, DEPTH_META, FORMATS, FORMAT_META, type Depth, type Format } from '../lib/preflop/ranges';
 import styles from './Menu.module.css';
 
-interface MenuItem {
-  mode: AppMode;
-  label: string;
-}
-
-const MENU_ITEMS: MenuItem[] = MODES.map((mode) => ({ mode, label: MODE_LABEL[mode] }));
 
 interface MenuProps {
   currentMode: AppMode;
@@ -183,18 +179,27 @@ export default function Menu({
           role="menu"
           aria-label="Mode selection"
         >
-          {MENU_ITEMS.map(({ mode, label }) => (
-            <button
-              key={mode}
-              className={`${styles.item} ${mode === currentMode ? styles.itemActive : ''}`}
-              role="menuitem"
-              onClick={() => handleSelect(mode)}
-            >
-              {label}
-              {mode === currentMode && (
-                <span className={styles.activeMarker} aria-label="(active)" />
-              )}
-            </button>
+          {MODE_SECTIONS.map((section, i) => (
+            <div key={section.label} role="group" aria-label={section.label}>
+              {i > 0 && <div className={styles.separator} />}
+              <span className={styles.groupLabel}>{section.label}</span>
+              {section.modes.map((mode) => (
+                <button
+                  key={mode}
+                  className={`${styles.item} ${mode === currentMode ? styles.itemActive : ''}`}
+                  role="menuitem"
+                  onClick={() => handleSelect(mode)}
+                >
+                  <span className={styles.itemMain}>
+                    {MODE_LABEL[mode]}
+                    <span className={styles.itemNote}>{modeNote(mode, currentFormat)}</span>
+                  </span>
+                  {mode === currentMode && (
+                    <span className={styles.activeMarker} aria-label="(active)" />
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
 
           {hasFormatChoice(currentMode) && (

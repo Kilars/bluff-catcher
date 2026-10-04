@@ -18,7 +18,7 @@ never from `hands/` directly. The report is blind to results by design.
 
 | Area | Where |
 |---|---|
-| Trainers (preflop RFI, facing open/3-bet, BB defend, odds, phone) | `src/modes/`, ranges in `src/lib/preflop/` |
+| Trainers: Odds, then preflop Open (RFI), 3-bet, 4-bet, Blinds (`docs/PLAN-menu.md`); phone tree | `src/modes/`, ranges in `src/lib/preflop/` |
 | Hand-history pipeline: parse → hero facts → labels → stats → report | `src/lib/hh/` |
 | Coaching reference (bands, label meanings, findings) | `docs/leak-coaching.md` |
 | Strategy grounding | `docs/strategy-notes.md` |

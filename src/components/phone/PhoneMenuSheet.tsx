@@ -6,9 +6,12 @@
  * in preflop mode; here it is listed in both odds and preflop mode, because
  * this sheet is also what the top bar's context chip opens — the chip's whole
  * promise is one tap to the tier switch, so the tier has to be in the sheet
- * whichever door was used. Facing mode is the one exception: it has no depth
- * picker at all (one 50bb+ chart, not a tier to switch — see
- * docs/PLAN-3bet.md), so the group is left out entirely there.
+ * whichever door was used. The facing modes are the exception: they have no
+ * depth picker at all (one source depth per format, not a tier to switch —
+ * see docs/PLAN-3bet.md), so the group is left out entirely there.
+ *
+ * Modes are listed in the menu's sections, Postflop then Preflop
+ * (docs/PLAN-menu.md), with the note `modeNote` writes for the format.
  *
  * Both entry points render this same component; pass a `title` to say which
  * door it was ("Menu" from `⋯`, "Mode & format" from the chip).
@@ -25,7 +28,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { FACING_DRILL_OF, MODE_LABEL, hasFormatChoice, hasOpponentsChoice, type AppMode } from '../../hooks/useAppPrefs';
+import { MODE_LABEL, MODE_SECTIONS, hasFormatChoice, hasOpponentsChoice, isFacingMode, type AppMode } from '../../hooks/useAppPrefs';
+import { modeNote } from '../../lib/modeMeta';
 import { OPPONENTS, OPPONENTS_META, type Opponents } from '../../lib/preflop/lowStakes';
 import {
   DEPTHS,
@@ -35,45 +39,8 @@ import {
   type Depth,
   type Format,
 } from '../../lib/preflop/ranges';
-import { CURATED_SPOTS } from '../../lib/preflop/spots';
-import { positionLabel } from '../../lib/preflop/boundary';
 import PhoneSheet from './PhoneSheet';
 import styles from './PhoneMenuSheet.module.css';
-
-// ─── Copy ─────────────────────────────────────────────────────────────────────
-
-/** "Fold, call or 3-bet an open from HJ, CO or SB": the seats the curated spots put hero in. */
-function seatSpotsNote(format: Format): string {
-  const heroes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format).map((s) => positionLabel(s.hero)))];
-  const seats = heroes.length > 1 ? `${heroes.slice(0, -1).join(', ')} or ${heroes.at(-1)}` : heroes[0];
-  return `Fold, call or 3-bet an open from ${seats}`;
-}
-
-/** A mode's note; the preflop drills name the format they are drilling. */
-const MODE_ITEMS: { mode: AppMode; note: string | Record<Format, string> }[] = [
-  { mode: 'odds', note: 'Chance you improve by the river' },
-  {
-    mode: 'preflop',
-    note: { mtt: 'Open or fold, by seat and stack', cash: 'Open or fold, by seat · cash 6-max' },
-  },
-  {
-    mode: 'facing',
-    note: { mtt: 'Fold, call or 3-bet, vs open · 50bb+', cash: 'Fold, call or 3-bet, vs open · cash 100bb' },
-  },
-  {
-    mode: 'bbdefend',
-    note: { mtt: 'Fold, call or 3-bet in the big blind · 40bb', cash: 'Fold, call or 3-bet in the big blind · cash 100bb' },
-  },
-  {
-    mode: 'btn4bet',
-    note: { mtt: 'Fold, call or 4-bet after a blind 3-bets · 40bb', cash: 'Fold, call or 4-bet after a blind 3-bets · cash 100bb' },
-  },
-  { mode: 'open4bet', note: 'Fold, call or 4-bet your LJ/HJ/CO open · cash only' },
-  {
-    mode: 'seatvsopen',
-    note: { mtt: `${seatSpotsNote('mtt')} · 40bb`, cash: `${seatSpotsNote('cash')} · cash 100bb` },
-  },
-];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -184,27 +151,27 @@ export default function PhoneMenuSheet({
       }
     >
       <div role="menu" aria-label={title}>
-        <div className={styles.group}>
-          <span className={styles.groupLabel}>Mode</span>
-          {MODE_ITEMS.map((item) => (
-            <button
-              key={item.mode}
-              type="button"
-              role="menuitemradio"
-              aria-checked={item.mode === mode}
-              className={`${styles.row} ${item.mode === mode ? styles.rowActive : ''}`}
-              onClick={() => selectMode(item.mode)}
-            >
-              <span className={styles.rowMain}>
-                {MODE_LABEL[item.mode]}
-                <span className={styles.rowNote}>
-                  {typeof item.note === 'string' ? item.note : item.note[format]}
+        {MODE_SECTIONS.map((section) => (
+          <div key={section.label} className={styles.group}>
+            <span className={styles.groupLabel}>{section.label}</span>
+            {section.modes.map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="menuitemradio"
+                aria-checked={m === mode}
+                className={`${styles.row} ${m === mode ? styles.rowActive : ''}`}
+                onClick={() => selectMode(m)}
+              >
+                <span className={styles.rowMain}>
+                  {MODE_LABEL[m]}
+                  <span className={styles.rowNote}>{modeNote(m, format)}</span>
                 </span>
-              </span>
-              {item.mode === mode && <span className={styles.marker} aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
+                {m === mode && <span className={styles.marker} aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        ))}
 
         {hasFormatChoice(mode) && (
           <div className={styles.group}>
@@ -250,10 +217,10 @@ export default function PhoneMenuSheet({
           </div>
         )}
 
-        {/* Facing mode has no depth picker — its source chart is one span,
-            50bb+, not a tier to switch between (docs/PLAN-3bet.md) — and cash
-            has one depth, 100bb (docs/PLAN-cash.md). */}
-        {!FACING_DRILL_OF[mode] && format === 'mtt' && (
+        {/* The facing modes have no depth picker — one source depth per
+            format, not a tier to switch between (docs/PLAN-3bet.md) — and
+            cash has one depth, 100bb (docs/PLAN-cash.md). */}
+        {!isFacingMode(mode) && format === 'mtt' && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Stack depth</span>
             {DEPTHS.map((d) => (

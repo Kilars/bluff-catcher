@@ -43,10 +43,9 @@ describe('PhoneMenuSheet', () => {
   it('lists every item the desktop menu has', () => {
     setup();
 
-    expect(menu().getByRole('menuitemradio', { name: /Odds trainer/ })).toBeInTheDocument();
-    expect(menu().getByRole('menuitemradio', { name: /Preflop RFI/ })).toBeInTheDocument();
-    expect(menu().getByRole('menuitemradio', { name: /Facing open/ })).toBeInTheDocument();
-    expect(menu().getByRole('menuitemradio', { name: /BB defend/ })).toBeInTheDocument();
+    for (const name of [/^Odds/, /^Open/, /^3-bet/, /^4-bet/, /^Blinds/]) {
+      expect(menu().getByRole('menuitemradio', { name })).toBeInTheDocument();
+    }
 
     for (const depth of DEPTHS) {
       expect(
@@ -67,11 +66,11 @@ describe('PhoneMenuSheet', () => {
   it('marks the current mode and the current depth', () => {
     setup({ mode: 'preflop', depth: 'mid' });
 
-    expect(menu().getByRole('menuitemradio', { name: /Preflop RFI/ })).toHaveAttribute(
+    expect(menu().getByRole('menuitemradio', { name: /^Open/ })).toHaveAttribute(
       'aria-checked',
       'true'
     );
-    expect(menu().getByRole('menuitemradio', { name: /Odds trainer/ })).toHaveAttribute(
+    expect(menu().getByRole('menuitemradio', { name: /^Odds/ })).toHaveAttribute(
       'aria-checked',
       'false'
     );
@@ -86,7 +85,7 @@ describe('PhoneMenuSheet', () => {
     expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + DEPTHS.length);
   });
 
-  it.each(['facing', 'bbdefend'] as const)('leaves out the depth group in %s mode — it has no depth picker', (mode) => {
+  it.each(['threebet', 'fourbet', 'blinds'] as const)('leaves out the depth group in %s mode — it has no depth picker', (mode) => {
     setup({ mode });
     // Every mode and the two formats, and none of the depth radios.
     expect(menu().getAllByRole('menuitemradio')).toHaveLength(MODES.length + 2);
@@ -122,28 +121,36 @@ describe('PhoneMenuSheet', () => {
     }
   });
 
+  it('lists the modes under Postflop and Preflop, with notes from the charts', () => {
+    setup({ format: 'mtt' });
+    expect(screen.getByText('Postflop')).toBeInTheDocument();
+    expect(screen.getByText('Preflop')).toBeInTheDocument();
+    expect(menu().getByRole('menuitemradio', { name: /^3-bet/ })).toHaveTextContent('BTN/HJ/CO · 40–50bb+');
+    expect(menu().getByRole('menuitemradio', { name: /^4-bet/ })).toHaveTextContent('BTN · 40bb');
+  });
+
   it('picking a format reports it and closes', () => {
     const onFormatChange = vi.fn();
-    const props = setup({ mode: 'facing', onFormatChange });
+    const props = setup({ mode: 'threebet', onFormatChange });
     fireEvent.click(menu().getByRole('menuitemradio', { name: /Cash/ }));
     expect(onFormatChange).toHaveBeenCalledWith('cash');
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it('shows the opponents group in the cash 4-bet drills only', () => {
-    setup({ mode: 'btn4bet', format: 'cash' });
+  it('shows the opponents group in cash 4-bet mode only', () => {
+    setup({ mode: 'fourbet', format: 'cash' });
     expect(menu().getByRole('menuitemradio', { name: /Low stakes/ })).toHaveAttribute('aria-checked', 'true');
     expect(menu().getByRole('menuitemradio', { name: /Balanced/ })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('hides the opponents group where it changes nothing', () => {
-    setup({ mode: 'btn4bet', format: 'mtt' });
+    setup({ mode: 'fourbet', format: 'mtt' });
     expect(menu().queryByRole('menuitemradio', { name: /Low stakes/ })).not.toBeInTheDocument();
   });
 
   it('picking opponents reports it and closes', () => {
     const onOpponentsChange = vi.fn();
-    const props = setup({ mode: 'open4bet', onOpponentsChange });
+    const props = setup({ mode: 'fourbet', format: 'cash', onOpponentsChange });
     fireEvent.click(menu().getByRole('menuitemradio', { name: /Balanced/ }));
     expect(onOpponentsChange).toHaveBeenCalledWith('balanced');
     expect(props.onClose).toHaveBeenCalled();
@@ -151,7 +158,7 @@ describe('PhoneMenuSheet', () => {
 
   it('switching mode reports it and closes', () => {
     const props = setup();
-    fireEvent.click(menu().getByRole('menuitemradio', { name: /Preflop RFI/ }));
+    fireEvent.click(menu().getByRole('menuitemradio', { name: /^Open/ }));
 
     expect(props.onModeChange).toHaveBeenCalledWith('preflop');
     expect(props.onClose).toHaveBeenCalledTimes(1);

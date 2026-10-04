@@ -25,7 +25,7 @@ import type { Depth } from './ranges.ts';
 export const BRIEFED_KEY = 'bluff-catcher:briefed:v1';
 
 /** Any id a briefing sheet can be keyed by: a stack `Depth`, or another mode's
- *  own id (e.g. `'facing'`). */
+ *  own id (e.g. `'threebet'`). */
 export type BriefingId = Depth | (string & {});
 
 function read(): string[] {

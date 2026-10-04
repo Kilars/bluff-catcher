@@ -45,7 +45,7 @@ function press(key: string, init: KeyboardEventInit = {}) {
 
 /** Mark the briefing as seen so the hook starts with game keys live. */
 function briefed() {
-  localStorage.setItem(BRIEFED_KEY, JSON.stringify(['facing']));
+  localStorage.setItem(BRIEFED_KEY, JSON.stringify(['threebet']));
 }
 
 describe('useFacingDrill', () => {
@@ -76,7 +76,7 @@ describe('useFacingDrill', () => {
 
   it('does not mark any RFI tier as briefed', () => {
     renderHook(() => useFacingDrill({ onRecord }));
-    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['facing']);
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['threebet']);
   });
 
   it.each([
@@ -231,7 +231,7 @@ describe('cash charts (no value/bluff split)', () => {
     const { result } = renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'cash' }));
     expect(['LJ', 'HJ', 'CO']).toContain(result.current.spot.opener);
     expect(result.current.infoOpen).toBe(true);
-    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['facing-cash']);
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['threebet-cash']);
   });
 });
 
@@ -246,10 +246,10 @@ describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
   };
 
   it('K commits a 4-bet, graded right, and the copy says 4-bet', () => {
-    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['btn4bet-cash']));
+    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['fourbet-cash']));
     const spy = vi.spyOn(dealModule, 'dealFacingSpot').mockReturnValue(FOUR_BET_BLUFF);
     const onRecord = vi.fn<(wasCorrect: boolean) => void>();
-    const { result } = renderHook(() => useFacingDrill({ onRecord, format: 'cash', drill: 'btn4' }));
+    const { result } = renderHook(() => useFacingDrill({ onRecord, format: 'cash', mode: 'fourbet' }));
     expect(result.current.raiseWord).toBe('4-bet');
     press('k');
     expect(result.current.committed).toBe('4bet');
@@ -261,8 +261,8 @@ describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
 
   it('briefs each format once, under its own id', () => {
     localStorage.clear();
-    renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', drill: 'btn4' }));
-    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['btn4bet']);
+    renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', mode: 'fourbet' }));
+    expect(JSON.parse(localStorage.getItem(BRIEFED_KEY)!)).toEqual(['fourbet']);
   });
 
   it('colours 4-bets with the value/bluff split in cash and plainly at 40bb', () => {
@@ -290,17 +290,29 @@ describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
   });
 });
 
-describe('open vs 3-bet (cash only)', () => {
-  it('pages LJ, HJ, CO and deals cash even when asked for tournament', () => {
-    expect(facingChartPages('cash', 'open4', 'k').map((p) => [p.tab, p.title])).toEqual([
-      ['LJ', 'LJ vs 3-bet'],
-      ['HJ', 'HJ vs 3-bet'],
-      ['CO', 'CO vs 3-bet'],
+describe('chart pages per mode (docs/PLAN-menu.md)', () => {
+  it('groups a mode spanning seats by hero seat, with the raiser alone on the tab', () => {
+    expect(facingChartPages('cash', 'fourbet', 'k').map((p) => [p.group, p.tab, p.title])).toEqual([
+      ['BTN', 'SB', 'BTN vs SB 3-bet'],
+      ['BTN', 'BB', 'BTN vs BB 3-bet'],
+      ['LJ', '3-bet', 'LJ vs 3-bet'],
+      ['HJ', '3-bet', 'HJ vs 3-bet'],
+      ['CO', '3-bet', 'CO vs 3-bet'],
     ]);
+    expect(facingChartPages('mtt', 'threebet', 'k').map((p) => [p.group, p.tab])).toEqual([
+      ['BTN', 'Early'],
+      ['BTN', 'Late'],
+      ['HJ', 'LJ'],
+      ['CO', 'HJ'],
+    ]);
+    expect(new Set(facingChartPages('mtt', 'blinds', 'k').map((p) => p.group))).toEqual(new Set(['BB', 'SB']));
+  });
+
+  it('deals 4-bet in a tournament from the button only: there are no tournament open-vs-3-bet charts', () => {
     localStorage.clear();
-    const { result } = renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', drill: 'open4' }));
-    expect(result.current.bucketMeta.format).toBe('cash');
-    expect(['LJ', 'HJ', 'CO']).toContain(result.current.bucketMeta.hero);
+    const { result } = renderHook(() => useFacingDrill({ onRecord: () => {}, format: 'mtt', mode: 'fourbet' }));
+    expect(result.current.bucketMeta.format).toBe('mtt');
+    expect(result.current.bucketMeta.hero).toBe('BTN');
   });
 });
 

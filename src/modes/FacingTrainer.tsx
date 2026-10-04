@@ -1,11 +1,13 @@
 /**
- * FacingTrainer — the facing drills: someone opens, it folds to hero on
- * the button (docs/PLAN-3bet.md) or in the big blind (`drill="bb"`,
- * docs/PLAN-bb-defend.md), and hero chooses Fold / Call / 3-bet; or hero
- * opened the button and a blind 3-bets (`drill="btn4"`,
- * docs/PLAN-btn-4bet.md), and hero chooses Fold / Call / 4-bet; or the same
- * from an LJ/HJ/CO open, in cash (`drill="open4"`); or a curated seat pair
- * faces an open, hero anywhere but the button (`drill="seat"`, `spots.ts`).
+ * FacingTrainer — the facing modes (docs/PLAN-menu.md), grouped by the raise
+ * hero answers:
+ *   - 3-bet: it folds to hero facing an open, on the button (docs/PLAN-3bet.md)
+ *     or in a curated seat (`spots.ts`). Fold / Call / 3-bet.
+ *   - 4-bet: hero opened and is 3-bet, from the button (docs/PLAN-btn-4bet.md)
+ *     or, in cash, from LJ/HJ/CO. Fold / Call / 4-bet.
+ *   - Blinds: the big blind (docs/PLAN-bb-defend.md) and the small blind's
+ *     curated spots facing an open. Fold / Call / 3-bet.
+ * A mode deals from every chart in it, so the copy names hero's seat per hand.
  *
  * Presentation only, in the same split as PreflopTrainer: the spot, commit,
  * sheets, keys and verdict copy all live in `hooks/useFacingDrill`, and this
@@ -14,9 +16,8 @@
  * PreflopTrainer.module.css so the two drills look like one app.
  *
  * Props:
- *   stats — this mode's own `usePreflopStats()` instance
- *     (`bluff-catcher:facing:v1`, `bluff-catcher:bbdefend:v1`, …), separate from RFI's.
- *   drill — 'btn' (default), 'bb', 'btn4', 'open4' or 'seat': charts, copy and briefing.
+ *   stats — this mode's own `usePreflopStats()` instance (`STATS_KEY`), separate from RFI's.
+ *   mode — 'threebet' (default), 'fourbet' or 'blinds': charts, copy and briefing.
  *   keysSuspended — true while an App-level overlay is up; game keys go inert.
  */
 
@@ -32,18 +33,12 @@ import {
   facingChartPages,
   useFacingDrill,
 } from '../hooks/useFacingDrill';
-import {
-  BB_CONTEXT_LABEL,
-  BTN4_CONTEXT_LABEL,
-  FACING_CONTEXT_LABEL,
-  OPEN4_CONTEXT_LABEL,
-  SEAT_CONTEXT_LABEL,
-} from '../lib/facingMeta';
-import type { Drill } from '../lib/preflop/facing';
+import { MODE_CONTEXT_LABEL, MODE_KICKER } from '../lib/facingMeta';
+import type { FacingMode } from '../lib/preflop/facing';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { Format, Seat } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
-import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, LOW_STAKES_BRIEFING, OPEN4_BRIEFING, SEAT_BRIEFING } from './facingBriefing';
+import { FOURBET_CASH_LOW_BRIEFING, MODE_BRIEFING } from './facingBriefing';
 import type { Opponents } from '../lib/preflop/lowStakes';
 import styles from './PreflopTrainer.module.css';
 import own from './FacingTrainer.module.css';
@@ -55,65 +50,34 @@ export interface FacingTrainerProps {
   keysSuspended?: boolean;
   /** Tournament (default) or cash. App keys the trainer on it, so a switch re-deals. */
   format?: Format;
-  /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
-  drill?: Drill;
+  /** Facing an open (default), facing a 3-bet, or in the blinds. */
+  mode?: FacingMode;
   /** Who is across the table; changes only the cash 4-bet drills. App keys the trainer on it. */
   opponents?: Opponents;
 }
-
-/** What differs on screen between the drills. */
-const DRILL_VIEW = {
-  btn: {
-    contextLabel: FACING_CONTEXT_LABEL,
-    briefing: FACING_BRIEFING,
-    kicker: 'Facing an open',
-    where: 'Folds to you on the button',
-  },
-  bb: {
-    contextLabel: BB_CONTEXT_LABEL,
-    briefing: BB_BRIEFING,
-    kicker: 'Defending the big blind',
-    where: 'Folds to you in the big blind',
-  },
-  btn4: {
-    contextLabel: BTN4_CONTEXT_LABEL,
-    briefing: BTN4_BRIEFING,
-    kicker: 'Facing a 3-bet',
-    where: 'You opened the button',
-  },
-  open4: {
-    contextLabel: OPEN4_CONTEXT_LABEL,
-    briefing: OPEN4_BRIEFING,
-    kicker: 'Facing a 3-bet',
-    where: 'You opened',
-  },
-  seat: {
-    contextLabel: SEAT_CONTEXT_LABEL,
-    briefing: SEAT_BRIEFING,
-    kicker: 'Facing an open',
-    where: 'Folds to you',
-  },
-} as const;
 
 export function FacingTrainer({
   stats,
   keysSuspended = false,
   format = 'mtt',
-  drill: drillKind = 'btn',
+  mode = 'threebet',
   opponents = 'balanced',
 }: FacingTrainerProps) {
   const layout = useLayoutMode();
-  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind, opponents });
-  const view = DRILL_VIEW[drillKind];
-  const contextLabel = view.contextLabel[format];
+  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, mode, opponents });
+  const contextLabel = MODE_CONTEXT_LABEL[mode][format];
   const heroOpened = drill.bucketMeta.heroOpenBb !== undefined;
-  // Drills whose hero seat varies name it; the rest have it in the fixed copy.
-  const centreWhere =
-    drillKind === 'open4'
-      ? `You opened the ${positionLabel(drill.bucketMeta.hero)}`
-      : drillKind === 'seat'
-        ? `Folds to you in the ${positionLabel(drill.bucketMeta.hero)}`
-        : view.where;
+  // A mode deals several seats, so the line names hero's every hand.
+  const heroSeat = drill.bucketMeta.hero;
+  const centreWhere = heroOpened
+    ? `You opened the ${heroSeat === 'BTN' ? 'button' : positionLabel(heroSeat)}`
+    : heroSeat === 'BTN'
+      ? 'Folds to you on the button'
+      : heroSeat === 'BB'
+        ? 'Folds to you in the big blind'
+        : heroSeat === 'SB'
+          ? 'Folds to you in the small blind'
+          : `Folds to you in the ${positionLabel(heroSeat)}`;
 
   const {
     spot,
@@ -138,25 +102,25 @@ export function FacingTrainer({
   // Every chart of this drill, so the range sheet can step between them;
   // it opens on the one hero was graded on. Stable per drill and format, so
   // the grids can memoise their legends on each page's colouring.
-  const kicker = `${view.kicker} · ${contextLabel}`;
+  const kicker = `${MODE_KICKER[mode]} · ${contextLabel}`;
   const pages = useMemo(
-    () => facingChartPages(format, drillKind, kicker, opponents),
-    [format, drillKind, kicker, opponents]
+    () => facingChartPages(format, mode, kicker, opponents),
+    [format, mode, kicker, opponents]
   );
   const startPage = Math.max(0, pages.findIndex((p) => p.id === spot.bucket));
   // The sheets take an RFI seat, which a paged sheet only uses to seed its
   // (hidden) seat tabs — and there is no BB RFI seat. Any seat will do.
   const sheetSeat: Seat = spot.opener === 'BB' ? 'BTN' : spot.opener;
   // The low-stakes read only re-splits cash 4-bets, so only those briefings change.
-  const lowBriefing = opponents === 'low' && format === 'cash' ? LOW_STAKES_BRIEFING[drillKind] : undefined;
-  const info = <PreflopInfoSheet content={lowBriefing ?? view.briefing[format]} onClose={closeInfo} />;
+  const lowBriefing = opponents === 'low' && format === 'cash' && mode === 'fourbet' ? FOURBET_CASH_LOW_BRIEFING : undefined;
+  const info = <PreflopInfoSheet content={lowBriefing ?? MODE_BRIEFING[mode][format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
     return (
       <PhoneFacingTrainer
         {...drill}
         renderRange={() => (
-          <PhoneSheet title={view.kicker} subtitle={contextLabel} onClose={closeRange}>
+          <PhoneSheet title={MODE_KICKER[mode]} subtitle={contextLabel} onClose={closeRange}>
             <PhoneRangeView
               key={spot.bucket}
               position={sheetSeat}

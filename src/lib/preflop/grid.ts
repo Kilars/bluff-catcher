@@ -69,6 +69,29 @@ export interface ChartPage {
   cellAction: (hc: HandClass) => CellAction;
   /** One-line note under the grid. */
   footnote?: string;
+  /**
+   * Hero's seat for this chart ("BB"). When a mode's pages span several seats,
+   * the range views add a seat row above the tabs and show one seat's charts.
+   */
+  group?: string;
+}
+
+export interface PageGroup {
+  group: string;
+  /** Indices into the pages, in page order. */
+  indices: number[];
+}
+
+/** The pages' seats in first-seen order, or none when they all share one. */
+export function pageGroups(pages: readonly ChartPage[] | undefined): PageGroup[] {
+  const groups: PageGroup[] = [];
+  pages?.forEach((p, i) => {
+    if (p.group === undefined) return;
+    const g = groups.find((x) => x.group === p.group);
+    if (g) g.indices.push(i);
+    else groups.push({ group: p.group, indices: [i] });
+  });
+  return groups.length > 1 ? groups : [];
 }
 
 /** Verdict-style label for a cell action, used in aria-labels and readouts. */

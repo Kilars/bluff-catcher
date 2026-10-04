@@ -1,7 +1,7 @@
 # Plan: menu cleanup — group the preflop drills by the decision
 
-Status: decided, 2026-10-04. Base: `origin/main` (3260020). Local `main` and
-`btn-4bet` are behind it and do not have Seat vs open.
+Status: implemented, 2026-10-04. The range view also gained a seat strip, so
+one mode's charts can be browsed across hero seats and raisers.
 
 ## Goal
 

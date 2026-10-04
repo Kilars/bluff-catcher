@@ -473,6 +473,35 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
 } as Record<Bucket, BucketMeta>;
 
 /**
+ * The menu's facing modes, grouped by the raise hero answers (docs/PLAN-menu.md):
+ * a 3-bet decision facing an open, a 4-bet decision facing a 3-bet, or the
+ * blinds defending an open. A `Drill` is where a chart came from; a mode is
+ * which charts are dealt together.
+ */
+export type FacingMode = 'threebet' | 'fourbet' | 'blinds';
+export const FACING_MODES: readonly FacingMode[] = ['threebet', 'fourbet', 'blinds'];
+
+/** The mode a chart is dealt in. Seat vs open's SB spots belong with the blinds. */
+export function facingModeOf(meta: Pick<BucketMeta, 'drill' | 'hero'>): FacingMode {
+  switch (meta.drill) {
+    case 'btn':
+      return 'threebet';
+    case 'seat':
+      return meta.hero === 'SB' ? 'blinds' : 'threebet';
+    case 'bb':
+      return 'blinds';
+    case 'btn4':
+    case 'open4':
+      return 'fourbet';
+  }
+}
+
+/** A mode's buckets in a format, grouped by drill in `BUCKETS` order. */
+export function bucketsForMode(format: Format, mode: FacingMode): readonly Bucket[] {
+  return BUCKETS.filter((b) => BUCKET_META[b].format === format && facingModeOf(BUCKET_META[b]) === mode);
+}
+
+/**
  * The hands the dealer may deal per bucket, where that is narrower than all
  * 169: BTN vs 3-bet only happens to hands hero opened.
  */

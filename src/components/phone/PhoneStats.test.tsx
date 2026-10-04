@@ -67,7 +67,7 @@ describe('PhoneStatsPill', () => {
   it('facing mode: streak and accuracy, same shape as preflop, its own numbers', () => {
     renderAt(
       'phone',
-      <PhoneStatsPill mode="facing" streak={2} accuracy={40} hands={5} onPress={noop} />
+      <PhoneStatsPill mode="threebet" streak={2} accuracy={40} hands={5} onPress={noop} />
     );
 
     const pill = screen.getByTestId('phone-stats-pill');
@@ -81,7 +81,7 @@ describe('PhoneStatsPill', () => {
   it('facing accuracy reads as — before the first hand', () => {
     renderAt(
       'phone',
-      <PhoneStatsPill mode="facing" streak={0} accuracy={0} hands={0} onPress={noop} />
+      <PhoneStatsPill mode="threebet" streak={0} accuracy={0} hands={0} onPress={noop} />
     );
     expect(screen.getByTestId('phone-stats-pill')).toHaveTextContent('—');
   });
@@ -178,11 +178,11 @@ describe('PhoneStatsSheet', () => {
     expect(body.queryByText('By draw')).toBeNull();
   });
 
-  it('facing mode uses the same layout as preflop, with its own numbers', () => {
+  it('3-bet mode uses the same layout as preflop, with its own numbers', () => {
     renderAt(
       'phone',
       <PhoneStatsSheet
-        mode="facing"
+        mode="threebet"
         hands={10}
         correct={6}
         streak={1}
@@ -198,7 +198,7 @@ describe('PhoneStatsSheet', () => {
     expect(body.getByText('Correct').nextElementSibling).toHaveTextContent('6');
     expect(body.getByText('Wrong').nextElementSibling).toHaveTextContent('4');
     expect(body.queryByText('By draw')).toBeNull();
-    expect(screen.getByTestId('phone-sheet')).toHaveTextContent('Facing open');
+    expect(screen.getByTestId('phone-sheet')).toHaveTextContent('3-bet');
   });
 
   it('Reset lives here, and takes two taps', () => {

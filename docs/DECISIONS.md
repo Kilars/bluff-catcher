@@ -311,6 +311,17 @@ Type sizes in play: 11 12 13 14 15 19 22 25 27 28 29 37 40 44 px. Headings never
 weight 500 — hierarchy is size and space. Phosphor icons if any are ever needed (none now;
 glyphs are ♠ ♥ ♦ ♣ ? × → —).
 
+## Modes are grouped by the decision, not by seat (2026-10-04)
+
+The menu lists five modes in two sections: **Postflop** (Odds) and **Preflop**
+(Open, 3-bet, 4-bet, Blinds). A preflop mode is the raise hero answers. A chart's
+`Drill` (btn, bb, btn4, open4, seat) only records which source family it came
+from, and `facingModeOf` puts every chart in exactly one mode. The Seat vs open
+SB spots go to Blinds and the rest go to 3-bet. A mode deals its drills first,
+then a chart, so a family with few charts still gets half the hands. Retired
+mode ids and stats keys are read forward and never deleted. See
+docs/PLAN-menu.md.
+
 ## Explicitly out of scope for v1 (seams only)
 
 - **Preflop drill mode** (v2, owner-named) — keep the mode/street abstraction open.

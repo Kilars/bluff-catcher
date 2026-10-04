@@ -5,6 +5,10 @@ import '@fontsource/inter/500.css'
 import './styles/tokens.css'
 import './styles/app.css'
 import App from './App.tsx'
+import { migrateLegacyStats } from './hooks/useAppPrefs'
+
+// Before any stats hook reads storage (docs/PLAN-menu.md).
+migrateLegacyStats()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

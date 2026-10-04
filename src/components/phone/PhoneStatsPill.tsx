@@ -17,6 +17,7 @@
  */
 
 import type { Bands } from '../../hooks/useStats';
+import type { FacingMode } from '../../lib/preflop/facing';
 import styles from './PhoneStatsPill.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ export type PhoneStatsPillProps = CommonProps &
         bands: Bands;
       }
     | ({ mode: 'preflop' } & AccuracyVariant)
-    | ({ mode: 'facing' | 'bbdefend' | 'btn4bet' | 'open4bet' | 'seatvsopen' } & AccuracyVariant)
+    | ({ mode: FacingMode } & AccuracyVariant)
   );
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -43,7 +43,7 @@ function fakeStats(): ReturnType<typeof usePreflopStats> {
 }
 
 function briefed() {
-  localStorage.setItem(BRIEFED_KEY, JSON.stringify(['facing']));
+  localStorage.setItem(BRIEFED_KEY, JSON.stringify(['threebet']));
 }
 
 describe('FacingTrainer', () => {
@@ -69,7 +69,7 @@ describe('FacingTrainer', () => {
       expect(screen.getByTestId('raise-chip')).toHaveTextContent('2.5');
       expect(screen.getByTestId('opener-tag')).toHaveTextContent('vs Late');
       expect(screen.getByText('raises 2.5bb')).toBeInTheDocument();
-      expect(screen.getByText(/vs open · 50bb\+/)).toBeInTheDocument();
+      expect(screen.getByText('Folds to you on the button · 3-bet · 40–50bb+')).toBeInTheDocument();
       expect(screen.getByText('A8s')).toBeInTheDocument();
     });
 
@@ -121,14 +121,14 @@ describe('FacingTrainer', () => {
     it('briefs once, then not again; Info reopens it', () => {
       const first = renderAt('desktop', <FacingTrainer stats={fakeStats()} />);
       expect(
-        screen.getByRole('heading', { name: 'Fold, call or 3-bet on the button' })
+        screen.getByRole('heading', { name: 'Fold, call or 3-bet facing an open' })
       ).toBeInTheDocument();
       expect(screen.getByText(/J means call here/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /close situation info/i }));
       first.unmount();
 
       renderAt('desktop', <FacingTrainer stats={fakeStats()} />);
-      expect(screen.queryByText(/Fold, call or 3-bet on the button/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Fold, call or 3-bet facing an open/)).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Info/ }));
       expect(screen.getByText(/JJ and TT always call/)).toBeInTheDocument();
     });
@@ -192,7 +192,7 @@ describe('FacingTrainer range sheet paging', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['facing', 'bbdefend']));
+    localStorage.setItem(BRIEFED_KEY, JSON.stringify(['threebet', 'blinds']));
   });
 
   afterEach(() => {
@@ -200,9 +200,9 @@ describe('FacingTrainer range sheet paging', () => {
     dealSpy.mockRestore();
   });
 
-  function openRange(layout: 'desktop' | 'phone', spot: FacingSpot, drill: 'btn' | 'bb') {
+  function openRange(layout: 'desktop' | 'phone', spot: FacingSpot, mode: 'threebet' | 'blinds') {
     dealSpy = vi.spyOn(dealModule, 'dealFacingSpot').mockReturnValue(spot);
-    renderAt(layout, <FacingTrainer stats={fakeStats()} drill={drill} />);
+    renderAt(layout, <FacingTrainer stats={fakeStats()} mode={mode} />);
     if (layout === 'phone') {
       fireEvent.click(screen.getByTestId('decision-call'));
       fireEvent.click(screen.getByRole('button', { name: /See range/ }));
@@ -212,12 +212,13 @@ describe('FacingTrainer range sheet paging', () => {
     }
   }
 
-  it('desktop BTN: arrows and ←/→ step between the opener groups; the hand shows on its own chart only', () => {
-    openRange('desktop', SPOT, 'btn');
-    const tabs = within(screen.getByRole('tablist', { name: 'Chart' })).getAllByRole('tab');
+  it('desktop 3-bet: arrows and ←/→ step between the opener groups; the hand shows on its own chart only', () => {
+    openRange('desktop', SPOT, 'threebet');
+    const seats = within(screen.getByRole('tablist', { name: 'Your seat' })).getAllByRole('tab');
+    expect(seats.map((t) => t.textContent)).toEqual(['BTN2 charts', 'HJ1 chart', 'CO1 chart']);
+    const tabs = within(screen.getByRole('tablist', { name: 'BTN vs' })).getAllByRole('tab');
     expect(tabs.map((t) => t.textContent)).toEqual(['vs Early', 'vs Late']);
     expect(within(tabs[1]).getByLabelText('(your chart)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next chart' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous chart' }));
     expect(screen.getByRole('heading', { name: 'BTN vs Early (UTG, UTG+1)' })).toBeInTheDocument();
@@ -227,14 +228,29 @@ describe('FacingTrainer range sheet paging', () => {
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(screen.getByRole('heading', { name: 'BTN vs Late (UTG+2, LJ, HJ, CO)' })).toBeInTheDocument();
     expect(screen.getByLabelText('A8s: 3-bet (bluff) (your hand)')).toBeInTheDocument();
+
+    // Arrows run on across seats; the strip follows the seat.
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByRole('heading', { name: 'HJ vs LJ' })).toBeInTheDocument();
+    expect(within(screen.getByRole('tablist', { name: 'HJ vs' })).getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'vs LJ',
+    ]);
   });
 
-  it('desktop BB: one tab per opener, opening on the opener that raised', () => {
-    openRange('desktop', BB_SPOT, 'bb');
-    const tabs = within(screen.getByRole('tablist', { name: 'Chart' })).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual([
-      'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB',
-    ]);
+  it('desktop 3-bet: a seat tab jumps to that seat, and back to the hand on the hero seat', () => {
+    openRange('desktop', SPOT, 'threebet');
+    fireEvent.click(screen.getByRole('tab', { name: /^CO/ }));
+    expect(screen.getByRole('heading', { name: 'CO vs HJ' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /^BTN/ }));
+    expect(screen.getByRole('heading', { name: 'BTN vs Late (UTG+2, LJ, HJ, CO)' })).toBeInTheDocument();
+  });
+
+  it('desktop Blinds: one tab per opener, opening on the opener that raised', () => {
+    openRange('desktop', BB_SPOT, 'blinds');
+    const tabs = within(screen.getByRole('tablist', { name: 'BB vs' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(
+      ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB'].map((s) => `vs ${s}`)
+    );
     expect(screen.getByRole('heading', { name: 'BB vs CO' })).toBeInTheDocument();
 
     fireEvent.click(tabs[7]);
@@ -242,14 +258,18 @@ describe('FacingTrainer range sheet paging', () => {
     expect(screen.getByLabelText('AA: 3-bet')).toBeInTheDocument();
   });
 
-  it('phone BB: the chart strip pages, and the title follows', () => {
-    openRange('phone', BB_SPOT, 'bb');
+  it('phone Blinds: the chart strip pages, the title follows, and the seat row switches to the SB', () => {
+    openRange('phone', BB_SPOT, 'blinds');
     expect(screen.getByTestId('chart-title')).toHaveTextContent('BB vs CO');
-    const strip = screen.getByRole('tablist', { name: 'Chart' });
+    const strip = screen.getByRole('tablist', { name: 'BB vs' });
     expect(strip).toHaveAttribute('data-dense');
 
     fireEvent.click(within(strip).getByRole('tab', { name: 'UTG' }));
     expect(screen.getByTestId('chart-title')).toHaveTextContent('BB vs UTG');
     expect(screen.queryByLabelText(/your hand/)).not.toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole('tablist', { name: 'Your seat' })).getByRole('tab', { name: /^SB/ }));
+    expect(screen.getByTestId('chart-title')).toHaveTextContent('SB vs CO');
+    expect(screen.getByRole('tablist', { name: 'SB vs' })).not.toHaveAttribute('data-dense');
   });
 });

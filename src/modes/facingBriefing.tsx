@@ -5,8 +5,9 @@
  */
 
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
-import { FORMATS, type Format } from '../lib/preflop/ranges';
-import { BUCKET_CHART, BUCKET_META, bucketsFor, facingComboCounts, type Drill } from '../lib/preflop/facing';
+import type { Format } from '../lib/preflop/ranges';
+import { BUCKET_CHART, BUCKET_META, bucketsFor, facingComboCounts, type FacingMode } from '../lib/preflop/facing';
+import type { TableSeat } from '../lib/preflop/ranges';
 import { CURATED_SPOTS, SPOT_STACK, openSizeBb } from '../lib/preflop/spots';
 import styles from './FacingTrainer.module.css';
 
@@ -272,13 +273,13 @@ export const BTN4_BRIEFING: Record<Format, InfoSheetContent> = {
 };
 
 /**
- * Open vs 3-bet (cash only). The chart facts are pinned by
+ * Open vs 3-bet (cash charts only). The chart facts are pinned by
  * `lib/preflop/facingCharts.test.ts`.
  */
 const OPEN4_CASH_BRIEFING: InfoSheetContent = {
   ...BTN4_CASH_BRIEFING,
   title: 'Fold, call or 4-bet after you open',
-  subline: '6-max cash table · 100bb effective, no ante · cash only',
+  subline: '6-max cash table · 100bb effective, no ante',
   steps: [
     {
       title: 'The spot',
@@ -302,8 +303,8 @@ const OPEN4_CASH_BRIEFING: InfoSheetContent = {
       ),
     },
     {
-      title: 'Cash only',
-      body: 'The tournament source has a different, noisy chart for every 3-bettor and a jam for a 4-bet, so this drill always plays cash.',
+      title: 'Cash charts only',
+      body: 'The tournament source has a different, noisy chart for every 3-bettor and a jam for a 4-bet, so in a tournament the 4-bet mode deals the button spots only.',
     },
   ],
 };
@@ -367,10 +368,6 @@ const OPEN4_CASH_LOW_BRIEFING: InfoSheetContent = {
 };
 
 /** The cash 4-bet briefings for a low-stakes pool; other drills read their usual one. */
-export const LOW_STAKES_BRIEFING: Partial<Record<Drill, InfoSheetContent>> = {
-  btn4: BTN4_CASH_LOW_BRIEFING,
-  open4: OPEN4_CASH_LOW_BRIEFING,
-};
 
 // ─── Seat vs open: generated from the charts ──────────────────────────────────
 
@@ -384,15 +381,15 @@ const pct = (combos: number) => `${((combos / 1326) * 100).toFixed(1)}%`;
  * does not say which 3-bets are value and which are bluffs, so neither does
  * the briefing.
  */
-function seatBriefing(format: Format): InfoSheetContent {
+function seatBriefing(format: Format, heroes: (hero: TableSeat) => boolean): InfoSheetContent {
   const stack = SPOT_STACK[format];
   const table =
     format === 'mtt' ? `9-handed tournament table · ${stack} effective, 1bb ante` : '6-max cash table · 100bb effective, no ante';
-  const buckets = bucketsFor(format, 'seat');
+  const buckets = bucketsFor(format, 'seat').filter((b) => heroes(BUCKET_META[b].hero));
   const counts = buckets.map((b) => facingComboCounts(BUCKET_CHART[b]));
   // The cash source never flats outside the BTN and BB, so its spots are 3-bet or fold.
   const anyCall = counts.some((c) => c.call > 0);
-  const sizes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format).map((s) => openSizeBb(format, s.villain)))];
+  const sizes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format && heroes(s.hero)).map((s) => openSizeBb(format, s.villain)))];
   return {
     kicker: 'The situation',
     title: 'Fold, call or 3-bet from any seat',
@@ -432,7 +429,70 @@ function seatBriefing(format: Format): InfoSheetContent {
   };
 }
 
-export const SEAT_BRIEFING = Object.fromEntries(FORMATS.map((f) => [f, seatBriefing(f)])) as Record<
-  Format,
-  InfoSheetContent
->;
+// ─── The menu's modes: several drills' briefings in one ───────────────────────
+
+interface BriefingPart {
+  /** Prefixes each of the part's step titles, e.g. "Button". */
+  where: string;
+  content: InfoSheetContent;
+}
+
+/**
+ * One mode's briefing from its drills' (docs/PLAN-menu.md). A single part is
+ * returned as it is; several keep every step, each titled with where it applies.
+ * Keys and the note come from the first part: a mode's K is one raise.
+ */
+function mergeBriefings(title: string, subline: string, parts: BriefingPart[]): InfoSheetContent {
+  if (parts.length === 1) return parts[0].content;
+  return {
+    ...parts[0].content,
+    kicker: 'The situation',
+    title,
+    subline,
+    steps: parts.flatMap((p) => p.content.steps.map((st) => ({ ...st, title: `${p.where} · ${st.title}` }))),
+  };
+}
+
+const notSb = (hero: TableSeat) => hero !== 'SB';
+const isSb = (hero: TableSeat) => hero === 'SB';
+
+/** Each facing mode's briefing per format, with the balanced read. */
+export const MODE_BRIEFING: Record<FacingMode, Record<Format, InfoSheetContent>> = {
+  threebet: {
+    mtt: mergeBriefings('Fold, call or 3-bet facing an open', '9-handed tournament table · 40–50bb+ effective', [
+      { where: 'Button', content: FACING_BRIEFING.mtt },
+      { where: 'HJ and CO', content: seatBriefing('mtt', notSb) },
+    ]),
+    cash: mergeBriefings('Fold, call or 3-bet facing an open', '6-max cash table · 100bb effective, no ante', [
+      { where: 'Button', content: FACING_BRIEFING.cash },
+      { where: 'CO', content: seatBriefing('cash', notSb) },
+    ]),
+  },
+  fourbet: {
+    mtt: BTN4_BRIEFING.mtt,
+    cash: mergeBriefings('Fold, call or 4-bet after you open', '6-max cash table · 100bb effective, no ante', [
+      { where: 'Button', content: BTN4_BRIEFING.cash },
+      { where: 'LJ, HJ, CO', content: OPEN4_BRIEFING.cash },
+    ]),
+  },
+  blinds: {
+    mtt: mergeBriefings('Defend the blinds', '9-handed tournament table · 40bb effective, BB ante', [
+      { where: 'Big blind', content: BB_BRIEFING.mtt },
+      { where: 'Small blind', content: seatBriefing('mtt', isSb) },
+    ]),
+    cash: mergeBriefings('Defend the blinds', '6-max cash table · 100bb effective, no ante', [
+      { where: 'Big blind', content: BB_BRIEFING.cash },
+      { where: 'Small blind', content: seatBriefing('cash', isSb) },
+    ]),
+  },
+};
+
+/** The cash 4-bet briefing under the low-stakes read: the only one it changes. */
+export const FOURBET_CASH_LOW_BRIEFING = mergeBriefings(
+  'Fold, call or 4-bet after you open',
+  '6-max cash table · 100bb effective, no ante · low-stakes read',
+  [
+    { where: 'Button', content: BTN4_CASH_LOW_BRIEFING },
+    { where: 'LJ, HJ, CO', content: OPEN4_CASH_LOW_BRIEFING },
+  ]
+);

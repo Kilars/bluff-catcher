@@ -51,6 +51,7 @@ import {
   cellClass,
   type CellAction,
   type ChartPage,
+  pageGroups,
 } from '../../../lib/preflop/grid';
 import { boundarySentence, positionLabel } from '../../../lib/preflop/boundary';
 import type { HandClass } from '../../../lib/preflop/hands';
@@ -113,10 +114,12 @@ export interface PhoneRangeViewProps {
   /** Optional one-line note rendered under the grid. */
   footnote?: string;
   /**
-   * Page through these charts instead of the RFI seats (the facing drills:
-   * one page per opener group, or per opener in BB defend). The strip and
-   * swipe step pages; the tier chip, RFI boundary sentence and combo summary
-   * go away. Each page brings its own colouring, name and footnote.
+   * Page through these charts instead of the RFI seats (the facing modes:
+   * every chart the mode deals). The strip and swipe step pages; the tier
+   * chip, RFI boundary sentence and combo summary go away. Pages whose
+   * `group` (hero's seat) spans several seats get a seat strip above, and the
+   * chart strip shows one seat's. Each page brings its own colouring, name
+   * and footnote.
    */
   pages?: readonly ChartPage[];
   /** The page to open on (hero's chart); `highlight` is marked there only. */
@@ -153,6 +156,8 @@ export default function PhoneRangeView({
   const [pickedPos, setPickedPos] = useState<Seat>(position);
   const [pageIdx, setPageIdx] = useState(startPage);
   const page = pages?.[pageIdx];
+  const groups = useMemo(() => pageGroups(pages), [pages]);
+  const visiblePages = groups.find((g) => g.group === page?.group)?.indices.length ?? pages?.length ?? 0;
   const cellAction = page?.cellAction ?? seatCellAction;
   const footnote = page ? page.footnote : seatFootnote;
   const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
@@ -321,11 +326,40 @@ export default function PhoneRangeView({
         </p>
       )}
 
-      {/* Charts (paged mode). BB defend has 8 at 9-max, so the strip is dense:
-          8 x 36px + 7 x 4px = 316px, inside a 360px phone's 332px measure. */}
+      {/* Hero seats (paged mode, a mode spanning seats) — styled as the tier
+          strip: it is the level above the chart tabs. */}
+      {groups.length > 0 && (
+        <div className={styles.depths} role="tablist" aria-label="Your seat">
+          {groups.map((g) => (
+            <button
+              key={g.group}
+              type="button"
+              role="tab"
+              aria-selected={g.group === page?.group}
+              className={styles.depthTab}
+              data-active={g.group === page?.group}
+              onClick={() => setPageIdx(g.indices.includes(startPage) ? startPage : g.indices[0])}
+            >
+              <span className={styles.depthLabel}>{g.group}</span>
+              <span className={styles.depthName}>
+                {g.indices.includes(startPage) ? 'your seat' : `${g.indices.length} chart${g.indices.length === 1 ? '' : 's'}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Charts (paged mode): this seat's when grouped. The BB has 8 at 9-max,
+          so the strip is dense: 8 x 36px + 7 x 4px = 316px, inside a 360px
+          phone's 332px measure. */}
       {pages && (
-      <div className={styles.seats} role="tablist" aria-label="Chart" data-dense={pages.length > 7 || undefined}>
-        {pages.map((p, i) => (
+      <div
+        className={styles.seats}
+        role="tablist"
+        aria-label={groups.length > 0 ? `${page?.group} vs` : 'Chart'}
+        data-dense={visiblePages > 7 || undefined}
+      >
+        {pages.map((p, i) => (groups.length > 0 && p.group !== page?.group ? null :
           <button
             key={p.id}
             type="button"
