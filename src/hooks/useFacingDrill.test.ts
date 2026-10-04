@@ -303,3 +303,15 @@ describe('open vs 3-bet (cash only)', () => {
     expect(['LJ', 'HJ', 'CO']).toContain(result.current.bucketMeta.hero);
   });
 });
+
+describe('facingCellAction — opponents read', () => {
+  it('colours a value 4-bet the low-stakes read folds to a jam as a bluff', () => {
+    expect(facingCellAction('btn4-cash-SB', 'TT')).toBe('fourBetValue');
+    expect(facingCellAction('btn4-cash-SB', 'TT', 'low')).toBe('fourBetBluff');
+    expect(facingCellAction('btn4-cash-SB', 'QQ', 'low')).toBe('fourBetValue');
+  });
+
+  it('leaves the 3-bet charts alone', () => {
+    expect(facingCellAction('early', 'AKo', 'low')).toBe(facingCellAction('early', 'AKo'));
+  });
+});

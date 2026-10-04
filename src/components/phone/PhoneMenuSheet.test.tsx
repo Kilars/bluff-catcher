@@ -22,6 +22,8 @@ function setup(overrides: Partial<Parameters<typeof PhoneMenuSheet>[0]> = {}) {
     onDepthChange: vi.fn(),
     format: 'mtt' as const,
     onFormatChange: vi.fn(),
+    opponents: 'low' as 'low' | 'balanced',
+    onOpponentsChange: vi.fn(),
     showDraw: true,
     onShowDrawChange: vi.fn(),
     onOpenRanges: vi.fn(),
@@ -125,6 +127,25 @@ describe('PhoneMenuSheet', () => {
     const props = setup({ mode: 'facing', onFormatChange });
     fireEvent.click(menu().getByRole('menuitemradio', { name: /Cash/ }));
     expect(onFormatChange).toHaveBeenCalledWith('cash');
+    expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it('shows the opponents group in the cash 4-bet drills only', () => {
+    setup({ mode: 'btn4bet', format: 'cash' });
+    expect(menu().getByRole('menuitemradio', { name: /Low stakes/ })).toHaveAttribute('aria-checked', 'true');
+    expect(menu().getByRole('menuitemradio', { name: /Balanced/ })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('hides the opponents group where it changes nothing', () => {
+    setup({ mode: 'btn4bet', format: 'mtt' });
+    expect(menu().queryByRole('menuitemradio', { name: /Low stakes/ })).not.toBeInTheDocument();
+  });
+
+  it('picking opponents reports it and closes', () => {
+    const onOpponentsChange = vi.fn();
+    const props = setup({ mode: 'open4bet', onOpponentsChange });
+    fireEvent.click(menu().getByRole('menuitemradio', { name: /Balanced/ }));
+    expect(onOpponentsChange).toHaveBeenCalledWith('balanced');
     expect(props.onClose).toHaveBeenCalled();
   });
 

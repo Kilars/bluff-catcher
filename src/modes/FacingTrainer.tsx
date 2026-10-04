@@ -36,7 +36,8 @@ import type { Drill } from '../lib/preflop/facing';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { Format, Seat } from '../lib/preflop/ranges';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
-import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, OPEN4_BRIEFING } from './facingBriefing';
+import { BB_BRIEFING, BTN4_BRIEFING, FACING_BRIEFING, LOW_STAKES_BRIEFING, OPEN4_BRIEFING } from './facingBriefing';
+import type { Opponents } from '../lib/preflop/lowStakes';
 import styles from './PreflopTrainer.module.css';
 import own from './FacingTrainer.module.css';
 
@@ -49,6 +50,8 @@ export interface FacingTrainerProps {
   format?: Format;
   /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
+  /** Who is across the table; changes only the cash 4-bet drills. App keys the trainer on it. */
+  opponents?: Opponents;
 }
 
 /** What differs on screen between the drills. */
@@ -84,9 +87,10 @@ export function FacingTrainer({
   keysSuspended = false,
   format = 'mtt',
   drill: drillKind = 'btn',
+  opponents = 'balanced',
 }: FacingTrainerProps) {
   const layout = useLayoutMode();
-  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind });
+  const drill = useFacingDrill({ onRecord: stats.record, keysSuspended, format, drill: drillKind, opponents });
   const view = DRILL_VIEW[drillKind];
   const contextLabel = view.contextLabel[format];
   const heroOpened = drill.bucketMeta.heroOpenBb !== undefined;
@@ -115,12 +119,17 @@ export function FacingTrainer({
   // it opens on the one hero was graded on. Stable per drill and format, so
   // the grids can memoise their legends on each page's colouring.
   const kicker = `${view.kicker} · ${contextLabel}`;
-  const pages = useMemo(() => facingChartPages(format, drillKind, kicker), [format, drillKind, kicker]);
+  const pages = useMemo(
+    () => facingChartPages(format, drillKind, kicker, opponents),
+    [format, drillKind, kicker, opponents]
+  );
   const startPage = Math.max(0, pages.findIndex((p) => p.id === spot.bucket));
   // The sheets take an RFI seat, which a paged sheet only uses to seed its
   // (hidden) seat tabs — and there is no BB RFI seat. Any seat will do.
   const sheetSeat: Seat = spot.opener === 'BB' ? 'BTN' : spot.opener;
-  const info = <PreflopInfoSheet content={view.briefing[format]} onClose={closeInfo} />;
+  // The low-stakes read only re-splits cash 4-bets, so only those briefings change.
+  const lowBriefing = opponents === 'low' && format === 'cash' ? LOW_STAKES_BRIEFING[drillKind] : undefined;
+  const info = <PreflopInfoSheet content={lowBriefing ?? view.briefing[format]} onClose={closeInfo} />;
 
   if (layout === 'phone') {
     return (

@@ -28,6 +28,7 @@ import {
   bucketsFor,
   chartAction,
 } from './facing.ts';
+import type { Opponents } from './lowStakes.ts';
 import type { Format, TableSeat } from './ranges.ts';
 import { CASH_VS_CO, CASH_VS_EARLY } from './cashRanges.ts';
 import { FACING_SOURCES } from './facingSources.ts';
@@ -68,6 +69,12 @@ export interface DealFacingOpts {
   format?: Format;
   /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
+  /**
+   * Who the grade assumes across the table (default 'balanced', the source).
+   * Only changes the value/bluff kind of a cash 4-bet, never the action, so
+   * the deal itself is the same either way.
+   */
+  opponents?: Opponents;
 }
 
 // ─── Grid neighbours ──────────────────────────────────────────────────────────
@@ -240,7 +247,7 @@ export function dealFacingSpot(opts?: DealFacingOpts): FacingSpot {
   const verifiedClass = handClass(cards[0], cards[1]);
 
   // 4. Grade
-  const { action, kind } = bucketChartAction(bucket, verifiedClass);
+  const { action, kind } = bucketChartAction(bucket, verifiedClass, opts?.opponents);
 
   return {
     opener,

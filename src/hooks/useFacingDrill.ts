@@ -29,6 +29,7 @@ import { dealFacingSpot, type FacingSpot } from '../lib/preflop/facingDeal';
 import {
   BUCKET_META,
   bucketChartAction,
+  lowStakesNote,
   spotSizes,
   bucketsFor,
   type Bucket,
@@ -41,6 +42,7 @@ import { positionLabel } from '../lib/preflop/boundary';
 import type { HandClass } from '../lib/preflop/hands';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
 import type { Format } from '../lib/preflop/ranges';
+import type { Opponents } from '../lib/preflop/lowStakes';
 
 /** The briefing id in `briefed.ts` per drill and format — separate from every RFI tier. */
 export const FACING_BRIEFING_ID: Record<Drill, Record<Format, string>> = {
@@ -60,8 +62,8 @@ export const RAISE_WORD: Record<RaiseAction, string> = { '3bet': '3-bet', '4bet'
  * A bucket chart's answer for a hand, as a grid colour. A chart without kinds
  * (cash 3-bets, 40bb 4-bets) colours its raises plainly — never as "value".
  */
-export function facingCellAction(bucket: Bucket, hc: HandClass): CellAction {
-  const { action, kind } = bucketChartAction(bucket, hc);
+export function facingCellAction(bucket: Bucket, hc: HandClass, opponents: Opponents = 'balanced'): CellAction {
+  const { action, kind } = bucketChartAction(bucket, hc, opponents);
   if (action === '3bet') return kind ?? 'threeBet';
   if (action === '4bet') return kind === 'value' ? 'fourBetValue' : kind === 'bluff' ? 'fourBetBluff' : 'fourBet';
   return action;
@@ -84,7 +86,12 @@ export function facingChartTitle(bucket: Bucket): string {
  * the BTN drill's opener groups, or one page per opener in BB defend — so
  * the sheet can step between them like the RFI seats. `kicker` heads each page.
  */
-export function facingChartPages(format: Format, drill: Drill, kicker: string): ChartPage[] {
+export function facingChartPages(
+  format: Format,
+  drill: Drill,
+  kicker: string,
+  opponents: Opponents = 'balanced'
+): ChartPage[] {
   return bucketsFor(format, drill).map((b) => {
     const meta = BUCKET_META[b];
     return {
@@ -94,7 +101,7 @@ export function facingChartPages(format: Format, drill: Drill, kicker: string): 
       title: facingChartTitle(b),
       subline: `Graded on the ${meta.chartName} chart`,
       name: meta.label,
-      cellAction: (hc: HandClass) => facingCellAction(b, hc),
+      cellAction: (hc: HandClass) => facingCellAction(b, hc, opponents),
       footnote: meta.footnote,
     };
   });
@@ -133,6 +140,8 @@ export interface UseFacingDrillOptions {
   format?: Format;
   /** Hero on the button facing an open (default), in the big blind, or facing a 3-bet. */
   drill?: Drill;
+  /** Who the grade assumes across the table (`lib/preflop/lowStakes.ts`). App remounts on a change. */
+  opponents?: Opponents;
 }
 
 export function useFacingDrill({
@@ -140,10 +149,11 @@ export function useFacingDrill({
   keysSuspended = false,
   format: formatOpt = 'mtt',
   drill = 'btn',
+  opponents = 'balanced',
 }: UseFacingDrillOptions) {
   // Open vs 3-bet has cash charts only (docs/PLAN-btn-4bet.md, "Follow-up").
   const format: Format = drill === 'open4' ? 'cash' : formatOpt;
-  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, drill }));
+  const [spot, setSpot] = useState<FacingSpot>(() => dealFacingSpot({ format, drill, opponents }));
   const [committed, setCommitted] = useState<FacingAction | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
   const briefingId = FACING_BRIEFING_ID[drill][format];
@@ -172,11 +182,11 @@ export function useFacingDrill({
   );
 
   const handleNext = useCallback(() => {
-    setSpot(dealFacingSpot({ format, drill }));
+    setSpot(dealFacingSpot({ format, drill, opponents }));
     committedRef.current = null;
     setCommitted(null);
     setRangeOpen(false);
-  }, [format, drill]);
+  }, [format, drill, opponents]);
 
   const openInfo = useCallback(() => {
     setRangeOpen(false);
@@ -260,9 +270,11 @@ export function useFacingDrill({
    * Post-commit detail line: "A8s vs HJ: 3-bet (bluff) on the vs Late chart".
    * A per-opener chart (no `openerTag`) stops at the answer.
    */
-  const answerLabel = CELL_ACTION_LABELS[facingCellAction(spot.bucket, spot.handClass)];
+  const answerLabel = CELL_ACTION_LABELS[facingCellAction(spot.bucket, spot.handClass, opponents)];
   const chartPart = bucketMeta.openerTag ? ` on the ${bucketMeta.openerTag} chart` : '';
-  const detailText = `${spot.handClass} vs ${openerLabel}: ${answerLabel}${chartPart}`;
+  // Low stakes: say why a hand the source calls a jam with folds to one here.
+  const note = opponents === 'low' ? lowStakesNote(spot.bucket, spot.opener, spot.handClass) : null;
+  const detailText = `${spot.handClass} vs ${openerLabel}: ${answerLabel}${chartPart}${note ? ` — ${note}` : ''}`;
 
   return {
     spot,

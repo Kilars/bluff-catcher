@@ -55,6 +55,7 @@ import {
 import { BTN4_CASH_CHARTS, BTN4_MTT_CHARTS, BTN4_OPEN, BTN4_THREE_BETTORS, type ThreeBettor } from './btn4BetRanges.ts';
 import { OPEN4_CASH_CHARTS, OPEN4_OPENERS, OPEN4_THREE_BETTORS, type Open4Opener } from './open4BetRanges.ts';
 import { CASH_RFI } from './cashRanges.ts';
+import { JAM_EQUITY, POPULATION_JAM, jamPrice, lowStakesChart, type Opponents } from './lowStakes.ts';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -495,6 +496,59 @@ export const BUCKET_CHART = {
   ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.chart])),
 } as Record<Bucket, FacingChart>;
 
+/**
+ * Blinds already in the pot that neither hero nor the 3-bettor put there:
+ * whichever blinds did not 3-bet (hero never posts one in these drills).
+ */
+function deadBlinds(threeBettor: TableSeat): number {
+  return 1.5 - (threeBettor === 'SB' ? 0.5 : threeBettor === 'BB' ? 1 : 0);
+}
+
+/**
+ * The cash 4-bet charts re-split for a low-stakes pool (`lowStakes.ts`), at
+ * the cheapest jam price across each chart's 3-bettors. Buckets with no
+ * value/bluff split — every other chart — are absent and read the source.
+ */
+const LOW_STAKES_CHART: Partial<Record<Bucket, FacingChart>> = Object.fromEntries(
+  [...BTN4_SPOTS, ...OPEN4_SPOTS]
+    .filter((s) => s.meta.format === 'cash')
+    .map((s) => {
+      const price = Math.min(
+        ...s.meta.openers.map((t) => jamPrice(parseFloat(spotSizes(s.id, t).fourBetSize ?? ''), deadBlinds(t)))
+      );
+      return [s.id, lowStakesChart(s.chart, price)];
+    })
+);
+
+/**
+ * The chart a bucket is graded against for `opponents`. 'balanced' is the
+ * source chart; 'low' differs only where a cash 4-bet chart splits value from
+ * bluff, and there only in which 4-bets call a jam.
+ */
+export function bucketChart(bucket: Bucket, opponents: Opponents = 'balanced'): FacingChart {
+  return (opponents === 'low' ? LOW_STAKES_CHART[bucket] : undefined) ?? BUCKET_CHART[bucket];
+}
+
+/**
+ * Why the low-stakes read folds a hand the source calls a jam with, priced at
+ * this spot's own 3-bettor: "36% against a QQ+, AK jam; calling needs 37%".
+ * Null for every hand the two reads agree on.
+ */
+export function lowStakesNote(bucket: Bucket, raiser: TableSeat, hc: HandClass): string | null {
+  if (chartAction(BUCKET_CHART[bucket], hc).kind !== 'value') return null;
+  if (bucketChartAction(bucket, hc, 'low').kind !== 'bluff') return null;
+  const eq = JAM_EQUITY[hc];
+  const fourBet = parseFloat(spotSizes(bucket, raiser).fourBetSize ?? '');
+  if (eq === undefined || Number.isNaN(fourBet)) return null;
+  const price = jamPrice(fourBet, deadBlinds(raiser));
+  return `${Math.round(eq)}% against a ${POPULATION_JAM} jam; calling needs ${Math.round(price)}%`;
+}
+
+/** Whether the opponents read can change a bucket's chart (cash 4-bet charts only). */
+export function hasOpponentsRead(bucket: Bucket): boolean {
+  return bucket in LOW_STAKES_CHART;
+}
+
 // ─── Lookups ──────────────────────────────────────────────────────────────────
 
 /** A chart's answer for a hand class: its re-raise (with kind, if the chart has kinds), call, or fold. */
@@ -517,9 +571,9 @@ export function chartAction(chart: FacingChart, hc: HandClass): FacingAnswer {
   return { action: 'fold' };
 }
 
-/** The bucket chart's answer for a hand class. */
-export function bucketChartAction(bucket: Bucket, hc: HandClass): FacingAnswer {
-  return chartAction(BUCKET_CHART[bucket], hc);
+/** The bucket chart's answer for a hand class, for `opponents` (default: the source's balanced chart). */
+export function bucketChartAction(bucket: Bucket, hc: HandClass, opponents: Opponents = 'balanced'): FacingAnswer {
+  return chartAction(bucketChart(bucket, opponents), hc);
 }
 
 /** The graded answer when `opener` opens and hero holds `hc` on the button (tournament). */

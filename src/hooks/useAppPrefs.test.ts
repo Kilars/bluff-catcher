@@ -23,6 +23,10 @@ import {
   saveDepth,
   loadShowDraw,
   saveShowDraw,
+  OPPONENTS_KEY,
+  loadOpponents,
+  saveOpponents,
+  hasOpponentsChoice,
 } from './useAppPrefs';
 import { DEFAULT_DEPTH, DEPTHS } from '../lib/preflop/ranges';
 
@@ -169,5 +173,33 @@ describe('format persistence', () => {
     } finally {
       Storage.prototype.getItem = orig;
     }
+  });
+});
+
+describe('opponents persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults to low stakes', () => {
+    expect(loadOpponents()).toBe('low');
+  });
+
+  it('defaults to low stakes for an unrecognised stored value', () => {
+    localStorage.setItem(OPPONENTS_KEY, 'nits');
+    expect(loadOpponents()).toBe('low');
+  });
+
+  it('round-trips balanced', () => {
+    saveOpponents('balanced');
+    expect(loadOpponents()).toBe('balanced');
+  });
+
+  it('is offered only in the cash 4-bet drills', () => {
+    expect(hasOpponentsChoice('open4bet', 'mtt')).toBe(true);
+    expect(hasOpponentsChoice('btn4bet', 'cash')).toBe(true);
+    expect(hasOpponentsChoice('btn4bet', 'mtt')).toBe(false);
+    expect(hasOpponentsChoice('facing', 'cash')).toBe(false);
+    expect(hasOpponentsChoice('odds', 'cash')).toBe(false);
   });
 });
