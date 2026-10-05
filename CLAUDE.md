@@ -37,6 +37,14 @@ npm run split-hands -- [paths] [--out DIR]   # sort exports into cash/ and mtt/
 npm run smoke                                # leaks CLI sanity check
 ```
 
+## Importing hand histories
+
+Uploads arrive as zips of GGPoker exports, one file per tournament or cash
+run. Dedupe by **file name**: a file whose name already exists in `hands/`
+(or `hands/cash/`) is the same run and gets skipped. Don't dedupe individual
+hands inside files. Cash runs go in `hands/cash/`, tournaments in `hands/`
+(`npm run split-hands` sorts them).
+
 The `leaks` JSON payload contains `labels[]`, `rfiFolds[]`, `coldCalls[]`,
 `faced3Bets[]`, `bigSpots[]`, `byBoard`, `byRole` and `stats[]`. `--label NAME`
 returns every instance of a label instead of the 5-hand sample. Never use
