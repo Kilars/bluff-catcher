@@ -18,7 +18,7 @@ const MTT_BRIEFING: InfoSheetContent = {
   steps: [
     {
       title: 'The spot',
-      body: 'One player opens to 2.5bb and everyone else folds to you on the button. Fold, call, or 3-bet to about 3× the open.',
+      body: 'One player opens to 2.5bb and everyone else folds to you on the button. Fold, call, or 3-bet to about 3× the open. Only hands you would open from your seat are dealt.',
     },
     {
       title: 'Two charts, not six',
@@ -77,7 +77,7 @@ const CASH_BRIEFING: InfoSheetContent = {
   steps: [
     {
       title: 'The spot',
-      body: 'LJ, HJ or CO opens to 2.5bb and everyone else folds to you on the button. Fold, call, or 3-bet to about 3× the open.',
+      body: 'LJ, HJ or CO opens to 2.5bb and everyone else folds to you on the button. Fold, call, or 3-bet to about 3× the open. Only hands you would open from your seat are dealt.',
     },
     {
       title: 'Two charts',
@@ -399,7 +399,7 @@ function seatBriefing(format: Format, heroes: (hero: TableSeat) => boolean): Inf
         title: 'The spot',
         body: `One player opens to ${sizes.join(' or ')}bb and it folds to you. Seats behind you are still to act. ${
           anyCall ? 'Fold, call, or 3-bet.' : 'Fold or 3-bet: this source never flat-calls outside the button and big blind.'
-        }`,
+        } Only hands you would open from your seat are dealt, plus any the chart plays beyond them.`,
       },
       {
         title: 'The spots',

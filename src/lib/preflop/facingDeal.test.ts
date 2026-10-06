@@ -18,6 +18,7 @@ import {
 import {
   BUCKETS,
   BUCKET_META,
+  BUCKET_REACHABLE,
   FACING_MODES,
   bucketsFor,
   bucketsForMode,
@@ -137,9 +138,23 @@ describe('dealFacingSpot() — distribution', () => {
     }
   });
 
-  it('deals every one of the 169 classes', () => {
-    for (const hc of ALL_169) {
-      expect(counts.early[hc] + counts.late[hc], hc).toBeGreaterThan(0);
+  it('never leaves a continue outside a dealt range', () => {
+    for (const b of BUCKETS) {
+      const dealt = BUCKET_REACHABLE[b];
+      if (!dealt) continue;
+      for (const hc of ALL_169) {
+        if (!dealt.has(hc)) expect(bucketChartAction(b, hc).action, `${b} ${hc}`).toBe('fold');
+      }
+    }
+  });
+
+  it('deals every hand of the dealt range and none outside it', () => {
+    for (const b of MTT_BUCKETS) {
+      const dealt = BUCKET_REACHABLE[b]!;
+      for (const hc of ALL_169) {
+        if (dealt.has(hc)) expect(counts[b][hc], `${b} ${hc}`).toBeGreaterThan(0);
+        else expect(counts[b][hc], `${b} ${hc}`).toBe(0);
+      }
     }
   });
 
@@ -149,7 +164,8 @@ describe('dealFacingSpot() — distribution', () => {
       // six times the luck.
       const dealt: Record<FacingTier, number> = { border: 0, mid: 0, trash: 0 };
       const combos: Record<FacingTier, number> = { border: 0, mid: 0, trash: 0 };
-      for (const hc of ALL_169) {
+      // Over the dealt range only: hands outside it are never dealt at all.
+      for (const hc of ALL_169.filter((h) => BUCKET_REACHABLE[b]?.has(h) ?? true)) {
         const tier = facingTier(b, hc);
         dealt[tier] += counts[b][hc];
         combos[tier] += combosForClass(hc);
@@ -194,8 +210,9 @@ describe('dealFacingSpot() — cash format', () => {
     expect(Math.abs(openerCounts.LJ - openerCounts.HJ) / (N / 4)).toBeLessThan(0.1);
   });
 
-  it('keeps every class reachable', () => {
-    expect(seen.size).toBe(169);
+  it("deals exactly the dealt ranges (hero's open range plus any continue outside it)", () => {
+    const dealt = new Set(bucketsFor('cash').flatMap((b) => [...BUCKET_REACHABLE[b]!]));
+    expect(seen).toEqual(dealt);
   });
 
   it('measures "trash" against the cash charts only', () => {

@@ -27,7 +27,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dealFacingSpot, type FacingSpot } from '../lib/preflop/facingDeal';
 import {
   BUCKET_META,
-  bucketChartAction,
+  BUCKET_REACHABLE,
+  bucketChart,
   lowStakesNote,
   spotSizes,
   bucketsForMode,
@@ -37,6 +38,7 @@ import {
   type RaiseAction,
 } from '../lib/preflop/facing';
 import { CELL_ACTION_LABELS, type CellAction, type ChartPage } from '../lib/preflop/grid';
+import { dealtCellAction } from '../lib/preflop/pairCharts';
 import { positionLabel } from '../lib/preflop/boundary';
 import type { HandClass } from '../lib/preflop/hands';
 import { needsBriefing, markBriefed } from '../lib/preflop/briefed';
@@ -61,12 +63,10 @@ export const RAISE_WORD: Record<RaiseAction, string> = { '3bet': '3-bet', '4bet'
 /**
  * A bucket chart's answer for a hand, as a grid colour. A chart without kinds
  * (cash 3-bets, 40bb 4-bets) colours its raises plainly — never as "value".
+ * A hand the bucket never deals is 'none', not a fold.
  */
 export function facingCellAction(bucket: Bucket, hc: HandClass, opponents: Opponents = 'balanced'): CellAction {
-  const { action, kind } = bucketChartAction(bucket, hc, opponents);
-  if (action === '3bet') return kind ?? 'threeBet';
-  if (action === '4bet') return kind === 'value' ? 'fourBetValue' : kind === 'bluff' ? 'fourBetBluff' : 'fourBet';
-  return action;
+  return dealtCellAction(BUCKET_REACHABLE[bucket], bucketChart(bucket, opponents), hc);
 }
 
 /**

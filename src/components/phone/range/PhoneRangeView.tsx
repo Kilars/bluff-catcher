@@ -32,7 +32,7 @@
  * commit, no persistence — a parent mounts this and owns all of that.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CHART_KEYS,
   CHART_META,
@@ -124,6 +124,8 @@ export interface PhoneRangeViewProps {
   pages?: readonly ChartPage[];
   /** The page to open on (hero's chart); `highlight` is marked there only. */
   startPage?: number;
+  /** Optional strip above the view's own (the chart browser's decision and source switch). */
+  strip?: ReactNode;
 }
 
 interface Scrub {
@@ -152,9 +154,17 @@ export default function PhoneRangeView({
   footnote: seatFootnote,
   pages,
   startPage = 0,
+  strip,
 }: PhoneRangeViewProps) {
   const [pickedPos, setPickedPos] = useState<Seat>(position);
   const [pageIdx, setPageIdx] = useState(startPage);
+  // A new chart list (the browser switched decision or source) reopens on its
+  // start page, as RangeSheet does. Callers pass a memoised list.
+  const [pagesShown, setPagesShown] = useState(pages);
+  if (pages !== pagesShown) {
+    setPagesShown(pages);
+    setPageIdx(startPage);
+  }
   const page = pages?.[pageIdx];
   const groups = useMemo(() => pageGroups(pages), [pages]);
   const visiblePages = groups.find((g) => g.group === page?.group)?.indices.length ?? pages?.length ?? 0;
@@ -301,6 +311,8 @@ export default function PhoneRangeView({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {strip}
+
       {/* Tier — a strip only where switching tiers means something */}
       {pages ? null : depthSwitchable ? (
         <div className={styles.depths} role="tablist" aria-label="Chart">
@@ -329,7 +341,7 @@ export default function PhoneRangeView({
       {/* Hero seats (paged mode, a mode spanning seats) — styled as the tier
           strip: it is the level above the chart tabs. */}
       {groups.length > 0 && (
-        <div className={styles.depths} role="tablist" aria-label="Your seat">
+        <div className={styles.depths} role="tablist" aria-label="Your seat" data-dense={groups.length > 6 || undefined}>
           {groups.map((g) => (
             <button
               key={g.group}
@@ -340,9 +352,15 @@ export default function PhoneRangeView({
               data-active={g.group === page?.group}
               onClick={() => setPageIdx(g.indices.includes(startPage) ? startPage : g.indices[0])}
             >
-              <span className={styles.depthLabel}>{g.group}</span>
+              <span className={styles.depthLabel}>
+                {g.group}
+                {/* Only a sheet with a hand in play has a seat of yours. */}
+                {highlight && g.indices.includes(startPage) && (
+                  <span className={styles.heroDot} aria-label="(your seat)" />
+                )}
+              </span>
               <span className={styles.depthName}>
-                {g.indices.includes(startPage) ? 'your seat' : `${g.indices.length} chart${g.indices.length === 1 ? '' : 's'}`}
+                {g.indices.length} chart{g.indices.length === 1 ? '' : 's'}
               </span>
             </button>
           ))}
@@ -370,7 +388,7 @@ export default function PhoneRangeView({
             onClick={() => setPageIdx(i)}
           >
             {p.tab}
-            {i === startPage && <span className={styles.heroDot} aria-label="(your chart)" />}
+            {highlight && i === startPage && <span className={styles.heroDot} aria-label="(your chart)" />}
           </button>
         ))}
       </div>
@@ -462,7 +480,7 @@ export default function PhoneRangeView({
               RANK_LABELS.map((__, colIdx) => {
                 const hc = cellClass(rowIdx, colIdx);
                 const action = cellAction?.(hc);
-                const open = action ? action !== 'fold' : isOpen(viewPos, hc, viewDepth);
+                const open = action ? action !== 'fold' && action !== 'none' : isOpen(viewPos, hc, viewDepth);
                 const hero = heroHand === hc;
                 const scrubbed = scrub?.row === rowIdx && scrub?.col === colIdx;
                 const label = action ? CELL_ACTION_LABELS[action] : open ? meta.action : 'fold';

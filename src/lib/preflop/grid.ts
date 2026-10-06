@@ -48,7 +48,9 @@ export type CellAction =
   | 'fourBetBluff'
   | 'fourBet'
   | 'call'
-  | 'fold';
+  | 'fold'
+  // A hand the spot never deals: hero would not have it here (`dealtRange`).
+  | 'none';
 
 /**
  * One page of a paged chart sheet (the facing drills' range view): a chart
@@ -106,6 +108,7 @@ export const CELL_ACTION_LABELS: Record<CellAction, string> = {
   fourBet: '4-bet',
   call: 'call',
   fold: 'fold',
+  none: 'not in range',
 };
 
 /**
@@ -127,6 +130,7 @@ export const CELL_ACTION_LEGEND: ReadonlyArray<{ action: CellAction; label: stri
   { action: 'fourBet', label: '4-bet (4)' },
   { action: 'call', label: 'call' },
   { action: 'fold', label: 'fold' },
+  { action: 'none', label: 'not in range' },
 ];
 
 /** The legend entries a chart actually uses, in legend order. */

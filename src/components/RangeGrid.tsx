@@ -85,7 +85,7 @@ export default function RangeGrid({
           {RANK_LABELS.map((_, colIdx) => {
             const hc = cellClass(rowIdx, colIdx);
             const action = cellAction?.(hc);
-            const open = action ? action !== 'fold' : isOpen(position, hc, depth);
+            const open = action ? action !== 'fold' && action !== 'none' : isOpen(position, hc, depth);
             const isHighlighted = highlight === hc;
 
             // Determine triangle region for semantic class

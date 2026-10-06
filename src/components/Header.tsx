@@ -56,7 +56,7 @@ interface HeaderProps {
   preflopStats?: PreflopLikeStatsProps;
   /** The active facing drill's stats (BTN or BB) — its own `usePreflopStats()` instance. */
   facingStats?: PreflopLikeStatsProps;
-  /** Opens the standalone RFI range-chart browser from the menu. */
+  /** Opens the standalone range-chart browser from the menu. */
   onOpenRanges: () => void;
 }
 

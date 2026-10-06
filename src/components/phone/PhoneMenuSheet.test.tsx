@@ -54,7 +54,7 @@ describe('PhoneMenuSheet', () => {
     }
 
     expect(menu().getByRole('menuitemcheckbox', { name: /Show the draw/ })).toBeInTheDocument();
-    expect(menu().getByRole('menuitem', { name: /RFI range charts/ })).toBeInTheDocument();
+    expect(menu().getByRole('menuitem', { name: /Range charts/ })).toBeInTheDocument();
     expect(menu().getByRole('menuitem', { name: /Reset stats/ })).toBeInTheDocument();
 
     // Every mode + three depths + the draw toggle + charts + reset, and nothing else.
@@ -174,7 +174,7 @@ describe('PhoneMenuSheet', () => {
 
   it('the range charts open and the sheet gets out of the way', () => {
     const props = setup();
-    fireEvent.click(menu().getByRole('menuitem', { name: /RFI range charts/ }));
+    fireEvent.click(menu().getByRole('menuitem', { name: /Range charts/ }));
 
     expect(props.onOpenRanges).toHaveBeenCalledTimes(1);
     expect(props.onClose).toHaveBeenCalledTimes(1);

@@ -152,21 +152,27 @@ export function chartTwins(spot: Spot): { hero: TableSeat; villain: TableSeat }[
   const chart = facingRange(spot);
   if (!chart) return [];
   const seats = Object.keys(SOURCE_SEAT) as TableSeat[];
-  // Compared by contents: the 4-bet value/bluff sets are built fresh per call.
-  const sets = (c: FacingChart) =>
-    Object.values(c)
-      .flatMap((v): ReadonlySet<HandClass>[] => (v instanceof Set ? [v] : Object.values(v)))
-      .map((s) => [...s].sort().join(' '));
-  const mine = sets(chart);
+  const mine = chartSignature(chart);
   const twins: { hero: TableSeat; villain: TableSeat }[] = [];
   for (const hero of seats) {
     for (const villain of seats) {
       if (hero === spot.hero && villain === spot.villain) continue;
       const other = facingRange({ ...spot, hero, villain });
-      if (other && sets(other).every((s, i) => s === mine[i])) twins.push({ hero, villain });
+      if (other && chartSignature(other) === mine) twins.push({ hero, villain });
     }
   }
   return twins;
+}
+
+/**
+ * A facing chart's contents as one comparable string. Compared by contents,
+ * not identity: the 4-bet value/bluff sets are built fresh per lookup.
+ */
+export function chartSignature(chart: FacingChart): string {
+  return Object.values(chart)
+    .flatMap((v): ReadonlySet<HandClass>[] => (v instanceof Set ? [v] : Object.values(v)))
+    .map((s) => [...s].sort().join(' '))
+    .join('|');
 }
 
 /** `openRange` for a spot that must exist: throws on a missing chart (module-load wiring). */

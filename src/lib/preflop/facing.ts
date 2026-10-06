@@ -45,8 +45,8 @@
  */
 
 import { type HandClass, ALL_169, combosForClass } from './hands.ts';
-import { CASH_RFI, SEAT_META, type Format, type Position, type TableSeat } from './ranges.ts';
-import { chartTwins, requireFacingRange, requireOpenRange, type Stack } from './range.ts';
+import { SEAT_META, getRangeSet, type Format, type Position, type TableSeat } from './ranges.ts';
+import { chartTwins, openRange, requireFacingRange, type RangeNode, type Stack } from './range.ts';
 import { CURATED_SPOTS, SPOT_STACK, openSizeBb } from './spots.ts';
 import { JAM_EQUITY, POPULATION_JAM, jamPrice, lowStakesChart, type Opponents } from './lowStakes.ts';
 
@@ -217,7 +217,7 @@ const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
           : 'The 4-bet is all-in at 40bb, so there is no bluff split. Pure chart: border hands are close.',
     };
     const chart = requireFacingRange({ format, stack: src.stack, node: 'vs3bet', hero: 'BTN', villain: seat }) as FourBetChart;
-    return { id, meta, chart, reachable: requireOpenRange({ format, stack: src.stack, hero: 'BTN' }) };
+    return { id, meta, chart };
   });
 });
 
@@ -259,7 +259,7 @@ const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
     footnote: 'The source uses one chart whichever seat 3-bets. Pure chart: border hands are close.',
   };
   const chart = requireFacingRange({ format: 'cash', stack: '100bb', node: 'vs3bet', hero: opener, villain: 'BB' }) as FourBetChart;
-  return { id, meta, chart, reachable: CASH_RFI[opener] };
+  return { id, meta, chart };
 });
 
 /** A seat's short name, the big blind included ("UTG+1", "BB"). */
@@ -349,8 +349,8 @@ export interface BucketMeta {
   id: Bucket;
   drill: Drill;
   format: Format;
-  /** Stack figure for the plaques and labels, e.g. "50bb+". */
-  stackLabel: string;
+  /** The source's stack, also the plaques' and labels' figure, e.g. "50bb+". */
+  stackLabel: Stack;
   /** Plaque / tab label, e.g. "vs Early". */
   label: string;
   /**
@@ -501,14 +501,6 @@ export function bucketsForMode(format: Format, mode: FacingMode): readonly Bucke
   return BUCKETS.filter((b) => BUCKET_META[b].format === format && facingModeOf(BUCKET_META[b]) === mode);
 }
 
-/**
- * The hands the dealer may deal per bucket, where that is narrower than all
- * 169: BTN vs 3-bet only happens to hands hero opened.
- */
-export const BUCKET_REACHABLE: Partial<Record<Bucket, ReadonlySet<HandClass>>> = Object.fromEntries(
-  [...BTN4_SPOTS, ...OPEN4_SPOTS].map((s) => [s.id, s.reachable])
-);
-
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
 /**
@@ -606,6 +598,51 @@ export const BUCKET_CHART = {
   ...Object.fromEntries(OPEN4_SPOTS.map((s) => [s.id, s.chart])),
   ...Object.fromEntries(SEAT_SPOTS.map((s) => [s.id, s.chart])),
 } as Record<Bucket, FacingChart>;
+
+// ─── Dealt range ──────────────────────────────────────────────────────────────
+
+/**
+ * Hero's raise-first-in range from a seat, read from the same source as the
+ * facing chart. The 50bb+ pack has no open charts; its BTN drill opens with
+ * the RFI drill's 60bb+ chart, the same vendor's. Null for the BB, which never
+ * opens.
+ */
+function heroOpenRange(format: Format, stack: Stack, hero: TableSeat): ReadonlySet<HandClass> | null {
+  if (hero === 'BB') return null;
+  return openRange({ format, stack, hero }) ?? (stack === '50bb+' ? getRangeSet(hero, 'deep') : null);
+}
+
+/**
+ * The hands a facing spot deals, where that is narrower than all 169; null
+ * means every hand. Later decisions only drill hands that reach them:
+ *   vs 3-bet — hero opened, so only hero's open range.
+ *   vs open  — hero has not acted, but the drill is "which of the hands I
+ *              play 3-bet or call", so hero's open range from the seat, plus
+ *              the few hands the chart continues with outside it (cash 65s,
+ *              40bb K5s and BTN 22), so no continue is ever left undealt.
+ *   BB       — no open range; it defends wider than any open, so all hands.
+ */
+export function dealtRange(
+  format: Format,
+  stack: Stack,
+  node: Exclude<RangeNode, 'open'>,
+  hero: TableSeat,
+  chart: FacingChart
+): ReadonlySet<HandClass> | null {
+  const open = heroOpenRange(format, stack, hero);
+  if (!open || node === 'vs3bet') return open;
+  return new Set([...open, ...ALL_169.filter((hc) => chartAction(chart, hc).action !== 'fold')]);
+}
+
+/** The hands the dealer may deal per bucket (`dealtRange`); absent means all 169. */
+export const BUCKET_REACHABLE: Partial<Record<Bucket, ReadonlySet<HandClass>>> = Object.fromEntries(
+  BUCKETS.flatMap((b) => {
+    const meta = BUCKET_META[b];
+    const node = meta.raise === '4bet' ? 'vs3bet' : 'vsOpen';
+    const range = dealtRange(meta.format, meta.stackLabel, node, meta.hero, BUCKET_CHART[b]);
+    return range ? [[b, range]] : [];
+  })
+);
 
 /**
  * Blinds already in the pot that neither hero nor the 3-bettor put there:

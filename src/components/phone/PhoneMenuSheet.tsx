@@ -60,7 +60,7 @@ export interface PhoneMenuSheetProps {
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
-  /** Opens the standalone RFI range-chart browser. */
+  /** Opens the standalone range-chart browser. */
   onOpenRanges: () => void;
   /** Clears persisted stats for the current mode. Armed by one tap, fired by a second. */
   onResetStats: () => void;
@@ -269,8 +269,8 @@ export default function PhoneMenuSheet({
           <span className={styles.groupLabel}>Tools</span>
           <button type="button" role="menuitem" className={styles.row} onClick={openRanges}>
             <span className={styles.rowMain}>
-              RFI range charts
-              <span className={styles.rowNote}>Browse every seat at the current tier</span>
+              Range charts
+              <span className={styles.rowNote}>Every open, and every seat pair facing a raise</span>
             </span>
             <span className={styles.chevron} aria-hidden="true">
               →

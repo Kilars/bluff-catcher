@@ -23,10 +23,8 @@
 
 import { useMemo } from 'react';
 import PreflopTable from '../components/PreflopTable';
-import RangeSheet from '../components/RangeSheet';
+import ChartBrowser, { type BrowserSpot } from '../components/ChartBrowser';
 import PreflopInfoSheet from '../components/PreflopInfoSheet';
-import PhoneSheet from '../components/phone/PhoneSheet';
-import PhoneRangeView from '../components/phone/range/PhoneRangeView';
 import type { usePreflopStats } from '../hooks/usePreflopStats';
 import { useLayoutMode } from '../hooks/useLayoutMode';
 import {
@@ -36,7 +34,8 @@ import {
 import { MODE_CONTEXT_LABEL, MODE_KICKER } from '../lib/facingMeta';
 import type { FacingMode } from '../lib/preflop/facing';
 import { positionLabel } from '../lib/preflop/boundary';
-import type { Format, Seat } from '../lib/preflop/ranges';
+import { DEFAULT_DEPTH, chartKeyFor, type Format, type Seat } from '../lib/preflop/ranges';
+import { DEFAULT_PAIR_SET, PAIR_SETS } from '../lib/preflop/pairCharts';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
 import { FOURBET_CASH_LOW_BRIEFING, MODE_BRIEFING } from './facingBriefing';
 import type { Opponents } from '../lib/preflop/lowStakes';
@@ -115,22 +114,34 @@ export function FacingTrainer({
   const lowBriefing = opponents === 'low' && format === 'cash' && mode === 'fourbet' ? FOURBET_CASH_LOW_BRIEFING : undefined;
   const info = <PreflopInfoSheet content={lowBriefing ?? MODE_BRIEFING[mode][format]} onClose={closeInfo} />;
 
+  // The range sheet opens on the graded charts; its decision strip reaches
+  // every seat pair, opening on the dealt one (`ChartBrowser`).
+  const browserSpot: BrowserSpot = {
+    node: mode === 'fourbet' ? 'vs3bet' : 'vsOpen',
+    setId: PAIR_SETS.find((s) => s.format === format && s.stack === bucketMeta.stackLabel)?.id ?? DEFAULT_PAIR_SET[format],
+    hero: bucketMeta.hero,
+    villain: spot.opener,
+    hand: spot.handClass,
+  };
+  const rangeSheet = (sheetLayout: 'phone' | 'desktop') => (
+    <ChartBrowser
+      key={spot.bucket}
+      layout={sheetLayout}
+      format={format}
+      depth={chartKeyFor(format, DEFAULT_DEPTH)}
+      drill={{ pages, startPage, seat: sheetSeat }}
+      spot={browserSpot}
+      title={MODE_KICKER[mode]}
+      subtitle={contextLabel}
+      onClose={closeRange}
+    />
+  );
+
   if (layout === 'phone') {
     return (
       <PhoneFacingTrainer
         {...drill}
-        renderRange={() => (
-          <PhoneSheet title={MODE_KICKER[mode]} subtitle={contextLabel} onClose={closeRange}>
-            <PhoneRangeView
-              key={spot.bucket}
-              position={sheetSeat}
-              highlight={spot.handClass}
-              legend
-              pages={pages}
-              startPage={startPage}
-            />
-          </PhoneSheet>
-        )}
+        renderRange={() => rangeSheet('phone')}
         renderInfo={() => info}
       />
     );
@@ -229,17 +240,7 @@ export function FacingTrainer({
         </div>
       </div>
 
-      {rangeOpen && (
-        <RangeSheet
-          key={spot.bucket}
-          position={sheetSeat}
-          highlight={spot.handClass}
-          legend
-          pages={pages}
-          startPage={startPage}
-          onClose={closeRange}
-        />
-      )}
+      {rangeOpen && rangeSheet('desktop')}
 
       {infoOpen && info}
     </>

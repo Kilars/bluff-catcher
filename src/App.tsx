@@ -47,7 +47,7 @@ import { useLayoutMode } from './hooks/useLayoutMode';
 import { useStats } from './hooks/useStats';
 import { usePreflopStats } from './hooks/usePreflopStats';
 import Header from './components/Header';
-import RangeSheet from './components/RangeSheet';
+import ChartBrowser from './components/ChartBrowser';
 import { CHART_META, chartKeyFor, type Format } from './lib/preflop/ranges';
 import { MODE_CHIP_LABEL } from './lib/facingMeta';
 import { STATS_KEY, isFacingMode, useAppPrefs } from './hooks/useAppPrefs';
@@ -55,8 +55,6 @@ import PhoneTopBar from './components/phone/PhoneTopBar';
 import PhoneMenuSheet from './components/phone/PhoneMenuSheet';
 import PhoneStatsPill, { type PhoneStatsPillProps } from './components/phone/PhoneStatsPill';
 import PhoneStatsSheet from './components/phone/PhoneStatsSheet';
-import PhoneSheet from './components/phone/PhoneSheet';
-import PhoneRangeView from './components/phone/range/PhoneRangeView';
 import OddsTrainer from './modes/OddsTrainer';
 import PreflopTrainer from './modes/PreflopTrainer';
 import FacingTrainer from './modes/FacingTrainer';
@@ -110,7 +108,7 @@ export default function App() {
   // matchMedia subscription and not a resize listener.
   const layout = useLayoutMode();
 
-  // Standalone RFI range-chart browser, opened from the header menu.
+  // Standalone range-chart browser, opened from the header menu.
   // Independent of the trainer's own range sheet: it opens on the first seat
   // of the chart in play and is browsable from any mode, without a hand in play.
   const [rangesOpen, setRangesOpen] = useState(false);
@@ -315,25 +313,18 @@ export default function App() {
         />
       )}
 
-      {/* The standalone chart browser. Unlike the trainer's own range sheet
-          this one IS tier-switchable — there is no hand in play for it to
-          disagree with, so browsing 60bb+ → 10bb on one seat is the point. */}
-      {rangesOpen &&
-        (isPhone ? (
-          <PhoneSheet title="RFI range charts" onClose={() => setRangesOpen(false)}>
-            <PhoneRangeView
-              position={CHART_META[chartKey].seats[0]}
-              depth={chartKey}
-              depthSwitchable
-            />
-          </PhoneSheet>
-        ) : (
-          <RangeSheet
-            position={CHART_META[chartKey].seats[0]}
-            depth={chartKey}
-            onClose={() => setRangesOpen(false)}
-          />
-        ))}
+      {/* The standalone chart browser: every RFI tier and every seat-pair
+          facing chart. Unlike a trainer's range sheet nothing is in play, so
+          browsing 60bb+ → 10bb or cash → 40bb is the point. */}
+      {rangesOpen && (
+        <ChartBrowser
+          layout={isPhone ? 'phone' : 'desktop'}
+          format={format}
+          depth={chartKey}
+          title="Range charts"
+          onClose={() => setRangesOpen(false)}
+        />
+      )}
 
       {isPhone && phoneSheet !== null && phoneSheet !== 'stats' && (
         <PhoneMenuSheet

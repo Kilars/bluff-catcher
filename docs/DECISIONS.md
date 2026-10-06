@@ -322,6 +322,30 @@ then a chart, so a family with few charts still gets half the hands. Retired
 mode ids and stats keys are read forward and never deleted. See
 docs/PLAN-menu.md.
 
+## The range sheet browses every seat pair (2026-10-06)
+
+The range sheet (menu and trainers) has a decision strip: **Drill** (a
+trainer's graded charts, trainer only), **Open**, **vs open** and **vs 3-bet**.
+The two facing views page through every hero × raiser pair the sources have
+(`lib/preflop/pairCharts.ts`): cash 100bb (6-max, 15 pairs each), tournament
+40bb (9-max, 36 each) and the BTN-only 50bb+ pack. No range is entered by
+hand: every page is the pair's own source chart, and a chart the source reuses
+for other pairs says so in its footnote (cash answers a 3-bet with one chart
+per opener whoever 3-bets; 40bb splits by 3-bettor). The drills still deal
+only their curated spots. Browsing is not drilling.
+
+## Later decisions deal only hands that reach them (2026-10-06)
+
+The RFI drill deals all 169 hands. A facing drill deals hero's open range from
+that seat (`dealtRange` in `facing.ts`). Facing a 3-bet, hero opened, so it
+deals only the open range. Facing an open, hero hasn't acted, but the drill is
+"which of the hands I play 3-bet or call", so it deals the open range plus the
+few hands the chart continues with outside it (cash 65s, 40bb K5s and BTN 22),
+so no continue is ever left undealt. The BB has no open range and defends
+wider than any open, so it deals every hand. The 50bb+ BTN pack has no open
+charts and uses the RFI drill's 60bb+ BTN chart (the same vendor). Range
+charts colour hands outside the dealt range as "not in range", not as folds.
+
 ## Explicitly out of scope for v1 (seams only)
 
 - **Preflop drill mode** (v2, owner-named) — keep the mode/street abstraction open.

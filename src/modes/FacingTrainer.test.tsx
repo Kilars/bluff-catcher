@@ -113,7 +113,8 @@ describe('FacingTrainer', () => {
       expect(screen.getByLabelText('A8s: 3-bet (bluff) (your hand)')).toBeInTheDocument();
       expect(screen.getByLabelText('AQo: 3-bet (value)')).toBeInTheDocument();
       expect(screen.getByLabelText('AJo: call')).toBeInTheDocument();
-      expect(screen.getByLabelText('72o: fold')).toBeInTheDocument();
+      // Hero would not play 72o from the button, so the spot never deals it.
+      expect(screen.getByLabelText('72o: not in range')).toBeInTheDocument();
       // No RFI navigator on a fixed chart.
       expect(screen.queryByRole('tablist', { name: 'Position' })).not.toBeInTheDocument();
     });

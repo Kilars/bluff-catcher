@@ -18,7 +18,7 @@ import {
 import { BRIEFED_KEY } from '../lib/preflop/briefed';
 import { ALL_169 } from '../lib/preflop/hands';
 import { legendFor } from '../lib/preflop/grid';
-import { bucketChartAction } from '../lib/preflop/facing';
+import { BUCKET_REACHABLE, bucketChartAction } from '../lib/preflop/facing';
 
 const BLUFF: FacingSpot = {
   opener: 'UTG1',
@@ -189,11 +189,12 @@ describe('facing helpers', () => {
     expect(facingChartTitle('late')).toBe('BTN vs Late (UTG+2, LJ, HJ, CO)');
   });
 
-  it('cell colours match the bucket chart for all 169 classes', () => {
+  it('cell colours match the bucket chart for all 169 classes, and dim what it never deals', () => {
     for (const bucket of ['early', 'late'] as const) {
       for (const hc of ALL_169) {
         const { action, kind } = bucketChartAction(bucket, hc);
-        expect(facingCellAction(bucket, hc)).toBe(action === '3bet' ? kind : action);
+        const dealt = BUCKET_REACHABLE[bucket]!.has(hc);
+        expect(facingCellAction(bucket, hc)).toBe(!dealt ? 'none' : action === '3bet' ? kind : action);
       }
     }
   });
@@ -217,12 +218,14 @@ describe('cash charts (no value/bluff split)', () => {
       'threeBet',
       'call',
       'fold',
+      'none',
     ]);
     expect(legendFor((hc) => facingCellAction('late', hc)).map((i) => i.action)).toEqual([
       'value',
       'bluff',
       'call',
       'fold',
+      'none',
     ]);
   });
 
@@ -275,11 +278,13 @@ describe('BTN vs 3-bet (docs/PLAN-btn-4bet.md)', () => {
       'fourBetBluff',
       'call',
       'fold',
+      'none',
     ]);
     expect(legendFor((hc) => facingCellAction('btn4-mtt-BB', hc)).map((i) => i.action)).toEqual([
       'fourBet',
       'call',
       'fold',
+      'none',
     ]);
   });
 

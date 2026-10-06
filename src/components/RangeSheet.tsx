@@ -38,11 +38,13 @@
  *                 strip above the tabs, which then show that seat's charts.
  *                 Each page brings its own colouring and copy.
  *   startPage   — the page to open on (hero's chart); `highlight` is marked
- *                 there only. Default 0.
+ *                 there only. Default 0. A new `pages` list reopens on it.
+ *   strip       — optional strip rendered above the sheet's own strips (the
+ *                 chart browser's decision and source switch).
  *   onClose     — called when the sheet should close.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import RangeGrid, { type CellAction } from './RangeGrid';
 import {
   CHART_KEYS,
@@ -82,6 +84,7 @@ interface RangeSheetProps {
   footnote?: string;
   pages?: readonly ChartPage[];
   startPage?: number;
+  strip?: ReactNode;
   onClose: () => void;
 }
 
@@ -95,6 +98,7 @@ export default function RangeSheet({
   footnote,
   pages,
   startPage = 0,
+  strip,
   onClose,
 }: RangeSheetProps) {
   // The chart currently on screen. Seeded from `position`, then owned here so
@@ -115,6 +119,13 @@ export default function RangeSheet({
 
   // Paged mode (facing drills): the same navigator over a list of charts.
   const [pageIdx, setPageIdx] = useState(startPage);
+  // A new chart list (the browser switched decision or source) reopens on its
+  // start page; adjusted during render so no frame shows a stale index.
+  const [pagesShown, setPagesShown] = useState(pages);
+  if (pages !== pagesShown) {
+    setPagesShown(pages);
+    setPageIdx(startPage);
+  }
   const page = pages?.[pageIdx];
   const groups = useMemo(() => pageGroups(pages), [pages]);
 
@@ -279,6 +290,8 @@ export default function RangeSheet({
             </button>
           </div>
 
+          {strip}
+
           {/* Stack-depth strip — the same seat, three tiers */}
           {!pages && (
           <div className={nav.depths} role="tablist" aria-label="Chart">
@@ -313,7 +326,7 @@ export default function RangeSheet({
               >
                 <span className={nav.depthLabel}>
                   {g.group}
-                  {g.indices.includes(startPage) && <span className={nav.heroDot} aria-label="(your seat)" />}
+                  {highlight && g.indices.includes(startPage) && <span className={nav.heroDot} aria-label="(your seat)" />}
                 </span>
                 <span className={nav.depthName}>
                   {g.indices.length} chart{g.indices.length === 1 ? '' : 's'}
@@ -336,7 +349,7 @@ export default function RangeSheet({
                 onClick={() => setPageIdx(i)}
               >
                 {groups.length > 0 ? `vs ${p.tab}` : p.tab}
-                {i === startPage && <span className={nav.heroDot} aria-label="(your chart)" />}
+                {highlight && i === startPage && <span className={nav.heroDot} aria-label="(your chart)" />}
               </button>
             ))}
           </div>

@@ -51,8 +51,8 @@ export interface FacingSpot {
 
 /**
  * A FacingPool maps (bucket, handClass) → relative weight for sampling.
- * Weight must be > 0 for every hand class (no zeros — every class must be
- * reachable).
+ * Weight must be > 0 for every dealable hand class (no zeros — every class
+ * in the bucket's dealt range must be reachable).
  */
 export interface FacingPool {
   readonly name: string;
@@ -189,8 +189,8 @@ export const ACTIVE_FACING_POOL: FacingPool = borderSkewFacingPool;
 // ─── Sampling ─────────────────────────────────────────────────────────────────
 
 /**
- * The classes a bucket deals from: all 169, or (BTN vs 3-bet) only the hands
- * hero opened, since no other hand reaches the spot.
+ * The classes a bucket deals from: its dealt range (`BUCKET_REACHABLE`, hero's
+ * open range from the seat), or all 169 where it has none (the BB).
  */
 const DEALABLE = Object.fromEntries(
   BUCKETS.map((b) => {

@@ -1,0 +1,110 @@
+/* ChartBrowser.module.css — the decision and source strips above the range
+ * views. They sit above the views' own strips (tier or hero seat, then seat
+ * or raiser), so they read as the outermost axis: a segmented control for the
+ * decision, then quieter chips for the source.
+ */
+
+.strips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Decision: one segmented control ──────────────────────────────────────── */
+
+.views {
+  display: flex;
+  border: 1px solid var(--color-neutral-800);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-900);
+  padding: 2px;
+  gap: 2px;
+}
+
+.view {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.view:hover {
+  color: var(--color-text);
+}
+
+.view[data-active='true'] {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-neutral-900));
+  color: var(--color-accent-100);
+}
+
+/* ── Source: small chips ─────────────────────────────────────────────────── */
+
+.sets {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.set {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-800);
+  background: transparent;
+  color: var(--color-neutral-400);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.set:hover {
+  color: var(--color-text);
+  border-color: var(--color-neutral-700);
+}
+
+.set[data-active='true'] {
+  border-color: var(--color-accent);
+  color: var(--color-accent-100);
+}
+
+.setLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setName {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+/* Phone: three sources share one row, the name under the stack. */
+:root[data-layout='phone'] .sets {
+  flex-wrap: nowrap;
+}
+
+:root[data-layout='phone'] .set {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 4px 6px;
+}

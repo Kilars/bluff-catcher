@@ -9,7 +9,7 @@
  * Below the modes sits a "Format" group — tournament or cash, for every
  * preflop mode — then a "Stack depth" group — the three tournament tiers the preflop
  * trainer drills (60bb+, 20bb, 10bb jam) — and then a "Tools" group with the
- * RFI range charts, so the charts are reachable without playing a hand first.
+ * Range charts, so the charts are reachable without playing a hand first.
  * An "Opponents" group (low stakes or balanced) follows it in cash 4-bet
  * mode, the only place that read changes an answer.
  * The format group is shown in the preflop modes; the depth group only in
@@ -51,7 +51,7 @@ interface MenuProps {
   /** Odds drill: name the draw before the commit. Default on. */
   showDraw: boolean;
   onShowDrawChange: (next: boolean) => void;
-  /** Opens the standalone RFI range-chart browser. */
+  /** Opens the standalone range-chart browser. */
   onOpenRanges: () => void;
 }
 
@@ -305,7 +305,7 @@ export default function Menu({
             role="menuitem"
             onClick={handleOpenRanges}
           >
-            RFI range charts
+            Range charts
           </button>
         </div>
       )}
