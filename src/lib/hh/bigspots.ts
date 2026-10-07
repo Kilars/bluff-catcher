@@ -15,12 +15,12 @@
 import { handClass as postflopClass, type HandClass as PostflopClass } from '../read.ts';
 import { handClass } from '../preflop/hands.ts';
 import type { HandClass } from '../preflop/hands.ts';
-import type { Depth } from '../preflop/ranges.ts';
+import type { ChartKey } from '../preflop/ranges.ts';
 import { BOARD_SEEN } from './board.ts';
-import { sizing } from './decisions.ts';
+import { potOdds, shoved, sizing } from './decisions.ts';
 import type { HeroHand, PreflopRole } from './hero.ts';
 import type { Street } from './parse.ts';
-import { depthFor } from './rfi.ts';
+import { chartKeyForHand } from './rfi.ts';
 
 export const BIG_SPOTS_LIMIT = 20;
 
@@ -33,11 +33,15 @@ export interface BigSpotDecision {
   potBB: number;
   /** What Hero had to put in to continue, in big blinds. */
   toCallBB: number;
-  /** A bet or raise as a fraction of the pot; null otherwise and on an all-in. */
+  /** A bet or raise as a fraction of the pot, at what an opponent can call;
+   * null otherwise and on an all-in. */
   sizing: number | null;
+  /** All-in or all but, by the labels' rule (`shoved` in decisions.ts). */
   allIn: boolean;
   /** Pot odds on a call: the share of the final pot Hero is buying.
-   * `potBB` already holds villain's bet, so this is toCall / (pot + toCall). */
+   * `potBB` already holds villain's bet, so this is toCall / (pot + toCall) —
+   * with the pot Hero can win, which is less than `potBB` when the bet was
+   * bigger than Hero's stack (`potBB` stays the printed pot). */
   equityNeeded: number | null;
   /** Hand strength on the board as it stood; null preflop. */
   handClass: PostflopClass | null;
@@ -51,8 +55,10 @@ export interface BigSpot {
   cards: string[];
   hand: HandClass;
   stackBB: number;
-  depth: Depth;
-  /** Chips Hero chose to put in, in big blinds — the ranking key. */
+  /** The chart the spot belongs to: `'cash'`, or a tournament stack tier. */
+  depth: ChartKey;
+  /** Chips Hero put in, in big blinds, blinds and antes included and before
+   * any uncalled bet came back (`HeroHand.grossBB`) — the ranking key. */
   committedBB: number;
   /** The board through the last street Hero acted on. */
   board: string[];
@@ -77,11 +83,13 @@ export function bigSpots(hands: HeroHand[], limit = BIG_SPOTS_LIMIT): BigSpot[] 
         cards,
         hand: handClass(cards[0], cards[1]),
         stackBB: round(h.stackBB),
-        depth: depthFor(h.stackBB),
+        depth: chartKeyForHand(h),
         committedBB: round(h.grossBB),
         board: h.board.slice(0, BOARD_SEEN[h.streetReached]),
         decisions: h.decisions.map((a) => {
-          const s = a.allIn ? null : sizing(a);
+          // The labels' all-in rule, so one action reads the same in both lists.
+          const allIn = shoved(a);
+          const s = allIn ? null : sizing(a);
           return {
             street: a.street,
             action: a.kind,
@@ -89,10 +97,10 @@ export function bigSpots(hands: HeroHand[], limit = BIG_SPOTS_LIMIT): BigSpot[] 
             potBB: round(a.potBefore / h.bb),
             toCallBB: round(a.toCall / h.bb),
             sizing: s === null ? null : round(s, 2),
-            allIn: a.allIn,
+            allIn,
             equityNeeded:
               a.kind === 'call' && a.toCall > 0
-                ? round((a.toCall / (a.potBefore + a.toCall)) * 100)
+                ? round(potOdds(a) * 100)
                 : null,
             handClass:
               a.street === 'preflop'

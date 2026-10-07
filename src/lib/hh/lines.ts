@@ -14,8 +14,9 @@
  *   faced a 75% bet.
  */
 
+import { sizing } from './decisions.ts';
 import type { HeroHand } from './hero.ts';
-import type { Action, Street } from './parse.ts';
+import { isDecision, type Action, type Street } from './parse.ts';
 
 const SEQ: readonly Street[] = ['preflop', 'flop', 'turn', 'river'];
 
@@ -27,19 +28,17 @@ const LETTER: Partial<Record<Action['kind'], string>> = {
   raise: 'r',
 };
 
-/** Bet/raise size as a whole-number pot percentage; empty for the rest. */
+/** Bet/raise size as a whole-number pot percentage, at what an opponent can
+ * call (`sizing`); empty for the rest. */
 function sizeTag(a: Action): string {
-  if (a.kind === 'bet') return a.potBefore > 0 ? `${Math.round((a.amount / a.potBefore) * 100)}` : '';
-  if (a.kind === 'raise' && a.raiseBy !== undefined) {
-    const pot = a.potBefore + a.toCall;
-    return pot > 0 ? `${Math.round((a.raiseBy / pot) * 100)}` : '';
-  }
-  return '';
+  const s = sizing(a);
+  return s === null ? '' : `${Math.round(s * 100)}`;
 }
 
 function token(a: Action, isHero: boolean): string | null {
-  const l = LETTER[a.kind];
-  if (!l) return null; // blinds and antes are not decisions
+  // Blinds, antes and a fold with no chips behind are not decisions.
+  const l = isDecision(a) ? LETTER[a.kind] : undefined;
+  if (!l) return null;
   const t = `${l}${sizeTag(a)}`;
   return isHero ? t.toUpperCase() : t;
 }

@@ -13,8 +13,8 @@
 
 import { handClass } from '../preflop/hands.ts';
 import type { HandClass } from '../preflop/hands.ts';
-import { depthFor } from './rfi.ts';
-import type { Depth } from '../preflop/ranges.ts';
+import { chartKeyForHand } from './rfi.ts';
+import type { ChartKey } from '../preflop/ranges.ts';
 import type { HeroHand } from './hero.ts';
 
 export interface ColdCall {
@@ -23,10 +23,18 @@ export interface ColdCall {
   position: string;
   /** Seat of the raiser Hero flatted — UTG vs BTN changes the read entirely. */
   vsPos: string | null;
+  /**
+   * Raises already in: 1 is a flat of an open, 2+ a cold-call of a 3-bet (or
+   * more), a far narrower spot that `vsPos` alone made look like the first.
+   */
+  facingRaises: number;
+  /** Who opened, when the flat was of a 3-bet or more; null for a flat of an open. */
+  openerPos: string | null;
   cards: string[];
   hand: HandClass;
   stackBB: number;
-  depth: Depth;
+  /** The chart the spot belongs to: `'cash'`, or a tournament stack tier. */
+  depth: ChartKey;
   /** Limpers already in — a flat behind limpers is a multiway pot with a capped range. */
   limpersAhead: number;
 }
@@ -40,10 +48,12 @@ export function coldCalls(hands: HeroHand[]): ColdCall[] {
       id: h.id,
       position: h.position,
       vsPos: h.facingRaiserPos,
+      facingRaises: h.facingRaises,
+      openerPos: h.facingRaises >= 2 ? h.openerPos : null,
       cards: h.cards,
       hand: handClass(h.cards[0], h.cards[1]),
       stackBB: Number(h.stackBB.toFixed(1)),
-      depth: depthFor(h.stackBB),
+      depth: chartKeyForHand(h),
       limpersAhead: h.limpersAhead,
     });
   }

@@ -18,6 +18,10 @@ import { readFileSync } from 'node:fs';
 
 const FIXTURES = 'src/lib/hh/fixtures';
 const DAY1 = `${FIXTURES}/t310296737/day1.txt`;
+// The two-day tournament the window and text checks count on. The fixtures
+// folder also holds single archive hands (mtt/, rc/) that regression tests
+// copy in by id; they would land in every count below.
+const TOURNEY = [`${FIXTURES}/t310296737`, `${FIXTURES}/t310299999`];
 
 const failures: string[] = [];
 
@@ -44,7 +48,7 @@ console.log('smoke: leaks CLI');
 // 09-09 so the date does real work here: it drops the first day. Length, not
 // just shape — an empty `pots` array would satisfy Array.isArray while the
 // window quietly matched nothing.
-const pots = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'));
+const pots = JSON.parse(leaks(...TOURNEY, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'));
 check('argv: --mode and --from consume their values', pots.pots?.length === 3);
 
 // ── the window filters, in both directions ───────────────────────────────────
@@ -52,12 +56,12 @@ check('argv: --mode and --from consume their values', pots.pots?.length === 3);
 // whose hands would otherwise land in every window count below.
 // Against the slash-formatted timestamp these silently returned everything
 // (--from) and nothing (--to).
-const all = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--json')).pots as { id: string }[];
+const all = JSON.parse(leaks(...TOURNEY, '--mode', 'pots', '--variant', 'mtt', '--json')).pots as { id: string }[];
 const later = JSON.parse(
-  leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'),
+  leaks(...TOURNEY, '--mode', 'pots', '--variant', 'mtt', '--from', '2026-09-09', '--json'),
 ).pots as { id: string }[];
 const earlier = JSON.parse(
-  leaks(FIXTURES, '--mode', 'pots', '--variant', 'mtt', '--to', '2026-09-08', '--json'),
+  leaks(...TOURNEY, '--mode', 'pots', '--variant', 'mtt', '--to', '2026-09-08', '--json'),
 ).pots as { id: string }[];
 
 check('window: the fixture spans two days', all.length === 5, `${all.length} hands`);
@@ -89,8 +93,10 @@ check('raise: an uncalled 3-bet still ranks by what went in', tm2?.grossBB.toFix
 
 // ── the default mode renders end to end ──────────────────────────────────────
 // The JSON payload is covered by doc.test.ts; this is the terminal path, and
-// the chart-fold line is the one finding that is sound at n=1.
-const text = leaks(FIXTURES);
+// the chart-fold line is the one finding that is sound at n=1. Tournament hands
+// only: the TM checks below are about them, and the cash fixture's run-it-twice
+// hand (parsed since 2026-10-06) adds a draw of its own to the label groups.
+const text = leaks(...TOURNEY, '--variant', 'mtt');
 check('leaks: the text report names the CO fold of AJo', text.includes('TM3') && text.includes('(AJo)'));
 
 // ── --label narrows, and refuses a name the code cannot emit ─────────────────
@@ -119,6 +125,17 @@ check(
   text.includes('check-draw') && text.includes('boardType=wet-high-mine'),
 );
 
+// ── every mode names the game it graded ──────────────────────────────────────
+// The default payload always carried `meta.variant`; pots and coach did not, so
+// a reader of those could not tell which frame a cash window was read in.
+const cashPots = JSON.parse(leaks(`${FIXTURES}/rc`, '--mode', 'pots', '--variant', 'cash', '--json'));
+const cashCoach = JSON.parse(leaks(`${FIXTURES}/rc`, '--mode', 'coach', '--variant', 'cash', '--json'));
+check(
+  'variant: --mode pots and --mode coach carry meta.variant',
+  cashPots.meta?.variant === 'cash' && cashCoach.meta?.variant === 'cash',
+  `${cashPots.meta?.variant} / ${cashCoach.meta?.variant}`,
+);
+
 // ── the same export read twice is still one archive ──────────────────────────
 const day1Text = readFileSync(DAY1, 'utf8');
 const twice = readArchive([
@@ -129,6 +146,19 @@ check(
   'dedupe: a re-exported file adds no hands',
   twice.hands.length === day1.hands.length && twice.excluded.length === day1.hands.length,
   `${twice.hands.length} hands, ${twice.excluded.length} excluded`,
+);
+
+// ── overlapping paths read each file once ────────────────────────────────────
+// `hands hands/cash` walked hands/cash twice, and every hand in it came back
+// as a duplicate of itself: "1288 hands · 1288 excluded".
+const once = JSON.parse(leaks(FIXTURES, '--mode', 'pots', '--json')).meta.archive;
+const overlap = JSON.parse(
+  leaks(FIXTURES, `${FIXTURES}/rc`, `${DAY1}`, `./${DAY1}`, '--mode', 'pots', '--json'),
+).meta.archive;
+check(
+  'paths: overlapping targets read each file once',
+  overlap.files === once.files && overlap.excluded === once.excluded && overlap.hands === once.hands,
+  `${overlap.files} files, ${overlap.excluded} excluded (alone: ${once.files}, ${once.excluded})`,
 );
 
 if (failures.length) {

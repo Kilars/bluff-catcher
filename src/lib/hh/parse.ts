@@ -25,6 +25,12 @@
  *
  *  - Antes are posted before the blinds and do not count toward the street's
  *    bet level, so they never affect what a player has to call.
+ *
+ *  - Run-it-twice all-ins (cash) print per-run street markers: "*** FIRST FLOP
+ *    *** [9h 7c 9c]", "*** SECOND TURN *** [9h 7c 9c] [9d]". The run starts at
+ *    the street the money went in on, so the flop of a flop all-in is itself a
+ *    FIRST FLOP, with the flop betting after it. The winner collects once per
+ *    run. Every action happens before the runouts.
  */
 
 export type Street = 'preflop' | 'flop' | 'turn' | 'river';
@@ -59,8 +65,26 @@ export interface Action {
   allIn: boolean;
   /** Pot total before this action resolves. */
   potBefore: number;
-  /** Chips the player had to put in to continue (0 when checking was free). */
+  /** Chips the player had to put in to continue (0 when checking was free),
+   * capped at their stack. */
   toCall: number;
+  /**
+   * Set only when the player cannot match the bet in front of them: the part of
+   * `potBefore` they can actually win. The rest is other players' chips above
+   * this player's whole stack — a side pot, or an uncalled bet coming back — so
+   * a capped `toCall` priced against `potBefore` reads far cheaper than it is.
+   * Absent, the whole `potBefore` is in play; read it through `callablePot`.
+   */
+  potCallable?: number;
+  /**
+   * The mirror image of `potCallable`, for the bettor. Set only on a bet or raise
+   * whose player outreaches every opponent still in the hand: how far the
+   * deepest of them can still follow once it is in — their stack plus this
+   * street's commitment, less the bettor's new commitment. Negative is the part
+   * of the bet nobody can call, which can only come back uncalled, so sizing
+   * reads the bet without it (`decisions.ts`). Absent, someone covers the bet.
+   */
+  coverBehind?: number;
   /** The player's remaining stack before acting. */
   stackBefore: number;
 }
@@ -100,8 +124,15 @@ export interface Hand {
   hero: string | null;
   heroCards: string[] | null;
   actions: Action[];
+  /** The board, as the first run dealt it on a run-it-twice hand. */
   board: string[];
-  /** Streets actually dealt. */
+  /**
+   * Run-it-twice only: every run's full board, the first equal to `board`.
+   * Absent on a hand dealt once. No action follows the runouts, so the
+   * decisions read `board`; this is for the record.
+   */
+  runs?: string[][];
+  /** Streets actually dealt (the first run's, on a run-it-twice hand). */
   streets: Street[];
   uncalled: { player: string; amount: number } | null;
   collected: { player: string; amount: number }[];
@@ -140,8 +171,9 @@ const COLLECTED = /^(.+?) collected (\$?[\d,.]+) from pot$/;
 const TOTAL_POT = /^Total pot (\$?[\d,.]+)/;
 // Promotional dead money seeded into the pot before the blinds (Rush & Cash).
 const CASH_DROP = /^Cash Drop to Pot : total (\$?[\d,.]+)/;
-// Run-it-twice all-ins print these per-run street markers; we skip such hands.
-const RUN_IT_TWICE = /^\*\*\* (FIRST|SECOND) /;
+// Run-it-twice street markers: the run's ordinal and the street.
+const RUN_STREET = /^\*\*\* (FIRST|SECOND|THIRD) (FLOP|TURN|RIVER) \*\*\*/;
+const RUN_INDEX: Record<string, number> = { FIRST: 0, SECOND: 1, THIRD: 2 };
 const CARDS_GROUP = /\[([^\]]+)\]/g;
 
 /** Splits an export into hand blocks. Exported so the split-hands sorter and the
@@ -203,6 +235,20 @@ export function positionNames(n: number): string[] {
     early.push(i === 0 ? 'UTG' : `UTG${i}`);
   }
   return ['SB', 'BB', ...early, ...late];
+}
+
+/**
+ * An action the player chose: not a forced post, and not a fold made with no
+ * chips left. A blind or ante that takes the last chip is all-in, but GG prints
+ * no "and is all-in" on a post — and then logs the player "folding" to the
+ * action behind. GG means it: the poster is out, the raiser collects their
+ * chips uncontested, and they are not in a later showdown. So the fold stays in
+ * `actions` (the showdown and flop-seen facts read it), but there was nothing
+ * to decide, so it is no decision to coach, count or print.
+ */
+export function isDecision(a: Action): boolean {
+  if (a.kind === 'ante' || a.kind === 'sb' || a.kind === 'bb') return false;
+  return !(a.kind === 'fold' && a.stackBefore === 0);
 }
 
 // ─── Parsing ─────────────────────────────────────────────────────────────────
@@ -290,15 +336,6 @@ function rotateToBlinds(
 function parseHand(block: string): Hand | { error: string } {
   const lines = block.split(/\r?\n/);
 
-  // Run-it-twice all-ins print FIRST/SECOND street markers and award the pot to
-  // the winner once per run. A single-board street walk cannot represent a
-  // doubled board, so these are skipped whole rather than mis-parsed into a
-  // wrong board and a doubled `won`. Rare (all-in-and-called only); an honest
-  // skip with a reason beats silent corruption.
-  if (lines.some((l) => RUN_IT_TWICE.test(l))) {
-    return { error: 'run-it-twice not supported' };
-  }
-
   const mtt = HEADER.exec(lines[0]);
   const cash = mtt ? null : CASH_HEADER.exec(lines[0]);
   if (!mtt && !cash) return { error: 'unrecognised header (not a tournament or cash hand)' };
@@ -312,6 +349,8 @@ function parseHand(block: string): Hand | { error: string } {
   const shows: Shown[] = [];
   const board: string[] = [];
   const streets: Street[] = ['preflop'];
+  // Later runs' boards on a run-it-twice hand, by run index (1, 2).
+  const laterRuns: string[][] = [];
 
   let hero: string | null = null;
   let heroCards: string[] | null = null;
@@ -326,16 +365,30 @@ function parseHand(block: string): Hand | { error: string } {
   const invested: Record<string, number> = {};
   const stack: Record<string, number> = {};
   const acted = new Set<string>();
+  // Who can still match a bet: dealt in, and not folded. A seat printed in the
+  // header but not dealt (sitting out) has chips that are not in play.
+  const dealtIn = new Set<string>();
+  const folded = new Set<string>();
   let inSummary = false;
 
   for (const line of lines.slice(2)) {
     if (!line.trim()) continue;
 
     if (line.startsWith('*** ')) {
-      if (line.startsWith('*** SUMMARY ***')) inSummary = true;
-      else if (line.startsWith('*** FLOP ***')) street = 'flop';
-      else if (line.startsWith('*** TURN ***')) street = 'turn';
-      else if (line.startsWith('*** RIVER ***')) street = 'river';
+      // The first run walks as the hand's own streets. A later run's line holds
+      // its whole board so far (shared cards, then its own), and no action
+      // follows it, so its last line is its full board.
+      const run = RUN_STREET.exec(line);
+      if (run && RUN_INDEX[run[1]] > 0) {
+        laterRuns[RUN_INDEX[run[1]] - 1] = [...line.matchAll(CARDS_GROUP)].flatMap((g) => cards(g[1]));
+        continue;
+      }
+      const marker = run ? `*** ${run[2]} ***` : line;
+
+      if (marker.startsWith('*** SUMMARY ***')) inSummary = true;
+      else if (marker.startsWith('*** FLOP ***')) street = 'flop';
+      else if (marker.startsWith('*** TURN ***')) street = 'turn';
+      else if (marker.startsWith('*** RIVER ***')) street = 'river';
 
       if (street !== 'preflop' && !inSummary && !streets.includes(street)) {
         streets.push(street);
@@ -362,6 +415,7 @@ function parseHand(block: string): Hand | { error: string } {
 
     const dealt = DEALT.exec(line);
     if (dealt) {
+      dealtIn.add(dealt[1]);
       if (dealt[2]) {
         hero = dealt[1];
         heroCards = cards(dealt[2]);
@@ -406,6 +460,28 @@ function parseHand(block: string): Hand | { error: string } {
       const already = committed[owner] ?? 0;
       const added = a.kind === 'raise' ? (a.to ?? 0) - already : a.amount;
       const toCall = a.kind === 'ante' ? 0 : Math.max(0, level - already);
+      const post = a.kind === 'ante' || a.kind === 'sb' || a.kind === 'bb';
+
+      // Chips this player could never win: everything any other player has in
+      // this street above what this player's whole stack can reach. Earlier
+      // streets are matched in full, or the player would already be all-in.
+      const reach = already + (stack[owner] ?? Infinity);
+      let excess = 0;
+      if (toCall > 0 && reach < level) {
+        for (const [p, c] of Object.entries(committed)) if (p !== owner) excess += Math.max(0, c - reach);
+      }
+
+      // The bettor's side of the same question: the most any opponent still in
+      // can reach this street. An export prints every player's "Dealt to" line;
+      // a hand-built one may print Hero's alone, so anyone who has acted counts
+      // too, and with no other dealt line every seat does.
+      let coverBehind: number | undefined;
+      if (a.kind === 'bet' || a.kind === 'raise') {
+        const inHand = (p: string) => dealtIn.size < 2 || dealtIn.has(p) || acted.has(p);
+        const rivals = seats.filter((x) => x.name !== owner && !folded.has(x.name) && inHand(x.name));
+        const cover = Math.max(0, ...rivals.map((x) => (committed[x.name] ?? 0) + (stack[x.name] ?? 0)));
+        if (cover < reach) coverBehind = cover - (already + added);
+      }
 
       actions.push({
         street,
@@ -414,10 +490,12 @@ function parseHand(block: string): Hand | { error: string } {
         amount: added,
         to: a.to,
         raiseBy: a.kind === 'raise' ? a.amount : undefined,
-        allIn: a.allIn,
+        allIn: a.allIn || (post && stack[owner] !== undefined && stack[owner] - added === 0),
         potBefore: pot,
         toCall: Math.min(toCall, stack[owner] ?? toCall),
         stackBefore: stack[owner] ?? 0,
+        ...(excess > 0 ? { potCallable: pot - excess } : {}),
+        ...(coverBehind !== undefined ? { coverBehind } : {}),
       });
 
       pot += added;
@@ -428,6 +506,7 @@ function parseHand(block: string): Hand | { error: string } {
         level = Math.max(level, committed[owner]);
       }
       acted.add(owner);
+      if (a.kind === 'fold') folded.add(owner);
       continue;
     }
 
@@ -488,6 +567,7 @@ function parseHand(block: string): Hand | { error: string } {
     heroCards,
     actions,
     board,
+    ...(laterRuns.length ? { runs: [board, ...laterRuns] } : {}),
     streets,
     uncalled,
     collected,

@@ -196,8 +196,11 @@ hands would fold — a range claim, which the rule immediately below forbids.
 | Action | `check / bet-33 / bet-75 / bet-150 / bet-200`, or `fold / call / raise` when facing |
 | Removals | see below |
 
-`strong` = two pair or better using a hole card, an overpair, or top pair with
-a Q+ kicker. `marginal-made` = any other pair, or playing the board. `draw` =
+`strong` = two pair made with both hole cards (a pocket pair, or one paired hole
+card beside a board pair, is one pair), trips/set or a full house with a hole
+card, a straight or flush only when the board doesn't already make one (a flush
+that beats the board's own counts), an overpair, or top pair with a Q+ kicker.
+`marginal-made` = any other pair, or playing the board. `draw` =
 eight or more outs — a four-out gutshot is not a draw, though `classify.ts`
 calls one. `air` = the rest.
 

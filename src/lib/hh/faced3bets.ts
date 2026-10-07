@@ -1,9 +1,10 @@
 /**
  * Facing a raise over Hero's own raise — the spot the `foldTo3Bet` stat counts
- * but never names a hand for. Hero opened and got 3-bet, or Hero 3-bet and got
- * 4-bet; either way the decision is fold / call / re-raise, and the chart the
- * preflop trainer drills stops at the open, so this is the first live spot it
- * does not cover. `heroRole` tells the two apart: an `open`/`iso-raise` facing a
+ * (its `open`/`iso-raise` half) but never names a hand for. A re-raise over an
+ * all-in raise leaves Hero no decision and is not listed (see `faced3Bet`).
+ * Hero opened and got 3-bet, or Hero 3-bet and got 4-bet; either way the
+ * decision is fold / call / re-raise, and the chart the preflop trainer drills
+ * stops at the open, so this is the first live spot it does not cover. `heroRole` tells the two apart: an `open`/`iso-raise` facing a
  * 3-bet, a `3bet`/`squeeze` facing a 4-bet.
  *
  * Like `rfiFolds` and `coldCalls` this is a per-hand preflop fact, sound at
@@ -16,8 +17,8 @@
 
 import { handClass } from '../preflop/hands.ts';
 import type { HandClass } from '../preflop/hands.ts';
-import { depthFor } from './rfi.ts';
-import type { Depth } from '../preflop/ranges.ts';
+import { chartKeyForHand } from './rfi.ts';
+import type { ChartKey } from '../preflop/ranges.ts';
 import type { HeroHand, PreflopRole } from './hero.ts';
 
 export interface Faced3Bet {
@@ -31,13 +32,18 @@ export interface Faced3Bet {
   cards: string[];
   hand: HandClass;
   stackBB: number;
-  depth: Depth;
+  /** The chart the spot belongs to: `'cash'`, or a tournament stack tier. */
+  depth: ChartKey;
   /** A caller was already in: a squeeze, so the pot is heading multiway. */
   multiway: boolean;
-  /** The raise Hero faced, as a fraction of the pot it raised over. */
+  /** The raise Hero faced, as a fraction of the pot it raised over, capped at
+   * Hero's stack: a jam for more than Hero has is sized at what Hero can call. */
   sizing: number | null;
   /** What Hero did: fold / call / re-raise. */
   response: 'fold' | 'call' | '4bet' | null;
+  /** A third player re-raised before Hero answered: `response` is to two
+   * raises, and the entry is not in the `foldTo3Bet` stat. */
+  cold4Bet: boolean;
 }
 
 /** Every hand where Hero's raise was raised over the top. */
@@ -53,10 +59,11 @@ export function faced3Bets(hands: HeroHand[]): Faced3Bet[] {
       cards: h.cards,
       hand: handClass(h.cards[0], h.cards[1]),
       stackBB: Number(h.stackBB.toFixed(1)),
-      depth: depthFor(h.stackBB),
+      depth: chartKeyForHand(h),
       multiway: h.faced3BetMultiway,
       sizing: h.faced3BetSizing === null ? null : Number(h.faced3BetSizing.toFixed(2)),
       response: h.faced3BetResponse,
+      cold4Bet: h.faced3BetCold4Bet,
     });
   }
   return found;

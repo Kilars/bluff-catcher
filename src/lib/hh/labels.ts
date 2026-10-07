@@ -14,12 +14,12 @@
 
 import { handClass, removals, type HandClass, type Removal } from '../read.ts';
 import type { Card } from '../odds.ts';
-import type { Depth } from '../preflop/ranges.ts';
+import type { ChartKey } from '../preflop/ranges.ts';
 import { BOARD_SEEN, boardType, type BoardType } from './board.ts';
-import { decisionsOf, type Decision } from './decisions.ts';
+import { decisionOf, sizing, type Decision } from './decisions.ts';
 import type { HeroHand, StreetPlay } from './hero.ts';
 import { actionLine } from './lines.ts';
-import { depthFor } from './rfi.ts';
+import { chartKeyForHand } from './rfi.ts';
 
 /**
  * A decision with everything a model needs to second-guess it, and nothing it
@@ -39,8 +39,8 @@ export interface LabelledDecision extends Decision {
    * `byBoard` uses, so the two agree.
    */
   boardType: BoardType | null;
-  /** The stack-depth bucket `rfi.ts` already reads charts by. */
-  depth: Depth;
+  /** The chart `rfi.ts` already reads: 'cash', or a tournament stack-depth bucket. */
+  depth: ChartKey;
   removals: Removal[];
   /** Players who saw the flop — heads-up vs multiway changes every threshold. */
   playersToFlop: number;
@@ -83,6 +83,7 @@ export const LABELS = [
   'river-raise-bluff',
   'fold-to-turn-barrel',
   'fold-to-river-barrel',
+  'fold-to-raise',
 ] as const;
 
 export type Label = (typeof LABELS)[number];
@@ -107,8 +108,17 @@ interface LabelFlags {
   multiwayFlop: boolean;
   pfaCheckedFlop: boolean;
   pfaYetToActFlop: boolean;
+  heroAggressed: boolean;
   villainBetFlop: boolean;
   villainBetTurn: boolean;
+  /**
+   * A shove's size as a fraction of the pot, at what an opponent can call
+   * (`sizing` in decisions.ts). `Decision.sizing` is null on a shove (the stack
+   * chose it), but "bigger than the pot" is still a fact about a jam, so
+   * `overbet-strong` reads this when `sizing` is null — and a jam bigger than
+   * the villain's stack is only as big as the part the villain could call.
+   */
+  shoveSizing: number | null;
 }
 
 function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags): string[] {
@@ -121,8 +131,10 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
     multiwayFlop,
     pfaCheckedFlop,
     pfaYetToActFlop,
+    heroAggressed,
     villainBetFlop,
     villainBetTurn,
+    shoveSizing,
   } = f;
   const out: string[] = [];
 
@@ -177,7 +189,9 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
 
   // §2 stage 2: the table says bet a draw often, not always — checking a nut
   // flush draw on a monotone flop is standard — so this is a label, not a flag.
-  if (d.kind === 'check' && hand === 'draw') out.push('check-draw');
+  // A check Hero went on to check-raise is the aggressive line, not a passive
+  // one, so it is left out, as `pfa-check-flop` and `pfa-check-turn` leave it.
+  if (d.kind === 'check' && hand === 'draw' && !checkRaised) out.push('check-draw');
 
   // §3: leading into the preflop aggressor as the caller. Mostly dominated —
   // the caller's range is capped and the PFR keeps the top — but correct on low
@@ -192,10 +206,14 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
   // — betting into a *declined* c-bet, which is the strict meaning of "probe".
   // Gated on `pfaCheckedFlop` (the flop went check-check, so the only other
   // aggressor declined it), never on any turn lead: a turn bet after Hero faced
-  // and called a flop c-bet is a different line, not a probe. `pfaCheckedFlop`
-  // is a clean heads-up read; multiway it can misattribute the declined bet, so
-  // the rubric carries that as an `unless`.
-  if (!d.pfa && d.street === 'turn' && d.kind === 'bet' && pfaCheckedFlop) out.push('turn-probe');
+  // and called a flop c-bet is a different line, not a probe. `pfaYetToActFlop`
+  // makes the check a check *back*: Hero acted first on the flop, into a raiser
+  // who then declined. Without it a limped pot (no raiser) or Hero in position
+  // (the raiser checked to Hero, Hero checked behind) would borrow the name for
+  // what is a stab. `pfaCheckedFlop` is a clean heads-up read; multiway it can
+  // misattribute the declined bet, so the rubric carries that as an `unless`.
+  if (!d.pfa && d.street === 'turn' && d.kind === 'bet' && pfaCheckedFlop && pfaYetToActFlop)
+    out.push('turn-probe');
 
   // §3: check-raising the flop as the caller — "correct and underused". Built
   // from equity-when-called (sets, two pair, combo draws), and its frequency
@@ -211,7 +229,11 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
   // Named `overbet-strong`, not PLAN §3's illustrative `overbet-with-nuts`,
   // because read.ts's `strong` admits an overpair and top pair with a Q kicker.
   // Those are not the nuts, and a label may not assert what nothing computed.
-  if (d.sizing !== null && d.sizing > OVERBET && hand === 'strong') out.push('overbet-strong');
+  //
+  // A shove counts at its pot fraction: an all-in for several pots with a
+  // strong hand is the overbet, whatever chose the size.
+  const size = d.sizing ?? shoveSizing;
+  if (size !== null && size > OVERBET && hand === 'strong') out.push('overbet-strong');
 
   // §5: on the river every bet is a pure bluff; `air` is the first selection
   // filter, no showdown value, and the split is the second, blockers.
@@ -264,12 +286,20 @@ function labelsFor(d: Decision, hand: HandClass, rem: Removal[], f: LabelFlags):
   // prior street's play; a fold to a lone bet with no prior aggression carries
   // no label, so the name does not lie. `d.facedBet` reads the street as printed
   // (decisions.ts) and catches the check-then-fold that is the commonest way to
-  // face a barrel. The label is a candidate — whether the fold was an over-fold
-  // is the reader's call from the price and hand class, never a verdict here.
-  if (d.street === 'turn' && d.kind === 'fold' && d.facedBet && villainBetFlop)
+  // face a barrel. `!heroAggressed` keeps out the fold to a raise of Hero's own
+  // bet or raise this street: the villain then raised a lead, and a raise of
+  // Hero's bet is not a continued barrel — that fold is `fold-to-raise`. The
+  // label is a candidate — whether the fold was an over-fold is the reader's
+  // call from the price and hand class, never a verdict here.
+  if (d.street === 'turn' && d.kind === 'fold' && d.facedBet && !heroAggressed && villainBetFlop)
     out.push('fold-to-turn-barrel');
-  if (d.street === 'river' && d.kind === 'fold' && d.facedBet && villainBetTurn)
+  if (d.street === 'river' && d.kind === 'fold' && d.facedBet && !heroAggressed && villainBetTurn)
     out.push('fold-to-river-barrel');
+  // The fold the barrel labels leave out: Hero bet or raised this street, was
+  // raised, and let it go. Mutually exclusive with them by `heroAggressed`. A
+  // candidate like them — small-stakes raises are value-heavy, so the fold is
+  // often right; the price and hand class decide, never the label.
+  if (d.street !== 'preflop' && d.kind === 'fold' && d.facedBet && heroAggressed) out.push('fold-to-raise');
 
   return out;
 }
@@ -281,7 +311,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
 
   const texture = boardType(h.board);
   const flop = h.streets.find((s) => s.street === 'flop');
-  const playersToFlop = flop ? new Set(flop.allActions.map((a) => a.player)).size : 0;
+  const playersToFlop = h.playersToFlop;
   // 3+ players saw the flop: an air c-bet now needs every one of them to fold,
   // not just one. Threaded into `labelsFor` like `betFlop`; the count itself
   // rides on each LabelledDecision as a grouping facet.
@@ -321,8 +351,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
   // The preflop raiser had not acted on the flop when Hero first did — Hero was
   // leading into them. False in a limped pot (no raiser to lead into) and when
   // the raiser already checked, which turns a caller's bet into a stab.
-  const preflop = h.streets.find((s) => s.street === 'preflop');
-  const pfaPlayer = preflop?.allActions.filter((a) => a.kind === 'raise').at(-1)?.player ?? null;
+  const pfaPlayer = h.preflopRaiser;
   const pfaYetToActFlop = Boolean(
     flop &&
       pfaPlayer &&
@@ -330,18 +359,26 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
         .slice(0, flop.allActions.indexOf(flop.actions[0]))
         .some((a) => a.player === pfaPlayer),
   );
-  // A villain barrelled a street: Hero faced a bet on it (`facedBetEver`, which
-  // also catches Hero checking and the villain betting behind) and Hero was not
-  // the one betting (`!bet`, so a bet Hero made and was raised on is not a
-  // villain barrel). This is the prior-street aggression `fold-to-*-barrel`
-  // requires — a continued bet, not a lone stab. Read heads-up-to-Hero; multiway
-  // the pricing mis-scales, hence the rubric caveat. Derived here from the same
-  // StreetPlay fields the other per-street sets use, no parser or enrich change.
-  const villainBarrelled = (s?: StreetPlay) => Boolean(s && s.facedBetEver && !s.bet);
+  // A villain barrelled a street: a villain bet or raised on it, read off the
+  // street as printed (`actions` is Hero's own, so anything else is a villain's).
+  // A raise of Hero's own bet counts — it is the villain's aggression on that
+  // street, the strongest kind, so calling it and folding to the next bet is a
+  // fold to a continued barrel. This is the prior-street aggression
+  // `fold-to-*-barrel` requires — a continued bet, not a lone stab. Multiway
+  // the two bets can come from different villains, hence the rubric caveat.
+  const villainBarrelled = (s?: StreetPlay) =>
+    Boolean(s?.allActions.some((a) => !s.actions.includes(a) && (a.kind === 'bet' || a.kind === 'raise')));
   const villainBetFlop = villainBarrelled(flop);
   const villainBetTurn = villainBarrelled(turn);
+  // Hero bet or raised a street. The fold-to-barrel labels read it so a fold to
+  // a raise of Hero's own lead is not called a fold to a barrel.
+  const heroAggressed = new Set(h.streets.filter((s) => s.bet || s.raised).map((s) => s.street));
 
-  return decisionsOf(h).flatMap((d) => {
+  // Each decision beside the action it came from, so the shove size below reads
+  // the action itself rather than a position in a parallel list.
+  const pairs = h.streets.flatMap((s) => s.actions.map((a) => [decisionOf(h, s, a), a] as const));
+
+  return pairs.flatMap(([d, a]) => {
     if (d.street === 'preflop') return [];
     const board = h.board.slice(0, BOARD_SEEN[d.street]);
     const hand = handClass(cards, board);
@@ -355,8 +392,10 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
       multiwayFlop,
       pfaCheckedFlop,
       pfaYetToActFlop,
+      heroAggressed: heroAggressed.has(d.street),
       villainBetFlop,
       villainBetTurn,
+      shoveSizing: d.allIn ? sizing(a) : null,
     });
     if (!labels.length) return [];
     return [
@@ -367,7 +406,7 @@ export function labelledDecisions(h: HeroHand): LabelledDecision[] {
         board,
         handClass: hand,
         boardType: texture,
-        depth: depthFor(d.stackBB),
+        depth: chartKeyForHand(h),
         removals: rem,
         playersToFlop,
         line: actionLine(h, d.street),
@@ -394,6 +433,9 @@ function sharedFacets(ds: LabelledDecision[]): LabelGroup['shared'] {
   if (ds.length < 2) return shared;
   for (const facet of FACETS) {
     const first = ds[0][facet];
+    // Every cash hand reads the one cash chart, so 'cash' is the variant, not
+    // a fact the instances agree on — sharing it made every cash group a pattern.
+    if (facet === 'depth' && first === 'cash') continue;
     if (first !== null && ds.every((d) => d[facet] === first)) shared[facet] = first;
   }
   return shared;

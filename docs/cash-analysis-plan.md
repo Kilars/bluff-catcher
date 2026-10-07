@@ -18,7 +18,7 @@ Verified against 6 real GGPoker Rush & Cash files (`$0.25/$0.5` and `$0.01/$0.02
 |---|---|---|
 | Modularity seam | One pipeline, one CLI. `variant:'mtt'\|'cash'` on `Hand`, detected at the header. Only the parser's format layer + the report summary branch. | `HeroHand`→judge is already variant-blind. |
 | Money representation | **Integer minor units** everywhere: cents for cash, chips for tournament. Cash `$0.5→50`, `$117.77→11777`. | Keeps all existing integer math and the exact-equality `potMatches` reconciliation intact. Floats would shatter it. |
-| Ranges | **Reuse existing `deep` charts.** 6-max = the `LJ/HJ/CO/BTN` slice the parser already labels; no new chart set. | User confirmed "same from LJ." No-ante tightening (~2pts) is inside the 3% tolerance band. |
+| Ranges | ~~**Reuse existing `deep` charts.**~~ **Superseded 2026-10-06:** cash reads `CASH_RFI` (chart key `'cash'`, seats `LJ/HJ/CO/BTN/SB`), with the tolerance band computed on that chart. A 7+-handed early seat reads `LJ`. | The ~2pt premise was false once `CASH_RFI` existed: the 9-max ante chart is 7–10pts wider at every seat (BTN 50.8% vs 41.8%), and flagged 21 of 25 cash folds the cash chart folds. Stack is Hero's own (effective stack is an open decision for the user). |
 | Rake | **No-op.** | "Total pot" is pre-rake (= sum of bets, verified to the cent); rake comes out of `collected`, so `won`/`net`/win-rate are already correct; pot-odds run on the real middle. |
 | Advice / rubric | Unchanged. | Postflop rubric is variant-neutral chipEV; no ICM in it. |
 | Separation | **Both:** a `--variant cash\|mtt` runtime filter *and* an on-disk sorter script (`hands/cash/`, `hands/mtt/`). | Auto-detect coexists in one archive; filter for review, sorter for physically separate archives. |
@@ -78,10 +78,13 @@ labels).
 
 ### 4. `rfi.ts` — reuse charts, guard the depth note
 
-- No chart changes. 6-max seats already map (`LJ/HJ/CO/BTN`); blinds return null.
-- Cash stacks can exceed 100bb (saw 235bb) → `depthFor` → `deep`. Fine.
-- Optional: when `variant==='cash'`, adjust the between-charts caveat wording
-  (the 28–45bb MTT caveat is rarely relevant at cash depths).
+*Superseded 2026-10-06 — see the Ranges row above.* Cash hands read the `'cash'`
+chart whatever the stack (including the SB, which the cash chart has), and the
+28–45bb between-charts caveat is tournament-only. `coldCalls[]`, `faced3Bets[]`
+and `bigSpots[]` report `depth: 'cash'` for cash hands (`chartKeyForHand`).
+
+- ~~No chart changes. 6-max seats already map (`LJ/HJ/CO/BTN`); blinds return null.~~
+- ~~Cash stacks can exceed 100bb (saw 235bb) → `depthFor` → `deep`. Fine.~~
 
 ### 5. Report (`report.ts` / `stats.ts`) — one summary branch
 
@@ -122,7 +125,9 @@ Confirmed gaps the first draft missed — all present in `/tmp/rc/` data:
   TURN ***` etc. and **two `collected` lines to the same winner**. Current street
   detection uses exact `*** FLOP ***`, so these never fire: board/streets come out
   wrong and `won` is doubled. Must detect and either handle or skip (with a reason),
-  not silently corrupt. Add a RIT fixture.
+  not silently corrupt. Add a RIT fixture. *Done (2026-10-06): parsed, not skipped.
+  The first run is `board`, every run is in `Hand.runs`, and `won` sums both
+  collects. Skipping hid the user's biggest all-ins from `bigSpots`.*
 - **`Cash Drop to Pot : total $5`.** A promotional dead-money line (2 hands) that is
   not player-prefixed, so it is skipped and its money never enters the pot →
   `computedPot` short by the drop → `potMatches` false → hand dropped. Must add the
@@ -156,8 +161,10 @@ Resolved — the range call:
 
 - **Float dust:** any place that reintroduces float dollars breaks `potMatches`.
   Cents must be the boundary; nothing downstream should see dollars.
-- **Very deep stacks:** 200bb+ cash stacks read the `deep` chart — acceptable, but
-  postflop SPR buckets will skew `deep` more often than in MTT. Expected, not a bug.
+- **Very deep stacks:** 200bb+ cash stacks read the `cash` (100bb) chart. Postflop
+  SPR uses the *effective* stack (Hero's, capped by the deepest opponent still in),
+  so Hero covering a short villain no longer reads `deep`; a deep-vs-deep pot still
+  skews `deep` more often than in MTT. Expected, not a bug.
 - **Mixed-archive stats:** VPIP/PFR aggregates across cash+MTT are meaningless;
   the `--variant` filter is the intended remedy, so default mixed summaries should
   say the split rather than blend silently.

@@ -18,19 +18,28 @@ changed and this file is stale — say so rather than guessing.
 meta.window  {requestedFrom, requestedTo, first, last, hands, decisions}
 meta.archive {files, hands, excluded, skipped, first, last, tournaments,
               games, timezone}
-meta.levels, meta.tournaments — of the window
+meta.levels, meta.tournaments — of the window (levels is null and
+              tournaments 0 for cash)
+meta.variant `cash | mtt | mixed` — the game the window is graded as
+              (`--mode pots` and `--mode coach` carry it too)
 labels[]     {label, shared, instances, stride, decisions[]}
 rfiFolds[]   {id, position, hand, cards, stackBB, depth, action, caveat}
-coldCalls[]  {id, position, vsPos, cards, hand, stackBB, depth, limpersAhead}
+coldCalls[]  {id, position, vsPos, facingRaises, openerPos, cards, hand,
+              stackBB, depth, limpersAhead}
 bigSpots[]   {id, position, role, pfa, cards, hand, stackBB, depth, committedBB,
               board, decisions[{street, action, amountBB, potBB, toCallBB,
               sizing, allIn, equityNeeded, handClass}]}
 faced3Bets[] {id, position, heroRole, threeBettorPos, cards, hand, stackBB,
-              depth, multiway, sizing, response}
+              depth, multiway, sizing, response, cold4Bet}
 byBoard      {caveat, splits[]}
 byRole[]     {role, hands}
 stats[]      {key, label, made, opportunities, pct, band, verdict, flag}
 ```
+
+`meta.archive.timezone`: hand dates are the GG client's local clock, as
+printed, with no zone. In this archive they run 2h ahead of the export's file
+name (CEST against UTC), so a file named `GG20260927-1335` starts at 15:35, and
+`--from`/`--to` compare those local dates.
 
 `--label <name>` re-runs with one label and no stride — every instance rather
 than the five sampled. Use it when a group looks like a pattern worth arguing
@@ -47,36 +56,75 @@ loses a stack, and a bad fold costs nothing and leaves no trace — so an agent
 given the money coaches the wrong hands. `--mode pots` is the one place results
 are visible, and it is for a human asking where the chips went, never for you.
 The big hands reach you through `bigSpots[]` instead: ranked by what Hero
-committed, with every decision's pot and price and no outcome.
+committed, with every decision's pot and price and no outcome. `potBB` is the pot
+as printed; `equityNeeded` prices the call against the pot Hero can win, so when
+a villain bet more than Hero's stack the excess Hero cannot match is left out of
+the price (and out of `facedSizing`/`requiredEquity`/`mdf`) but not out of `potBB`.
 
 **Hands reach you because they carry a label, never because of what they
 returned.** `labels[]` is the selector, and `rfiFolds[]`, `coldCalls[]` and
 `faced3Bets[]` are the per-hand preflop ones — each sound at n=1. `faced3Bets[]`
-is every hand where Hero's raise was raised over the top: the record behind the
-`foldTo3Bet` stat, which otherwise names no hand. Everything in a labelled
-decision was knowable before the next card came.
+is every hand where Hero's raise was raised over the top with chips left to
+answer it (a re-shove over Hero's all-in is no decision and is not listed). Its
+`open`/`iso-raise` entries without `cold4Bet` are the record behind the
+`foldTo3Bet` stat, which otherwise names no hand; its `3bet`/`squeeze`/`4bet+`
+entries face a 4-bet or more and are not in the stat. `cold4Bet: true` means a
+third player re-raised before Hero answered, so `response` answers two raises
+and the entry is out of the stat as well. Its `sizing` is the raise as a
+fraction of the pot it raised over, capped at Hero's stack: a jam for more than
+Hero has is sized at the part Hero could call. Everything in a labelled decision was knowable
+before the next card came.
+
+`depth` in `rfiFolds[]`, `coldCalls[]`, `faced3Bets[]` and `bigSpots[]` names the
+chart the spot belongs to: `'cash'` (6-max, 100bb, no ante) for a cash hand,
+otherwise the tournament tier `deep` (40bb+, read against the 60bb chart),
+`mid` (15–40bb, the 20bb chart) or `short` (under 15bb, the 10bb chart).
+An `rfiFolds[].position` is the chart seat read, which can differ from the
+table label: a 7-handed tournament `UTG` reads the 9-max `UTG2`, and a cash seat
+earlier than the lojack reads `LJ`.
 
 `labels[].decisions[]` = `{id, street, action, position, stackBB, depth, spr,
-sizing, allIn, pfa, facedBet, cards, board, handClass, boardType, removals,
-labels}`.
+sizing, allIn, pfa, facedBet, facedSizing, requiredEquity, mdf, playersToFlop,
+line, cards, board, handClass, boardType, removals, labels}`.
+
+- `facedSizing` is the bet Hero faced as a fraction of the pot before it,
+  `requiredEquity` the call's pot odds and `mdf` the minimum defence frequency
+  against that bet; all three are null when Hero faced no bet. `requiredEquity`
+  is exact multiway; `facedSizing` and `mdf` are exact only heads-up-to-Hero.
+  `playersToFlop` counts the players who saw the flop, a preflop all-in
+  included. `line` is the action up to Hero's street: one letter per action
+  (`f x c b r`), Hero's upper-case and villains' lower-case, bets and raises as
+  whole pot percentages, streets joined by ` / ` — `ffffR100c / B33r75F` is an
+  open called, then a third-pot c-bet raised to 75% and folded.
 
 - `handClass` ∈ `strong | marginal-made | draw | air`, read against the board
-  as it stood at that decision. `strong` = two pair or better using a hole
-  card, an overpair, or top pair with a Q+ kicker. `draw` = eight or more outs.
+  as it stood at that decision. `strong` = two pair made with both hole cards
+  (a pocket pair, or one paired hole card beside a board pair, is one pair),
+  trips/set or a full house with a hole card, a straight or flush only when the
+  board doesn't already make one (a flush that beats the board's own counts),
+  an overpair, or top pair with a Q+ kicker. Hole cards that only play the
+  board are `marginal-made`, and so is any pair, overpair or top pair on board
+  quads, where it is only a kicker. `draw` = eight or more outs.
 - `boardType` is the **flop's** texture on every street — the same five
   buckets `byBoard` uses.
 - `sizing` is the bet or raise as a fraction of the pot, and is `null` for a
   fold, a check, a call and an all-in. `allIn` tells the last of those apart: a
   shove is not a chosen size, so it carries no fraction rather than a made-up
-  one.
+  one. `allIn` also covers a bet that leaves under a tenth of the pot behind,
+  and a bet that puts every live opponent all-in — whatever its size, nobody
+  chose it. A bet bigger than every live opponent's stack is sized at the part
+  they could call (the rest can only come back), here, in `bigSpots[]` and in
+  the action line, which reads the same rule.
 - `removals` = `{card, removes}[]` — what a card in Hero's hand takes out of
   the hands *the board can make*. It is board-derived and says nothing about
   what villain held. It goes quiet on a bricked draw, which is exactly where
   blockers matter most; that silence is a known limit, not a finding.
 - `shared` holds only the facets — `position`, `depth`, `handClass`,
   `boardType` — on which **every** instance of the label agrees, and is empty
-  below two instances. It is the finding. There is no rate and no denominator
-  attached to any of it, by design.
+  below two instances. It is the finding. `depth` is never shared as `'cash'`:
+  every cash hand reads the one cash chart, so it is the variant, not something
+  the instances agree on. There is no rate and no denominator attached to any
+  of it, by design.
 - `instances` is how many there were; `stride` is the sampling interval, so
   `decisions[]` is every `stride`-th instance in archive order, never a ranked
   pick. A stride above 1 means you are reading a sample.
@@ -84,6 +132,10 @@ labels}`.
 `splits[]` = `{key, board, made, opportunities, pct}`, where `key` is one of
 `cbetFlop | cbetTurn | foldToCbetFlop` and `board` is one of
 `dry-high-mine | wet-high-mine | middling-theirs | paired | monotone`.
+
+`byRole[].role` is `no-decision` for a hand Hero never acted in preflop — a
+big-blind walk, or an all-in from the blind or ante post. It is not a fold, and
+it is out of the `vpip`, `pfr` and `gap` opportunities.
 
 `verdict` ∈ `low | ok | high | thin | none`. `flag` ∈ `bleed | missed | null`.
 
@@ -169,12 +221,23 @@ payload no longer lets you sort by them at all.
 | `checkRaiseFlop` | 8–16 | — | missed | 10 |
 | `aggFreq` | 35–52 | — | missed | 20 |
 
+Two definitions that are narrower than the names suggest: `foldTo3Bet` counts
+only an `open`/`iso-raise` facing a 3-bet, never a 3-bet facing a 4-bet nor an
+open whose 3-bet was cold 4-bet before Hero answered; and `foldToCbetFlop`
+counts only a c-bet — the preflop raiser's bet, as the first bet of the flop —
+answered by Hero's first action after it, so donk bets, limped pots and a fold
+to a later raise are all out. "The preflop raiser" (and `pfa`) everywhere is
+the last preflop raiser who was not all-in: a short stack's all-in re-raise
+leaves the raiser it raised as the aggressor, and a pot whose only raisers are
+all-in has none, so no c-bet and no donk-bet.
+
 Conventional low/mid-stakes MTT coaching ranges, not solver output. Tournament
 values differ from cash: antes put dead money in before anyone acts, so steals
 need to work less often and defending is cheaper relative to pot size.
 
 **Stack depth changes meaning.** 22/19 at 50bb and 22/19 at 10bb are different
-players. Read every finding against `rfiFolds[].stackBB`.
+players. Read every finding against `rfiFolds[].stackBB`, and its `depth` — a
+tournament tier, or `'cash'` for the one 100bb cash chart.
 
 **Paired reads.** These say more together than alone:
 
@@ -203,8 +266,9 @@ appear in the output. Do not emit a finding without its citations.
 **cite** `byRole[role='cold-call'].hands`; `stats[threeBet].pct` and
 `stats[coldCall].pct` when not thin. For the per-hand drill-down, cite specific
 `coldCalls[]` entries: each is one flat, sound at n=1 like a chart fold — name
-the `id`, `cards`, `position`, `vsPos` (the opener's seat) and `stackBB`, and
-argue it. A flat is not automatically a leak: a small pair set-mining in
+the `id`, `cards`, `position`, `vsPos` (the last raiser's seat) and `stackBB`, and
+argue it. `facingRaises` 1 is a flat of an open; 2 or more is a cold-call of a
+3-bet (or more), a much narrower spot, with `openerPos` naming who opened. A flat is not automatically a leak: a small pair set-mining in
 position, or a suited hand closing behind at a price, is fine; the leak is a
 dominated broadway or a medium pair flatted out of position, where the choice
 was 3-bet or fold. `vsPos` is the pivot — the same hand is a flat vs a button
@@ -239,7 +303,8 @@ coaching is per hand.
 
 `heroRole` splits the list in two: an `open`/`iso-raise` entry is **facing a
 3-bet**, a `3bet`/`squeeze` entry is **facing a 4-bet** (`response: '4bet'` is
-then Hero's 5-bet). `threeBettorPos` vs `position` fixes who is in position — a
+then Hero's 5-bet). A `cold4Bet` entry faced a 4-bet whatever its `heroRole`.
+`threeBettorPos` vs `position` fixes who is in position — a
 hand folded in position to a blind's 3-bet is a tighter fold than the same hand
 out of position to the seat on your left. `multiway: true` is a squeeze: a caller
 was already in, so Hero's continuing range tightens and the 4-bet denies the
@@ -362,7 +427,8 @@ pattern.
 - **`check-draw`** — Hero checked holding eight or more outs. A fold is great
   for a draw, so the default is to bet — but checking a nut flush draw on a
   monotone flop is standard, and `shared.boardType` is again what separates
-  them.
+  them. A check Hero went on to check-raise is not labelled: that is the
+  aggressive line, not a passive one.
 - **`donk-bet`** — Hero was the caller, not the preflop raiser, and led into
   the flop rather than checking to the aggressor. Mostly dominated — the
   caller's range is capped and the raiser keeps the top — but correct on low
@@ -370,7 +436,10 @@ pattern.
   `shared.boardType` decides it: a lead on `middling-theirs` (e.g. 6-5-4) can be
   the line, a lead on `dry-high-mine` is usually the leak.
 - **`turn-probe`** — Hero was the caller and led the turn after the preflop
-  raiser **checked back the flop** (a declined c-bet, not any turn lead). The
+  raiser **checked back the flop** (a declined c-bet, not any turn lead): Hero
+  acted first on the flop and the raiser checked behind. A limped pot (no
+  raiser) or Hero in position (the raiser checked to Hero) is a stab, not a
+  probe, and carries no label. The
   flop went check-check, so both ranges are uncapped and the probe attacks a
   hand that already gave up once; `shared.boardType` carries the flop texture,
   so read the turn card and whether it favours the caller. Heads-up read: with a
@@ -379,10 +448,14 @@ pattern.
   underused, but built from equity-when-called (sets, two pair, combo draws);
   its frequency swings hard with texture, so read `shared.boardType` and the
   instance's `handClass`, not the raise itself.
-- **`overbet-strong`** — a bet or raise larger than the pot with `strong`. The
-  gate for a size above the pot is nut advantage; with it this is the
-  recommended river line, and without it the overbet is pure value that a
-  competent opponent reads instantly. Check the board and the street, not the
+- **`overbet-strong`** — a bet or raise larger than the pot with `strong`. An
+  all-in (or all but) counts at its size against the pot even though its
+  `sizing` reads null — the stack chose that size — and that size is the part
+  a live opponent could call, so a jam past the villain's stack that they could
+  call for under the pot is not one. The gate for a size above
+  the pot is nut advantage; with it this is the recommended river line, and
+  without it the overbet is pure value that a competent opponent reads
+  instantly. Check the board and the street, not the
   size alone. On the **river** in particular, `strong` admits non-nut hands
   (an overpair, top pair with a Q kicker), and an overbet with one of those for
   thin value folds out exactly the worse hands you wanted the call from — a
@@ -422,23 +495,38 @@ pattern.
   cannot tell you: read `removals` against the board yourself, and do not assume
   the raise is good just because the hand has none.
 - **`fold-to-turn-barrel`** — Hero folded the turn to a **continued** bet: the
-  villain bet the flop too, so this is a second barrel, not a lone stab. The
-  honest question is the price against the hand — `facedSizing` gives
-  `requiredEquity`/`mdf`, and a showdown class that clears the price defends
-  while one that does not folds. A fold can be correct: do not read the label as
-  an over-fold. Small-stakes pools under-barrel, so over-folding is the *lean* to
-  test, never the verdict. Heads-up-to-Hero the price is exact; with villains
-  acting between the bet and Hero it mis-scales, so confirm the line first
-  (multiway the flop and turn bets may be different villains, not one barrel).
+  villain bet or raised the flop too (a raise of Hero's flop bet that Hero
+  called counts), so this is a second barrel, not a lone stab. A fold to a raise
+  of Hero's own turn bet is not a barrel — that is `fold-to-raise`. The honest
+  question is the price against the hand — `requiredEquity` is the call's pot
+  odds and `mdf` comes from `facedSizing`, and a showdown class that clears the
+  price defends while one that does not folds. A fold can be correct: do not
+  read the label as an over-fold. Small-stakes pools under-barrel, so
+  over-folding is the *lean* to test, never the verdict. `requiredEquity` is
+  exact multiway too; `facedSizing` and `mdf` are exact only heads-up-to-Hero
+  and drift when villains act between the bet and Hero, so confirm the line
+  first (multiway the flop and turn bets may be different villains, not one
+  barrel). A fold after Hero's own flop check-raise was called still counts.
 - **`fold-to-river-barrel`** — Hero folded the river to a **continued** barrel:
   the villain bet the turn behind too, backing the river bet (the flop may have
   checked through, so this is a barrel of at least two streets, not necessarily
-  three). Same reading: weigh `requiredEquity`/`mdf` from `facedSizing` against
-  the showdown class Hero held, on the sharp river call/fold boundary. A fold
+  three). A fold to a raise of Hero's own river lead is not a barrel — that is
+  `fold-to-raise`. Same reading: weigh `requiredEquity` and `mdf` against the
+  showdown class Hero held, on the sharp river call/fold boundary. A fold
   can be correct — paired boards, bricked draws and narrow barrelled value lines
   are folds, not over-folds. The pool's under-bluffing is a lean to test against
-  the price, not a licence to call wider blind, and the price is exact only
-  heads-up-to-Hero (multiway the two bets may be different villains).
+  the price, not a licence to call wider blind. `requiredEquity` is exact
+  multiway; `facedSizing` and `mdf` are exact only heads-up-to-Hero (multiway
+  the two bets may be different villains).
+- **`fold-to-raise`** — Hero bet or raised a postflop street, was raised, and
+  folded on that street. It is the fold the barrel labels leave out, and never
+  shares a decision with them. Small-stakes pools raise for value far more than
+  they bluff-raise, so a fold to a raise is often right: do not read the label
+  as an over-fold. Weigh `requiredEquity` and `mdf` (from `facedSizing`) against
+  the showdown class Hero held, and read whether the bet had a plan for a raise
+  from the cards and board — a thin value bet folding is a sizing or selection
+  question, a bluff folding is the plan working. At committed SPR the call is a
+  stack-off decision, and `facedSizing`/`mdf` are exact only heads-up-to-Hero.
 
 **On the bluff-catch and the river bluffs, the correct direction is population-
 dependent, and the report cannot see it.** The same call is right against a
@@ -484,7 +572,8 @@ testable claim.
 - **Alpha** = `risk / (risk + reward)` — how often a bluff must work to break
   even.
 - **MDF** = `1 − alpha`. Facing a bet of `B` into pot `P`: `MDF = P / (P + B)`.
-- **SPR** = stack ÷ pot at the flop. Low SPR wants made-hand strength; high SPR
+- **SPR** = effective stack ÷ pot at the start of the street. Effective is
+  Hero's stack capped by the deepest opponent still in. Low SPR wants made-hand strength; high SPR
   wants hands that make nutted hands.
 
 | Bet size | Caller needs | Bettor's bluff must work | MDF |

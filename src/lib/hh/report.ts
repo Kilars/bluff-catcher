@@ -16,7 +16,10 @@
 
 import type { ArchiveMeta, WindowMeta } from './archive.ts';
 import { BOARD_SEEN } from './board.ts';
+import { potOdds } from './decisions.ts';
+import { enrich } from './enrich.ts';
 import type { HeroHand } from './hero.ts';
+import type { GameVariant } from './parse.ts';
 import type { FamilyBrief, FamilyVerdict } from './judge.ts';
 import type { LabelGroup, LabelledDecision } from './labels.ts';
 import { spotWrongness, throughlineHolds } from './priority.ts';
@@ -29,6 +32,9 @@ import { SPLIT_CAVEAT, type Flag, type Stat, type Summary } from './stats.ts';
 export interface ReportMeta {
   archive: ArchiveMeta;
   window: WindowMeta;
+  /** The game the window was graded as. The default payload adds it from the
+   * summary; pots and coach have none, so the CLI passes it in. */
+  variant?: GameVariant | 'mixed';
 }
 
 const MARK: Record<string, string> = {
@@ -120,7 +126,7 @@ export function renderText(
   if (s.variant === 'cash') out.push(`cash · ${s.hands} hands in window`);
   else if (s.variant === 'mixed')
     out.push(`mixed cash + tournament · ${s.hands} hands — filter with --variant to grade cleanly`);
-  else out.push(`levels ${s.levels[0]}–${s.levels[1]} · ${s.tournaments} tournament(s) in window`);
+  else out.push(`levels ${s.levels?.join('–') ?? '—'} · ${s.tournaments} tournament(s) in window`);
   out.push('');
 
   // Labels and chart folds lead. They name what Hero did. Everything below
@@ -243,7 +249,7 @@ export function renderJson(
     // the finding.
     // `variant` names the frame the bands are graded against — a reader must
     // not quote a cash band as though it were the MTT one. levels/tournaments
-    // are MTT-only and degenerate for cash (0 / 1); variant says which to trust.
+    // are MTT-only: levels is null and tournaments 0 for cash.
     meta: { ...meta, variant: s.variant, levels: s.levels, tournaments: s.tournaments },
     labels: groups.map((g) => {
       const stride = strideFor(g.decisions, perLabel);
@@ -279,7 +285,11 @@ export function renderJson(
         pct: Number(b.pct.toFixed(1)),
       })),
     },
-    byRole: s.byRole.map((r) => ({ role: r.role, hands: r.hands })),
+    // Summary orders roles by net for the text report; that order alone would
+    // say which role lost most, so the payload re-sorts on a blind key.
+    byRole: [...s.byRole]
+      .sort((a, b) => b.hands - a.hands || a.role.localeCompare(b.role))
+      .map((r) => ({ role: r.role, hands: r.hands })),
     stats: s.stats
       .filter((x) => !RESULT_STATS.has(x.key))
       .map((x) => ({
@@ -344,6 +354,9 @@ export function renderCoachJson(
 
     return {
       family: brief.family,
+      // False when no verdict came back for the family — `--mode coach` run
+      // without `--judge`. Its zero leaks mean "not read", never "clean".
+      judged: fv !== undefined,
       leaks: findings.reduce((s, f) => s + f.leaks, 0),
       weight: findings.reduce((s, f) => s + f.weight, 0),
       top: findings.reduce((m, f) => Math.max(m, f.top), 0),
@@ -360,12 +373,16 @@ export function renderCoachJson(
 export function renderCoachText(payload: ReturnType<typeof renderCoachJson>): string {
   const lines: string[] = [];
   for (const fam of payload.families) {
-    const tag = fam.leaks ? `${fam.leaks} leak${fam.leaks === 1 ? '' : 's'}` : 'clean';
+    const tag = !fam.judged
+      ? 'unjudged'
+      : fam.leaks
+        ? `${fam.leaks} leak${fam.leaks === 1 ? '' : 's'}`
+        : 'clean';
     lines.push(`${fam.family}  (${tag})`);
     if (fam.throughline) lines.push(`  ↳ ${fam.throughline.thesis}`);
     for (const f of fam.findings) {
       const shown = f.shown < f.instances ? `${f.shown}/${f.instances}` : `${f.instances}`;
-      lines.push(`  ${pad(f.label, 26)} ${shown}×  ${f.leaks} leak(s)`);
+      lines.push(`  ${pad(f.label, 26)} ${shown}×${fam.judged ? `  ${f.leaks} leak(s)` : ''}`);
       for (const d of f.decisions) {
         if (d.verdict === 'leak' || d.verdict === 'mixed') {
           lines.push(`  ${' '.repeat(6)}${pad(d.id, 14)} sev ${d.severity}  ${d.note ?? ''}`);
@@ -402,9 +419,13 @@ function everyNth<T>(xs: T[], stride: number): T[] {
  * the hand and the board were, and what it cost as a fraction of the pot.
  *
  * `sizing` is null for a fold, a check, a call and an all-in — nothing was
- * chosen — and `allIn` tells the last of those apart from the rest.
+ * chosen — and `allIn` tells the last of those apart from the rest. The price
+ * Hero faced (`facedSizing`, `requiredEquity`, `mdf`), `playersToFlop` and the
+ * action line ride along because §4 tells the reader to weigh them; all are
+ * knowable at the decision.
  */
 function decisionDetail(d: LabelledDecision) {
+  const { requiredEquity, mdf } = enrich(d);
   return {
     id: d.id,
     street: d.street,
@@ -417,6 +438,11 @@ function decisionDetail(d: LabelledDecision) {
     allIn: d.allIn,
     pfa: d.pfa,
     facedBet: d.facedBet,
+    facedSizing: d.facedSizing === null ? null : Number(d.facedSizing.toFixed(2)),
+    requiredEquity,
+    mdf,
+    playersToFlop: d.playersToFlop,
+    line: d.line,
     cards: d.cards,
     board: d.board,
     handClass: d.handClass,
@@ -455,6 +481,10 @@ export function renderPotsJson(hands: HeroHand[], meta: ReportMeta) {
   return { meta, pots: topPots(hands).map(handDetail) };
 }
 
+function inBB(n: number, bigBlind: number): number {
+  return bigBlind > 0 ? Number((n / bigBlind).toFixed(1)) : 0;
+}
+
 function handDetail(h: HeroHand) {
   return {
     id: h.id,
@@ -468,14 +498,17 @@ function handDetail(h: HeroHand) {
     showdown: h.showdown,
     grossBB: Number(h.grossBB.toFixed(2)),
     netBB: Number(h.netBB.toFixed(2)),
+    // Big blinds, like bigSpots: the raw figures are cents in cash and chips in
+    // an MTT, and a window across stakes cannot be read side by side in either.
+    // Pot odds are a call's price alone — a raise or a fold buys nothing at it.
     decisions: h.decisions.map((a) => ({
       street: a.street,
       action: a.kind,
-      chips: a.amount,
-      potBefore: a.potBefore,
-      toCall: a.toCall,
+      amountBB: inBB(a.amount, h.bb),
+      potBB: inBB(a.potBefore, h.bb),
+      toCallBB: inBB(a.toCall, h.bb),
       equityNeeded:
-        a.toCall > 0 ? Number(((a.toCall / (a.potBefore + a.toCall)) * 100).toFixed(1)) : null,
+        a.kind === 'call' && a.toCall > 0 ? Number((potOdds(a) * 100).toFixed(1)) : null,
     })),
   };
 }

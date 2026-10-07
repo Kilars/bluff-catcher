@@ -17,7 +17,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { collect, die } from './util.ts';
+import { collectAll, die } from './util.ts';
 import {
   DATE_PATTERN,
   readArchive,
@@ -36,7 +36,7 @@ import { bigSpots } from '../src/lib/hh/bigspots.ts';
 import { coldCalls } from '../src/lib/hh/flats.ts';
 import { faced3Bets } from '../src/lib/hh/faced3bets.ts';
 import { rfiFolds } from '../src/lib/hh/rfi.ts';
-import { summarise } from '../src/lib/hh/stats.ts';
+import { summarise, variantOf } from '../src/lib/hh/stats.ts';
 import {
   renderCoachJson,
   renderCoachText,
@@ -171,7 +171,7 @@ if (!targets.length && !existsSync(DEFAULT_TARGET)) {
   die(`no ${DEFAULT_TARGET}/ directory and no path given\n${USAGE}`);
 }
 
-const files = paths.flatMap((path) => collect(path));
+const files = collectAll(paths);
 if (files.length === 0) die(`no .txt hand-history files found under ${paths.join(', ')}`);
 
 const archive = readArchive(
@@ -186,13 +186,16 @@ if (archive.hands.length === 0) {
 const selectable = variant ? archive.hands.filter((h) => h.variant === variant) : archive.hands;
 const { hands, window } = selectWindow(selectable, from, to);
 const meta: ReportMeta = { archive: archive.meta, window };
+// Pots and coach carry no summary, so they name the game here (the default
+// payload adds it from its summary alongside the levels).
+const framed: ReportMeta = { ...meta, variant: variantOf(hands, variant ?? undefined) };
 
 // ── render ───────────────────────────────────────────────────────────────────
 
 let output: string;
 if (mode === 'pots') {
   output = asJson
-    ? JSON.stringify(renderPotsJson(hands, meta), null, 2)
+    ? JSON.stringify(renderPotsJson(hands, framed), null, 2)
     : renderPotsText(hands, meta);
 } else if (mode === 'coach') {
   const all = labelGroups(hands);
@@ -217,10 +220,10 @@ if (mode === 'pots') {
     }
   }
 
-  const payload = renderCoachJson(briefs, verdicts, meta);
+  const payload = renderCoachJson(briefs, verdicts, framed);
   output = asJson ? JSON.stringify(payload, null, 2) : renderCoachText(payload);
 } else {
-  const summary = summarise(hands);
+  const summary = summarise(hands, variant ?? undefined);
   const folds = rfiFolds(hands);
   const flats = coldCalls(hands);
   const faced3 = faced3Bets(hands);
