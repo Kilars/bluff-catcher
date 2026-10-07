@@ -74,6 +74,7 @@ describe('renderCoachJson — blindness', () => {
     expect(Object.keys(fam).sort()).toEqual([
       'family',
       'findings',
+      'judged',
       'leaks',
       'throughline',
       'top',
@@ -194,6 +195,31 @@ describe('renderCoachJson — join and ranking', () => {
     const payload = renderCoachJson(briefs, verdicts, META);
     const pfr = payload.families.find((f) => f.family === 'PFR flop passivity');
     expect(pfr?.throughline).toBeNull();
+  });
+
+  it('never calls a family clean that no judge read', () => {
+    // --mode coach without --judge: no verdicts at all. Zero leaks found by
+    // nobody is not "clean".
+    const briefs = brief as unknown as FamilyBrief[];
+    const payload = renderCoachJson(briefs, [], META);
+    expect(payload.families.every((f) => f.judged === false)).toBe(true);
+    const text = renderCoachText(payload);
+    expect(text).not.toContain('clean');
+    expect(text).toContain('unjudged');
+  });
+
+  it('still calls a judged family with no leak clean', () => {
+    const briefs = brief as unknown as FamilyBrief[];
+    const verdicts: FamilyVerdict[] = briefs.map((b) => ({
+      family: b.family,
+      throughline: null,
+      verdicts: b.spots.flatMap((s) =>
+        s.instances.map((h) => ({ label: s.label, ref: h.ref, verdict: 'fine' as const, severity: 0, note: 'n' })),
+      ),
+    }));
+    const payload = renderCoachJson(briefs, verdicts, META);
+    expect(payload.families.every((f) => f.judged)).toBe(true);
+    expect(renderCoachText(payload)).toContain('(clean)');
   });
 });
 

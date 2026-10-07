@@ -5,8 +5,9 @@ description: Coach a session from the local GGPoker hand-history archive. Use wh
 
 # Hand review
 
-Coach from the report, never from the raw hands. Use real hand IDs, not
-theoretical ranges.
+The standard review coaches from the report, not the raw hands. Use real hand
+IDs, not theoretical ranges. A results-aware follow-up is a separate step, done
+only when the user asks for it (see the end of this file).
 
 ## Run
 
@@ -45,15 +46,14 @@ outcome. Use it to judge how Hero plays under pressure, and look for patterns
 across the spots: sizing with strong hands, river stack-offs, bluff targets,
 preflop wars.
 
-Never run `--mode pots`, even if the user asks for results. It shows who won,
-and a lost pot reads as a bad decision. If asked, explain that and coach from
-`bigSpots` instead.
+Don't run `--mode pots` for the standard review. It shows who won, and a lost
+pot reads as a bad decision. Coach from `bigSpots` instead.
 
 ## Hard rules
 
-- Never read `hands/` or `--mode pots` while coaching. The `--json` leaks
-  payload is the only input. (Dev work on the parser is a different hat; see
-  `CLAUDE.md`.)
+- For the standard review, the `--json` leaks payload is the only input. Don't
+  read `hands/` or `--mode pots` for it. (Dev work on the parser is a different
+  hat; see `CLAUDE.md`.)
 - Never state a number that isn't in the payload.
 - Never claim how a hand or session went. You don't know.
 - Describe only `meta.window`. `meta.archive` only tells you how thin the slice
@@ -79,3 +79,12 @@ with SendUserFile, and keep the chat reply to the headline findings.
 
 If a label misfires (it tags a line it shouldn't), say so in a tooling note in
 the review. Don't coach from it.
+
+## Follow-up with the full hands
+
+When the user asks for it after the blind review (to see villain hands, or a
+hand the report is missing), read the raw hands. Add a results-aware section
+under the blind review. Say which blind verdicts the full action confirms and
+which it changes, and why. Judge each decision by what was knowable at the time.
+Shown cards tell you the villain's range, not whether the decision was right.
+

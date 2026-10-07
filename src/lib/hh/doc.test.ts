@@ -19,7 +19,7 @@ import { bigSpots } from './bigspots.ts';
 import { coldCalls } from './flats.ts';
 import { faced3Bets } from './faced3bets.ts';
 import { LABELS, labelGroups } from './labels.ts';
-import { rfiFolds } from './rfi.ts';
+import { depthFor, rfiFolds } from './rfi.ts';
 import { summarise } from './stats.ts';
 import { renderJson } from './report.ts';
 
@@ -100,6 +100,28 @@ describe('docs/leak-coaching.md', () => {
     }
   });
 
+  it('orders byRole by hand count, which says nothing about results', () => {
+    // Sorted by net, the order alone told the agent which entry lost most.
+    const files = FIXTURES.map((path): ArchiveFile => ({ path, text: readFileSync(path, 'utf8') }));
+    const archive = readArchive(files);
+    const { hands, window } = selectWindow(archive.hands);
+    const s = summarise(hands);
+    const rigged = {
+      ...s,
+      byRole: [
+        { role: 'open' as const, hands: 1, netBB: -100 },
+        { role: 'fold' as const, hands: 5, netBB: 3 },
+        { role: '3bet' as const, hands: 5, netBB: -1 },
+      ],
+    };
+    const out = renderJson(rigged, { archive: archive.meta, window }, [], [], [], [], []);
+    expect(out.byRole).toEqual([
+      { role: '3bet', hands: 5 },
+      { role: 'fold', hands: 5 },
+      { role: 'open', hands: 1 },
+    ]);
+  });
+
   it('documents exactly the stats the report emits', () => {
     expect([...docBands().keys()].sort()).toEqual(report.stats.map((s) => s.key).sort());
   });
@@ -168,17 +190,46 @@ describe('docs/leak-coaching.md', () => {
       'cards',
       'depth',
       'facedBet',
+      'facedSizing',
       'handClass',
       'id',
       'labels',
+      'line',
+      'mdf',
       'pfa',
+      'playersToFlop',
       'position',
       'removals',
+      'requiredEquity',
       'sizing',
       'spr',
       'stackBB',
       'street',
     ]);
+  });
+
+  it('gives the tournament depth tiers depthFor uses', () => {
+    // The doc once said 60bb+/20bb/10bb — the charts, not the cut-offs.
+    expect(depthFor(40)).toBe('deep');
+    expect(depthFor(39.9)).toBe('mid');
+    expect(depthFor(15)).toBe('mid');
+    expect(depthFor(14.9)).toBe('short');
+    expect(DOC.replace(/\s+/g, ' ')).toContain(
+      '`deep` (40bb+, read against the 60bb chart), `mid` (15–40bb, the 20bb chart) or `short` (under 15bb, the 10bb chart)',
+    );
+  });
+
+  it('carries the price the fold-to-barrel entries tell the agent to read', () => {
+    // §4 sends the reader to facedSizing, requiredEquity, mdf and the line;
+    // the standard --json payload is what the hand-review skill reads.
+    const text = readFileSync('src/lib/hh/fixtures/rc/round2.txt', 'utf8');
+    const archive = readArchive([{ path: 'src/lib/hh/fixtures/rc/round2.txt', text }]);
+    const { hands, window } = selectWindow(archive.hands);
+    const meta = { archive: archive.meta, window };
+    const rc = renderJson(summarise(hands), meta, [], [], [], [], labelGroups(hands));
+    const d = rc.labels.flatMap((g) => g.decisions).find((x) => x.id === 'RC4851719710')!;
+    expect(d).toMatchObject({ facedSizing: 0.75, requiredEquity: 0.3, mdf: 0.57, playersToFlop: 2 });
+    expect(d.line).toMatch(/ \/ /);
   });
 
   /**
@@ -196,6 +247,7 @@ describe('docs/leak-coaching.md', () => {
 
   it('only names roles the classifier can produce', () => {
     const known = new Set([
+      'no-decision',
       'fold',
       'bb-check',
       'limp',

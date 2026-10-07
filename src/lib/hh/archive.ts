@@ -66,8 +66,14 @@ export interface Archive {
 
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Shipped in `meta` so a reader knows the window's edges are not UTC. */
-const TIMEZONE = 'export-local (no zone printed)';
+/**
+ * Shipped in `meta` so a reader knows the window's edges are not UTC. Hand
+ * times are the GG client's clock with no zone printed: this archive's exports
+ * run exactly 2h ahead of the time in their file name (CEST against, most likely,
+ * UTC). Nothing shifts them — `--from`/`--to` compare these local dates, so a
+ * late session can land on the next day, and the offset drops to 1h after DST.
+ */
+const TIMEZONE = 'GG client local clock (no zone printed; not the file-name clock)';
 
 export function readArchive(files: ArchiveFile[]): Archive {
   const hands: HeroHand[] = [];
@@ -106,7 +112,8 @@ export function readArchive(files: ArchiveFile[]): Archive {
       }
 
       games.add(hand.gameName);
-      tournaments.add(hand.tournamentId);
+      // Cash carries tournamentId '' — there is no tournament to count.
+      if (hand.tournamentId) tournaments.add(hand.tournamentId);
       hands.push(hero);
     }
   }

@@ -7,10 +7,15 @@
  * 3-betting, defending, and every postflop street.
  */
 
-import type { Action, GameVariant, Hand, Street } from './parse.ts';
+import { STREETS, isDecision, type Action, type GameVariant, type Hand, type Street } from './parse.ts';
 
-/** How Hero entered (or declined) the pot. */
+/**
+ * How Hero entered (or declined) the pot. `no-decision` is a hand Hero never
+ * acted in preflop — a big-blind walk, or an all-in from the blind or ante post —
+ * so it is neither a fold nor a hand Hero chose to play.
+ */
 export type PreflopRole =
+  | 'no-decision'
   | 'fold'
   | 'bb-check'
   | 'limp'
@@ -27,7 +32,11 @@ export interface StreetPlay {
   potAtStart: number;
   /** Hero's stack when the street began. */
   stackAtStart: number;
-  /** Stack-to-pot ratio Hero was playing. */
+  /**
+   * Stack-to-pot ratio Hero was playing, on the *effective* stack: Hero's, or
+   * the biggest stack still live against Hero if that is smaller. Hero covering
+   * a short villain is not deep — only the short stack can go in.
+   */
   spr: number | null;
   actions: Action[];
   /**
@@ -78,6 +87,12 @@ export interface HeroHand {
   level: number;
   bb: number;
   position: string;
+  /**
+   * Players left to act after Hero preflop (0 on the button), counted off the
+   * live seats. The table label cannot say this for early seats: they are
+   * named from the front (UTG, UTG1…), so a 7-handed UTG is the 9-max UTG+2.
+   */
+  seatsToButton: number;
   cards: string[] | null;
   startingStack: number;
   /** Starting stack measured in big blinds — the number that drives strategy. */
@@ -103,6 +118,8 @@ export interface HeroHand {
   facingRaises: number;
   /** Seat of the raiser Hero faced when first acting; null first-in or unraised. */
   facingRaiserPos: string | null;
+  /** Seat of the first raiser (the opener) when Hero first acted; null unraised. */
+  openerPos: string | null;
   /** Limpers already in when Hero first had to decide. */
   limpersAhead: number;
   /** Hero could have entered first in (no raise ahead, not in the BB). */
@@ -110,24 +127,58 @@ export interface HeroHand {
   /** Hero faced exactly one raise and had not yet acted. */
   threeBetOpp: boolean;
   threeBet: boolean;
-  /** Hero opened and someone raised over the top. */
+  /**
+   * Hero raised and someone raised over the top, with chips left for Hero to
+   * answer it — a re-shove over Hero's all-in is no decision. Any raise counts:
+   * an open facing a 3-bet and a 3-bet facing a 4-bet both set it (`role` says
+   * which), so the `foldTo3Bet` stat narrows it to opens.
+   */
   faced3Bet: boolean;
   foldedTo3Bet: boolean;
   /** Seat of the villain who raised over Hero's raise; null unless faced3Bet. */
   threeBettorPos: string | null;
   /** A caller was already in when that raise landed — a squeeze, pot heading multiway. */
   faced3BetMultiway: boolean;
-  /** The raise's size as a fraction of the pot it raised over; null if unreadable. */
+  /**
+   * The raise's size as a fraction of the pot it raised over, capped at Hero's
+   * stack — a jam for more than Hero has is sized at the part Hero can call.
+   * Null if unreadable.
+   */
   faced3BetSizing: number | null;
+  /**
+   * Another player raised again over that raise before Hero answered it — a
+   * cold 4-bet. Hero's answer is then to two raises, so `foldTo3Bet` leaves the
+   * hand out; `faced3BetResponse` still records what Hero did.
+   */
+  faced3BetCold4Bet: boolean;
   /** How Hero answered it. '4bet' is the re-raise whatever street of the war it is. */
   faced3BetResponse: 'fold' | 'call' | '4bet' | null;
   /** Hero was in the BB facing a lone steal-position open. */
   stealDefenceOpp: boolean;
   stealDefence: 'fold' | 'call' | '3bet' | null;
 
-  /** Hero was the last preflop raiser. */
+  /** Hero is the preflop aggressor (`preflopRaiser`). */
   pfa: boolean;
+  /**
+   * The preflop aggressor, Hero or not: the last preflop raiser who was neither
+   * all-in nor folded by the end of preflop. Null in an unraised pot, and when
+   * every raiser is all-in or folded — nobody is left to c-bet or be led into.
+   */
+  preflopRaiser: string | null;
+  /** Hero acted on the flop — the c-bet stats' population, which needs a flop decision. */
   sawFlop: boolean;
+  /**
+   * The flop was dealt with Hero still in, acted on or not. A preflop all-in
+   * that runs out has no flop decision but did see the flop, and the showdown
+   * stats (WTSD / W$SD / WWSF) count it, as trackers do.
+   */
+  flopDealtLive: boolean;
+  /**
+   * Players still in when the flop was dealt — every dealt player without a
+   * preflop fold, Hero or not, so a preflop all-in who never acts again
+   * counts. 0 when no flop was dealt.
+   */
+  playersToFlop: number;
   streetReached: Street;
   showdown: boolean;
   wonPot: boolean;
@@ -138,6 +189,17 @@ export interface HeroHand {
 }
 
 const STEAL_POSITIONS = new Set(['CO', 'BTN', 'SB']);
+const VPIP_ROLES = new Set<PreflopRole>([
+  'limp',
+  'open',
+  'iso-raise',
+  'cold-call',
+  'blind-defend',
+  '3bet',
+  'squeeze',
+  '4bet+',
+]);
+const PFR_ROLES = new Set<PreflopRole>(['open', 'iso-raise', '3bet', 'squeeze', '4bet+']);
 /**
  * Every label that is a blind, including the heads-up button — which posts the
  * small blind and is therefore in one. Exported because `stats.ts` asks the
@@ -176,13 +238,27 @@ function sawShowdown(hand: Hand, hero: string): boolean {
   return hand.shows.length > 0 && hand.uncalled?.player !== hero;
 }
 
-function isVoluntary(a: Action): boolean {
-  return a.kind !== 'ante' && a.kind !== 'sb' && a.kind !== 'bb';
+/**
+ * The most chips that can go in against Hero from the start of `street`: Hero's
+ * own stack, capped by the deepest opponent still in. Stacks are the header
+ * chips less everything each player put in on earlier streets; an opponent who
+ * folded before the street is out of it.
+ */
+function effectiveStack(hand: Hand, street: Street, hero: string, heroStack: number): number {
+  const earlier = hand.actions.filter((a) => STREETS.indexOf(a.street) < STREETS.indexOf(street));
+  const folded = new Set(earlier.filter((a) => a.kind === 'fold').map((a) => a.player));
+  let deepest = 0;
+  for (const seat of hand.seats) {
+    if (seat.name === hero || folded.has(seat.name) || !hand.order.includes(seat.name)) continue;
+    const put = earlier.filter((a) => a.player === seat.name).reduce((t, a) => t + a.amount, 0);
+    deepest = Math.max(deepest, seat.chips - put);
+  }
+  return Math.min(heroStack, deepest);
 }
 
 function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | null {
   const all = hand.actions.filter((a) => a.street === street);
-  const mine = all.filter((a) => a.player === hero && isVoluntary(a));
+  const mine = all.filter((a) => a.player === hero && isDecision(a));
   if (mine.length === 0) return null;
 
   const first = mine[0];
@@ -199,7 +275,7 @@ function buildStreet(hand: Hand, street: Street, hero: string): StreetPlay | nul
     street,
     potAtStart,
     stackAtStart: first.stackBefore,
-    spr: potAtStart > 0 ? first.stackBefore / potAtStart : null,
+    spr: potAtStart > 0 ? effectiveStack(hand, street, hero, first.stackBefore) / potAtStart : null,
     actions: mine,
     allActions: all,
     facedBet: street === 'preflop' ? first.toCall > 0 : Boolean(aggressor),
@@ -222,6 +298,7 @@ function classifyPreflop(
   | 'role'
   | 'facingRaises'
   | 'facingRaiserPos'
+  | 'openerPos'
   | 'limpersAhead'
   | 'firstInOpp'
   | 'threeBetOpp'
@@ -231,17 +308,19 @@ function classifyPreflop(
   | 'threeBettorPos'
   | 'faced3BetMultiway'
   | 'faced3BetSizing'
+  | 'faced3BetCold4Bet'
   | 'faced3BetResponse'
   | 'stealDefenceOpp'
   | 'stealDefence'
 > {
-  const pre = hand.actions.filter((a) => a.street === 'preflop' && isVoluntary(a));
+  const pre = hand.actions.filter((a) => a.street === 'preflop' && isDecision(a));
   const heroPos = hand.position[hero] ?? '?';
 
   let raises = 0;
   let limpers = 0;
   let callersSinceRaise = 0;
   let lastRaiser: string | null = null;
+  let firstRaiser: string | null = null;
 
   let role: PreflopRole = 'fold';
   let seenHero = false;
@@ -252,12 +331,18 @@ function classifyPreflop(
   let threeBettorPos: string | null = null;
   let faced3BetMultiway = false;
   let faced3BetSizing: number | null = null;
+  let faced3BetCold4Bet = false;
   let faced3BetResponse: HeroHand['faced3BetResponse'] = null;
   let stealDefenceOpp = false;
   let stealDefence: HeroHand['stealDefence'] = null;
   let heroRaised = false;
+  // Hero's latest raise: how far Hero can follow a raise over it.
+  let heroRaise: Action | null = null;
+  // A raise that was all-in leaves Hero nothing to answer a re-raise with.
+  let heroAllIn = false;
   let facingRaises = 0;
   let facingRaiserPos: string | null = null;
+  let openerPos: string | null = null;
   let limpersAhead = 0;
 
   for (const a of pre) {
@@ -266,6 +351,7 @@ function classifyPreflop(
         seenHero = true;
         facingRaises = raises;
         facingRaiserPos = lastRaiser ? (hand.position[lastRaiser] ?? null) : null;
+        openerPos = firstRaiser ? (hand.position[firstRaiser] ?? null) : null;
         limpersAhead = limpers;
         threeBetOpp = raises === 1;
 
@@ -276,6 +362,8 @@ function classifyPreflop(
           else role = BLINDS.has(heroPos) ? 'blind-defend' : 'cold-call';
         } else if (a.kind === 'raise') {
           heroRaised = true;
+          heroRaise = a;
+          heroAllIn = a.allIn;
           if (raises === 0) role = limpers > 0 ? 'iso-raise' : 'open';
           else if (raises === 1) role = callersSinceRaise > 0 ? 'squeeze' : '3bet';
           else role = '4bet+';
@@ -306,15 +394,22 @@ function classifyPreflop(
           faced3BetResponse = '4bet';
         }
       }
-    } else if (seenHero && heroRaised && a.kind === 'raise' && !faced3Bet) {
+    } else if (faced3Bet && faced3BetResponse === null && a.kind === 'raise') {
+      // A further raise before Hero answered the first: Hero now faces a 4-bet.
+      faced3BetCold4Bet = true;
+    } else if (seenHero && heroRaised && !heroAllIn && a.kind === 'raise' && !faced3Bet) {
       faced3Bet = true;
       threeBettorPos = hand.position[a.player] ?? null;
       // callersSinceRaise is still pre-`a` here (the bottom of the loop updates
       // it after), so it counts the flats of Hero's raise — i.e. a squeeze.
       faced3BetMultiway = callersSinceRaise > 0;
+      // Sized at what Hero can call: a jam for more than Hero has is, to Hero,
+      // a raise to Hero's whole stack. `to - raiseBy` is the level it raised
+      // over (Hero's raise), and Hero reaches that plus what Hero had left.
+      const reach = heroRaise?.to !== undefined ? heroRaise.to + heroRaise.stackBefore - heroRaise.amount : Infinity;
       faced3BetSizing =
-        a.raiseBy !== undefined && a.potBefore + a.toCall > 0
-          ? a.raiseBy / (a.potBefore + a.toCall)
+        a.raiseBy !== undefined && a.to !== undefined && a.potBefore + a.toCall > 0
+          ? Math.max(0, Math.min(a.to, reach) - (a.to - a.raiseBy)) / (a.potBefore + a.toCall)
           : null;
     }
 
@@ -322,6 +417,7 @@ function classifyPreflop(
       raises += 1;
       callersSinceRaise = 0;
       lastRaiser = a.player;
+      firstRaiser ??= a.player;
     } else if (a.kind === 'call') {
       if (raises === 0) limpers += 1;
       else callersSinceRaise += 1;
@@ -329,9 +425,11 @@ function classifyPreflop(
   }
 
   return {
-    role,
+    // Hero never acted: there was nothing to fold, so 'fold' would be a lie.
+    role: seenHero ? role : 'no-decision',
     facingRaises,
     facingRaiserPos,
+    openerPos,
     limpersAhead,
     firstInOpp: seenHero && facingRaises === 0 && heroPos !== 'BB',
     threeBetOpp,
@@ -341,6 +439,7 @@ function classifyPreflop(
     threeBettorPos,
     faced3BetMultiway,
     faced3BetSizing,
+    faced3BetCold4Bet,
     faced3BetResponse,
     stealDefenceOpp,
     stealDefence,
@@ -360,8 +459,15 @@ export function heroHand(hand: Hand): HeroHand | null {
     .map((s) => buildStreet(hand, s, hero))
     .filter((s): s is StreetPlay => s !== null);
 
-  const preflopRaises = hand.actions.filter((a) => a.street === 'preflop' && a.kind === 'raise');
-  const lastPreflopRaiser = preflopRaises.at(-1)?.player ?? null;
+  // The aggressor postflop play is read against: the last preflop raiser who
+  // still had chips when the flop came. An all-in raiser never acts again, so
+  // naming one made every flop lead a "donk" into a player who cannot bet, and
+  // hid the real raiser's c-bet or check behind a short stack's jam. A raiser
+  // who folded to a re-raise is gone too: open, jam behind, open folds.
+  const preflop = hand.actions.filter((a) => a.street === 'preflop');
+  const outPreflop = new Set(preflop.filter((a) => a.allIn || a.kind === 'fold').map((a) => a.player));
+  const lastPreflopRaiser =
+    preflop.filter((a) => a.kind === 'raise' && !outPreflop.has(a.player)).at(-1)?.player ?? null;
 
   const seat = hand.seats.find((s) => s.name === hero);
   const startingStack = seat?.chips ?? 0;
@@ -376,6 +482,8 @@ export function heroHand(hand: Hand): HeroHand | null {
     level: hand.level,
     bb: hand.bb,
     position: hand.position[hero] ?? '?',
+    // The button is always last in `order`, dead small blind or not.
+    seatsToButton: hand.order.length - 1 - hand.order.indexOf(hero),
     cards: hand.heroCards,
     startingStack,
     stackBB: hand.bb > 0 ? startingStack / hand.bb : 0,
@@ -387,17 +495,26 @@ export function heroHand(hand: Hand): HeroHand | null {
     net: won - invested,
     netBB: hand.bb > 0 ? (won - invested) / hand.bb : 0,
 
-    vpip: pre.role !== 'fold' && pre.role !== 'bb-check',
-    pfr: ['open', 'iso-raise', '3bet', 'squeeze', '4bet+'].includes(pre.role),
+    // Whitelisted, not "anything but a fold": a walk or a post-all-in is not a
+    // fold and did not put chips in voluntarily either.
+    vpip: VPIP_ROLES.has(pre.role),
+    pfr: PFR_ROLES.has(pre.role),
     ...pre,
 
     pfa: lastPreflopRaiser === hero,
+    preflopRaiser: lastPreflopRaiser,
     sawFlop: streets.some((s) => s.street === 'flop'),
+    flopDealtLive:
+      hand.streets.includes('flop') &&
+      !hand.actions.some((a) => a.player === hero && a.street === 'preflop' && a.kind === 'fold'),
+    playersToFlop: hand.streets.includes('flop')
+      ? hand.order.filter((p) => !preflop.some((a) => a.player === p && a.kind === 'fold')).length
+      : 0,
     streetReached,
     showdown: sawShowdown(hand, hero),
     wonPot: won > 0,
     streets,
-    decisions: hand.actions.filter((a) => a.player === hero && isVoluntary(a)),
+    decisions: hand.actions.filter((a) => a.player === hero && isDecision(a)),
     board: hand.board,
   };
 }

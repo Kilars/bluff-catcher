@@ -12,36 +12,55 @@
 import { handClass, strengthRank, parseHandClass, combosForClass } from '../preflop/hands.ts';
 import type { HandClass } from '../preflop/hands.ts';
 import {
+  CASH_SEATS,
+  CHART_META,
   DEPTH_META,
-  POSITIONS,
   getRangeSet,
   isOpen,
   rangeComboCount,
+  type ChartKey,
   type Depth,
   type Position,
+  type Seat,
 } from '../preflop/ranges.ts';
 import type { HeroHand } from './hero.ts';
 
 /**
- * Map a parsed table label onto a chart seat, or null when no chart applies.
- *
- * The blinds have no RFI chart — `ranges.ts` is seven non-blind seats — and
- * `isOpen('SB', …)` would throw on the lookup. Heads-up is its own game.
- * Deeper early seats than the charts model (a 10-handed UTG+3) clamp to UTG,
- * which is the tightest chart there is.
- *
- * Short tables need no special case: `positionNames` already labels seats by
- * distance from the button, so a 6-max lojack and a 9-max lojack are the same
- * seat and read the same chart.
+ * Tournament seats by players left to act behind, BTN first. The charts are
+ * 9-max, and a seat's range tracks how many players it opens into — so a seat
+ * reads its chart by distance from the button, never by its label.
+ * `positionNames` names late seats from the button (LJ…BTN) but early seats
+ * from the front (UTG, UTG1…), so a 7-handed "UTG" has four players behind it:
+ * the 9-max UTG+2. Further out than the charts model clamps to UTG.
  */
-function chartPosition(label: string): Position | null {
-  if (label === 'SB' || label === 'BB' || label === 'SB/BTN') return null;
-  if (/^UTG[3-9]$/.test(label)) return 'UTG';
-  return (POSITIONS as readonly string[]).includes(label) ? (label as Position) : null;
+const MTT_BY_DISTANCE: readonly Position[] = ['BTN', 'CO', 'HJ', 'LJ', 'UTG2', 'UTG1', 'UTG'];
+
+/**
+ * The chart seat and chart a first-in fold is read against, or null when no
+ * chart applies.
+ *
+ * Cash reads the 6-max 100bb chart, which has the small blind (raise-or-fold)
+ * and no seat earlier than the lojack: a 7+-handed early seat reads LJ, the
+ * tightest there is. Tournaments read the 60bb+ / 20bb / 10bb tiers by stack,
+ * which are seven non-blind seats — `isOpen('SB', …)` would throw there. The
+ * big blind never has a first-in fold, and heads-up is its own game.
+ */
+function chartFor(h: HeroHand): { seat: Seat; key: ChartKey } | null {
+  if (h.position === 'BB' || h.position === 'SB/BTN') return null;
+  if (h.variant === 'cash') {
+    if ((CASH_SEATS as readonly string[]).includes(h.position)) {
+      return { seat: h.position as Seat, key: 'cash' };
+    }
+    return /^UTG\d*$/.test(h.position) ? { seat: 'LJ', key: 'cash' } : null;
+  }
+  if (h.position === 'SB') return null;
+  const seat = MTT_BY_DISTANCE[Math.min(h.seatsToButton, MTT_BY_DISTANCE.length - 1)];
+  return { seat, key: depthFor(h.stackBB) };
 }
 
 /**
- * Which chart a stack reads. The charts are 60bb+ / 20bb / 10bb.
+ * Which chart a stack reads. The charts are 60bb / 20bb / 10bb, cut at 40bb
+ * and 15bb.
  *
  * Exported because `labels.ts` buckets stack depth for its groups and a second
  * scheme would mean two answers to "how deep was this" in one payload.
@@ -50,6 +69,16 @@ export function depthFor(stackBB: number): Depth {
   if (stackBB >= 40) return 'deep';
   if (stackBB >= 15) return 'mid';
   return 'short';
+}
+
+/**
+ * The chart a hand's preflop spot belongs to: the one 6-max 100bb chart for
+ * cash, a stack tier for a tournament. Every preflop list's `depth` reads this,
+ * so a cash entry never names a tournament tier it was not played against.
+ * Hero's own starting stack, not the effective stack, as for `depthFor`.
+ */
+export function chartKeyForHand(h: Pick<HeroHand, 'variant' | 'stackBB'>): ChartKey {
+  return h.variant === 'cash' ? 'cash' : depthFor(h.stackBB);
 }
 
 /** Stacks in this span sit between two charts and match neither well. */
@@ -80,7 +109,7 @@ const FAMILY_ORDER: Record<'offsuit' | 'suited' | 'pair', number> = {
  * Below 15bb the chart is a jam chart and there is no edge to be near: you are
  * in or you are out, so the band is empty.
  */
-function toleranceBand(pos: Position, depth: Depth): ReadonlySet<HandClass> {
+function toleranceBand(pos: Seat, depth: ChartKey): ReadonlySet<HandClass> {
   if (depth === 'short') return new Set();
 
   const budget = Math.ceil(TOLERANCE * rangeComboCount(pos, depth));
@@ -104,14 +133,16 @@ function toleranceBand(pos: Position, depth: Depth): ReadonlySet<HandClass> {
 
 export interface RfiFold {
   id: string;
-  position: Position;
+  /** The chart seat read, which can differ from the table label (see `chartFor`). */
+  position: Seat;
   hand: HandClass;
   cards: string[];
   stackBB: number;
-  depth: Depth;
-  /** "an open" at 20bb+, "a jam" below 15bb — the chart's own action. */
+  /** The chart read: a tournament tier, or `'cash'` for the 6-max 100bb chart. */
+  depth: ChartKey;
+  /** "an open" at 20bb+ and in cash, "a jam" below 15bb — the chart's own action. */
   action: string;
-  /** Set when the stack sits between two charts. */
+  /** Set when a tournament stack sits between two charts. */
   caveat: string | null;
 }
 
@@ -128,25 +159,26 @@ export function rfiFolds(hands: HeroHand[]): RfiFold[] {
     if (h.role !== 'fold' || !h.firstInOpp || h.limpersAhead > 0) continue;
     if (!h.cards) continue;
 
-    const pos = chartPosition(h.position);
-    if (!pos) continue;
+    const chart = chartFor(h);
+    if (!chart) continue;
+    const { seat, key } = chart;
 
-    const depth = depthFor(h.stackBB);
     const hand = handClass(h.cards[0], h.cards[1]);
-    if (!isOpen(pos, hand, depth)) continue;
-    if (toleranceBand(pos, depth).has(hand)) continue;
+    if (!isOpen(seat, hand, key)) continue;
+    if (toleranceBand(seat, key).has(hand)) continue;
 
     found.push({
       id: h.id,
-      position: pos,
+      position: seat,
       hand,
       cards: h.cards,
       stackBB: Number(h.stackBB.toFixed(1)),
-      depth,
-      action: DEPTH_META[depth].actionNoun,
+      depth: key,
+      action: CHART_META[key].actionNoun,
+      // Tournament only: cash has the one 100bb chart, so there is no "between".
       caveat:
-        h.stackBB >= NO_CHART_FROM && h.stackBB <= NO_CHART_TO
-          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts; read against ${DEPTH_META[depth].label}`
+        key !== 'cash' && h.stackBB >= NO_CHART_FROM && h.stackBB <= NO_CHART_TO
+          ? `${Math.round(h.stackBB)}bb sits between the 20bb and 60bb charts; read against ${DEPTH_META[key].label}`
           : null,
     });
   }

@@ -346,6 +346,96 @@ wider than any open, so it deals every hand. The 50bb+ BTN pack has no open
 charts and uses the RFI drill's 60bb+ BTN chart (the same vendor). Range
 charts colour hands outside the dealt range as "not in range", not as folds.
 
+## HH bug sweep assumptions (2026-10-07)
+
+The hand-history bug sweep changed only what was wrong by its own definition.
+Where a fix needed a definition choice, this is the choice:
+
+- **Flop buckets follow strategy-notes §2.** A connected T-high flop (T-9-7) is
+  `middling-theirs`, and so is a T-or-lower pair whose other card touches it
+  (7-7-6); 9-9-5 and every gapped or high pair stay `paired`. Cases the notes
+  don't name keep the old bucket (T-6-2r, 8-8-6, two-tone A-7-2). The type is
+  the flop's, so K-7-2-2 reads as K-7-2r.
+- **A shove can be `overbet-strong`.** `sizing` stays null on a shove, but the
+  label reads the shove's pot fraction, so an all-in for more than the pot with
+  `strong` fires it. The fraction is the part a live opponent can call: a $45
+  jam into $37 against $34 behind is a 0.93-pot bet, not an overbet.
+- **`meta.levels` is null for cash**, which has no blind levels. A mixed window
+  spans its tournament hands. MTT is unchanged.
+- **Hand times are the GG client's clock**, unshifted. They run 2h ahead of the
+  file name here (CEST), and `meta.timezone` says so instead of "export-local".
+
+Round 2 of the sweep, same day:
+
+- **One all-in rule.** A bet is all-in when it leaves under a tenth of the
+  resulting pot behind, counting the deepest live opponent's stack as well as
+  the bettor's, so a bet that puts every opponent all-in is one too. Labels,
+  `bigSpots[]` and the action line all read it, and all size a bet at the part
+  an opponent can call.
+- **A fold with no chips left is no decision.** GG prints a fold for a player
+  all-in from the blind or ante post and treats them as folded, so the fold is
+  kept (no flop seen, no showdown) but is never counted, coached or printed.
+- **`no-decision` is a role.** A big-blind walk or an all-in from the post gave
+  Hero no preflop choice: it is not a fold, and it is out of the VPIP, PFR and
+  gap denominators. `hands` still counts it.
+- **`faced3Bets[].sizing` is capped at Hero's stack**, like every other price.
+- **A cold 4-bet before Hero answered takes the hand out of `foldTo3Bet`.** The
+  entry stays in `faced3Bets[]` with `cold4Bet: true`.
+- **The preflop aggressor is the last raiser not all-in.** A short stack's
+  all-in re-raise leaves the raiser it raised as the aggressor; a pot whose
+  only raisers are all-in has none, so no c-bet and no donk-bet.
+- **A villain raise counts as a barrel.** Calling a raise of Hero's flop bet
+  and folding to the turn bet is `fold-to-turn-barrel`, and so is a fold after
+  Hero's own flop check-raise was called.
+- **`fold-to-raise` is a label** (family Facing aggression, priority 3, the
+  barrel folds' defensive floor): Hero bet or raised a postflop street, was
+  raised, and folded on it. It never shares a decision with the barrel folds.
+- **`check-draw` skips a check Hero went on to check-raise**, as the PFA check
+  labels already did.
+- **Board quads make a pair a kicker.** A pair, overpair or top pair beside
+  board quads is `marginal-made`; quads with a hole card stay `strong`.
+- **`shared.depth` is never `'cash'`.** It is the variant, not a facet the
+  instances agree on.
+- **Label instances in `--json` carry the price**: `facedSizing`,
+  `requiredEquity`, `mdf`, `playersToFlop` and `line`, all blind.
+  `requiredEquity` is exact multiway; `facedSizing` and `mdf` are not.
+- **`playersToFlop` counts preflop all-ins**: every dealt player without a
+  preflop fold.
+- **`--mode pots` and `--mode coach` carry `meta.variant`.**
+
+Kept as is:
+
+- A higher straight over a board straight stays `marginal-made`, the documented
+  under-call.
+- Gutshot plus two overcards is a `draw`: the ≥8-outs rule stands.
+- Preflop chart depth reads Hero's own stack, not the effective one. Cash reads
+  the single 100bb cash chart at any depth.
+- W$SD counts any showdown where Hero collected chips, chops and run-it-twice
+  splits included. That is the tracker convention.
+- `actionLine` keeps the PLAN-coach §1.6 behaviour.
+- `classify()` counts board-only straight outs. That is the Odds drill's
+  definition, so it is left alone.
+
+Not built, and why:
+
+- New lists (blind defence, cold 4-bets, chart verdicts on `coldCalls` and
+  `faced3Bets`): out of the sweep's scope, which fixed what exists.
+- Limp-raise tracking: no label or stat asks for it.
+- Straddle grammar: no straddle hand in the archive.
+- Sit-out detection: the history prints no marker for it.
+- EV-cashout handling: no Hero cashout in the archive.
+- Widening `middling-theirs` to disconnected low flops: moves c-bet splits and
+  needs the user's nod.
+- A PFA check-raise label, a caller turn check-raise label and raises over
+  leads: one to three archive instances each.
+- Ranking MTT `bigSpots` by stack share, so short-stack jams surface: the user
+  plays cash.
+- `meta.archive.games` listing cash games in an MTT window: cosmetic, the
+  archive meta is archive-wide by design.
+- Board-only straight outs in `handClass` draws (L6): none in the labelled set.
+- A short all-in big blind understating the next `toCall`, and an all-in ante
+  in the SB seat shifting positions: synthetic only, no archive hand.
+
 ## Explicitly out of scope for v1 (seams only)
 
 - **Preflop drill mode** (v2, owner-named) — keep the mode/street abstraction open.

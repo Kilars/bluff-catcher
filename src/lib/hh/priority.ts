@@ -59,6 +59,9 @@ export const BASE_PRIORITY: Record<Label, number> = {
   // any session.
   'fold-to-turn-barrel': 3,
   'fold-to-river-barrel': 3,
+  // The fold to a raise of Hero's own bet, same family and the same defensive
+  // floor as the barrel folds; deferred to the same video calibration.
+  'fold-to-raise': 3,
 };
 
 export type Family =
@@ -86,8 +89,9 @@ export const FAMILIES: Record<Family, Label[]> = {
   // Folds only — the one family scoped to defence. `river-call-marginal` (a
   // river call) stays in bluff-catch; its claim ("mis-bluff-catches") is a
   // different one from this family's ("over-folds to barrels"), so they must not
-  // share a family and each HYPOTHESIS stays single-claimed.
-  'Facing aggression': ['fold-to-turn-barrel', 'fold-to-river-barrel'],
+  // share a family and each HYPOTHESIS stays single-claimed. `fold-to-raise`
+  // is the same over-fold claim, under a raise rather than a barrel.
+  'Facing aggression': ['fold-to-turn-barrel', 'fold-to-river-barrel', 'fold-to-raise'],
 };
 
 const FAMILY_OF: Record<Label, Family> = Object.fromEntries(

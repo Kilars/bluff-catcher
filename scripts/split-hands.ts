@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve, sep } from 'node:path';
 
 import { detectVariant, HAND_BLOCK_SPLIT, type GameVariant } from '../src/lib/hh/parse.ts';
-import { collect, die } from './util.ts';
+import { collectAll, die } from './util.ts';
 
 const DEFAULT_TARGET = 'hands';
 const USAGE = 'usage: npm run split-hands -- [paths] [--out DIR]';
@@ -53,7 +53,7 @@ const outDirs: Record<GameVariant, string> = { cash: join(out, 'cash'), mtt: joi
 
 // ── split ──────────────────────────────────────────────────────────────────
 
-const files = paths.flatMap((path) => collect(path));
+const files = collectAll(paths);
 if (files.length === 0) die(`no .txt hand-history files found under ${paths.join(', ')}`);
 
 const totals: Record<GameVariant, number> = { cash: 0, mtt: 0 };

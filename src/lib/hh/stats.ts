@@ -13,6 +13,7 @@
 import type { GameVariant, Street } from './parse.ts';
 import { BLINDS, type HeroHand, type PreflopRole } from './hero.ts';
 import { boardType, type BoardType } from './board.ts';
+import { potOdds } from './decisions.ts';
 
 /** Which side of the ledger a reading falls on. */
 export type Flag = 'bleed' | 'missed' | null;
@@ -277,6 +278,29 @@ function splitByBoard(
     .sort((a, b) => b.opp - a.opp);
 }
 
+/**
+ * Hero's answer to a flop c-bet, or null when Hero never faced one.
+ *
+ * A c-bet is the preflop raiser's bet, and the first bet of the flop: a donk
+ * into the raiser, any bet in a limped pot, and a bet from a third player after
+ * the raiser checks are all something else. Hero's first action after it is
+ * the answer — calling and then folding to a raise behind is not a fold to the
+ * c-bet — and a raise landing in between means Hero faced the raise instead.
+ * Hero's own donk bet comes first, so it is never mistaken for one.
+ */
+function cbetAnswer(h: HeroHand): 'fold' | 'continue' | null {
+  if (h.pfa || !h.preflopRaiser) return null;
+  const f = h.streets.find((s) => s.street === 'flop');
+  if (!f) return null;
+  const all = f.allActions;
+  const at = all.findIndex((a) => a.kind === 'bet');
+  if (at < 0 || all[at].player !== h.preflopRaiser) return null;
+  const rest = all.slice(at + 1);
+  const answer = rest.findIndex((a) => f.actions.includes(a));
+  if (answer < 0 || rest.slice(0, answer).some((a) => a.kind === 'raise')) return null;
+  return rest[answer].kind === 'fold' ? 'fold' : 'continue';
+}
+
 export interface RoleLine {
   role: PreflopRole;
   hands: number;
@@ -288,7 +312,9 @@ export interface Summary {
   /** 'mixed' when the window spans both games — the money and rate stats blend. */
   variant: GameVariant | 'mixed';
   tournaments: number;
-  levels: [number, number];
+  /** Blind-level span of the window's tournament hands; null for cash, which
+   * has no levels. [0, 0] only for an empty MTT window. */
+  levels: [number, number] | null;
   /** Net in raw minor units; meaningful only for a single-variant window (chips
    * for MTT, cents for cash), so the renderer shows it for MTT alone. */
   netChips: number;
@@ -308,27 +334,41 @@ export interface Summary {
   biggestCalls: { hand: HeroHand; street: Street; toCall: number; potOdds: number }[];
 }
 
-function variantOf(hs: HeroHand[]): GameVariant | 'mixed' {
-  if (!hs.length) return 'mtt';
+/** An empty window has no hands to read the game off, so it takes the one the
+ * caller asked for (`--variant`), and MTT when none was. */
+export function variantOf(hs: HeroHand[], requested?: GameVariant): GameVariant | 'mixed' {
+  if (!hs.length) return requested ?? 'mtt';
   const first = hs[0].variant;
   return hs.every((h) => h.variant === first) ? first : 'mixed';
 }
 
-export function summarise(hs: HeroHand[]): Summary {
+export function summarise(hs: HeroHand[], requested?: GameVariant): Summary {
   const n = hs.length;
-  const variant = variantOf(hs);
+  const variant = variantOf(hs, requested);
   const bands = bandsFor(variant);
   const sawFlop = hs.filter((h) => h.sawFlop);
+  // The showdown stats' population: a preflop all-in sees the flop without
+  // acting on it, and leaving it out disagreed with showdownBB below.
+  const flopLive = hs.filter((h) => h.flopDealtLive);
 
   // ── Preflop, excluding open-raise selection ───────────────────────────────
   const firstIn = hs.filter((h) => h.firstInOpp && h.limpersAhead === 0);
   const threeBetOpps = hs.filter((h) => h.threeBetOpp);
   const coldCallOpps = threeBetOpps.filter((h) => !BLINDS.has(h.position));
-  const faced3 = hs.filter((h) => h.faced3Bet);
+  // Fold to a 3-bet means exactly that: an open (or iso-raise) facing the
+  // re-raise. A 3-bet folding to a 4-bet is a different spot, far more often
+  // right, and pooling it in moved a banded number. faced3Bets[] keeps both. A
+  // cold 4-bet landing before Hero answered makes the fold one to a 4-bet too.
+  const faced3 = hs.filter(
+    (h) => h.faced3Bet && !h.faced3BetCold4Bet && (h.role === 'open' || h.role === 'iso-raise'),
+  );
   const steals = hs.filter((h) => h.stealDefenceOpp);
 
   const vpip = hs.filter((h) => h.vpip).length;
   const pfr = hs.filter((h) => h.pfr).length;
+  // A walk or an all-in from the post gave Hero no preflop choice, so it is no
+  // VPIP/PFR opportunity. `hands` still counts it: it was dealt.
+  const decided = hs.filter((h) => h.role !== 'no-decision').length;
 
   // ── Postflop ──────────────────────────────────────────────────────────────
   const flopOf = (h: HeroHand) => h.streets.find((s) => s.street === 'flop');
@@ -346,18 +386,13 @@ export function summarise(hs: HeroHand[]): Summary {
   });
   const barrels = barrelOpps.filter((h) => turnOf(h)?.bet);
 
-  // facedBetEver, not facedBet: checking first from the blinds and folding to
-  // the c-bet is the commonest version of this spot, and facedBet excludes it
-  // from the numerator and the denominator both.
-  //
-  // `!f.bet` because facedBetEver is also true when Hero bets first and folds
-  // to a raise. That is a donk bet getting blown off, not a c-bet faced, and
-  // it is always a fold — so counting it could only push the stat up.
-  const faceCbetOpps = sawFlop.filter((h) => {
-    const f = flopOf(h);
-    return !h.pfa && f && f.facedBetEver && !f.bet;
-  });
-  const foldedToCbet = faceCbetOpps.filter((h) => flopOf(h)?.folded);
+  // Read off the street as printed, not facedBet: checking first from the
+  // blinds and folding to the c-bet is the commonest version of this spot, and
+  // facedBet excludes it from the numerator and the denominator both.
+  const cbetAnswers = new Map(sawFlop.map((h) => [h, cbetAnswer(h)]));
+  const foldsToCbet = (h: HeroHand) => cbetAnswers.get(h) === 'fold';
+  const faceCbetOpps = sawFlop.filter((h) => cbetAnswers.get(h) !== null);
+  const foldedToCbet = faceCbetOpps.filter(foldsToCbet);
 
   const xrOpps = sawFlop.filter((h) => {
     const f = flopOf(h);
@@ -377,12 +412,12 @@ export function summarise(hs: HeroHand[]): Summary {
     }
   }
 
-  const showdowns = sawFlop.filter((h) => h.showdown);
+  const showdowns = flopLive.filter((h) => h.showdown);
 
   const stats: Stat[] = [
-    stat(bands, 'vpip', vpip, n),
-    stat(bands, 'pfr', pfr, n),
-    stat(bands, 'gap', vpip - pfr, n),
+    stat(bands, 'vpip', vpip, decided),
+    stat(bands, 'pfr', pfr, decided),
+    stat(bands, 'gap', vpip - pfr, decided),
     stat(bands, 'limp', firstIn.filter((h) => h.role === 'limp').length, firstIn.length),
     stat(bands, 'threeBet', threeBetOpps.filter((h) => h.threeBet).length, threeBetOpps.length),
     stat(bands, 'foldTo3Bet', faced3.filter((h) => h.foldedTo3Bet).length, faced3.length),
@@ -393,15 +428,15 @@ export function summarise(hs: HeroHand[]): Summary {
     stat(bands, 'foldToCbetFlop', foldedToCbet.length, faceCbetOpps.length),
     stat(bands, 'checkRaiseFlop', xrs.length, xrOpps.length),
     stat(bands, 'aggFreq', aggressive, aggressive + passive),
-    stat(bands, 'wwsf', sawFlop.filter((h) => h.wonPot).length, sawFlop.length),
-    stat(bands, 'wtsd', showdowns.length, sawFlop.length),
+    stat(bands, 'wwsf', flopLive.filter((h) => h.wonPot).length, flopLive.length),
+    stat(bands, 'wtsd', showdowns.length, flopLive.length),
     stat(bands, 'wsd', showdowns.filter((h) => h.wonPot).length, showdowns.length),
   ];
 
   const byBoard: BoardSplit[] = [
     ...splitByBoard('cbetFlop', cbetOpps, (h) => Boolean(flopOf(h)?.bet)),
     ...splitByBoard('cbetTurn', barrelOpps, (h) => Boolean(turnOf(h)?.bet)),
-    ...splitByBoard('foldToCbetFlop', faceCbetOpps, (h) => Boolean(flopOf(h)?.folded)),
+    ...splitByBoard('foldToCbetFlop', faceCbetOpps, foldsToCbet),
   ];
 
   // ── Money ─────────────────────────────────────────────────────────────────
@@ -426,7 +461,7 @@ export function summarise(hs: HeroHand[]): Summary {
           hand: h,
           street: a.street,
           toCall: a.toCall,
-          potOdds: a.toCall / (a.potBefore + a.toCall),
+          potOdds: potOdds(a),
         })),
     )
     .sort(
@@ -435,13 +470,15 @@ export function summarise(hs: HeroHand[]): Summary {
     )
     .slice(0, 8);
 
-  const levels = hs.map((h) => h.level);
-  const levelSpan: [number, number] = n ? [Math.min(...levels), Math.max(...levels)] : [0, 0];
+  // Cash hands carry level 0, so a mixed window reads the tournament hands only.
+  const levels = hs.filter((h) => h.variant === 'mtt').map((h) => h.level);
+  const levelSpan: [number, number] | null =
+    variant === 'cash' ? null : levels.length ? [Math.min(...levels), Math.max(...levels)] : [0, 0];
 
   return {
     hands: n,
     variant,
-    tournaments: new Set(hs.map((h) => h.tournamentId)).size,
+    tournaments: new Set(hs.map((h) => h.tournamentId).filter(Boolean)).size,
     levels: levelSpan,
     netChips: hs.reduce((t, h) => t + h.net, 0),
     netBB,

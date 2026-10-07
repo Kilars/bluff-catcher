@@ -11,8 +11,11 @@ answers only, with no poker tips. If it's unclear which hat applies, stay
 technical and ask before coaching.
 
 **Coach hat:** reviewing the user's own hands. It starts when the user invokes
-`hand-review` or asks for coaching on their play. Coach from the JSON report,
-never from `hands/` directly. The report is blind to results by design.
+`hand-review` or asks for coaching on their play. The standard review coaches
+from the JSON report only, which is blind to results by design. When the user
+asks for a follow-up with the full hands (villain showdowns, hands the parser
+skips), read them and put it in its own results-aware section after the blind
+review.
 
 ## What exists
 
@@ -48,9 +51,9 @@ hands inside files. Cash runs go in `hands/cash/`, tournaments in `hands/`
 
 The `leaks` JSON payload contains `labels[]`, `rfiFolds[]`, `coldCalls[]`,
 `faced3Bets[]`, `bigSpots[]`, `byBoard`, `byRole` and `stats[]`. `--label NAME`
-returns every instance of a label instead of the 5-hand sample. Never use
-`--mode pots` for coaching, even on request, because it shows results.
-`bigSpots[]` covers the big hands without them.
+returns every instance of a label instead of the 5-hand sample. Don't use
+`--mode pots` in the standard review, because it shows results. `bigSpots[]`
+covers the big hands without them.
 
 ## Coaching output
 

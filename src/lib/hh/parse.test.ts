@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseHands, positionNames } from './parse.ts';
+import { isDecision, parseHands, positionNames } from './parse.ts';
 import { heroHand } from './hero.ts';
 
 /**
@@ -224,6 +224,63 @@ Villain collected 1,280 from pot
 Total pot 1,280 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 `;
 
+/**
+ * TM6393636443, verbatim: Hero's small blind is the last 4,317 chips, and GG
+ * prints neither "and is all-in" on the post nor anything sensible after it —
+ * the all-in player "folds" to the shove behind. There was no decision.
+ */
+const BLIND_ALL_IN = `Poker Hand #TM6393636443: Tournament #310513609, Daily Classic $4 Hold'em No Limit - Level26(6,000/12,000(1,500)) - 2026/09/09 21:43:53
+Table '2' 8-max Seat #6 is the button
+Seat 1: d27dc6bf (250,589 in chips)
+Seat 2: c72c67ec (289,664 in chips)
+Seat 3: 70cd1786 (205,520 in chips)
+Seat 4: e7de279b (137,904 in chips)
+Seat 5: 383f535f (195,975 in chips)
+Seat 6: 7f6196a3 (111,506 in chips)
+Seat 7: Hero (5,817 in chips)
+Seat 8: b7d3698c (355,396 in chips)
+70cd1786: posts the ante 1,500
+Hero: posts the ante 1,500
+e7de279b: posts the ante 1,500
+7f6196a3: posts the ante 1,500
+c72c67ec: posts the ante 1,500
+383f535f: posts the ante 1,500
+d27dc6bf: posts the ante 1,500
+b7d3698c: posts the ante 1,500
+Hero: posts small blind 4,317
+b7d3698c: posts big blind 12,000
+*** HOLE CARDS ***
+Dealt to d27dc6bf 
+Dealt to c72c67ec 
+Dealt to 70cd1786 
+Dealt to e7de279b 
+Dealt to 383f535f 
+Dealt to 7f6196a3 
+Dealt to Hero [5s Td]
+Dealt to b7d3698c 
+d27dc6bf: folds
+c72c67ec: folds
+70cd1786: folds
+e7de279b: folds
+383f535f: folds
+7f6196a3: raises 98,006 to 110,006 and is all-in
+Hero: folds
+b7d3698c: folds
+Uncalled bet (98,006) returned to 7f6196a3
+*** SHOWDOWN ***
+7f6196a3 collected 40,317 from pot
+*** SUMMARY ***
+Total pot 40,317 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Seat 1: d27dc6bf folded before Flop
+Seat 2: c72c67ec folded before Flop
+Seat 3: 70cd1786 folded before Flop
+Seat 4: e7de279b folded before Flop
+Seat 5: 383f535f folded before Flop
+Seat 6: 7f6196a3 (button) collected (40,317)
+Seat 7: Hero (small blind) folded before Flop
+Seat 8: b7d3698c (big blind) folded before Flop
+`;
+
 describe('positionNames', () => {
   it('labels an 8-handed pot in preflop action order', () => {
     expect(positionNames(8)).toEqual(['SB', 'BB', 'UTG', 'UTG1', 'LJ', 'HJ', 'CO', 'BTN']);
@@ -326,6 +383,19 @@ describe('a dead button', () => {
     // Nobody wears the small blind: the seat is empty.
     expect(Object.values(h.position)).not.toContain('SB');
   });
+
+  it('counts seats to the button off the live seats, dead small blind or not', () => {
+    // Deal p6 the cards instead: the HJ, two players behind it.
+    const text = DEAD_BUTTON_DEAD_SB.replace('Dealt to Hero [Ah Qc]', 'Dealt to Hero ').replace(
+      'Dealt to p6 ',
+      'Dealt to p6 [Ah Qc]',
+    );
+    const h = heroHand(parseHands(text).hands[0])!;
+    expect({ position: h.position, seatsToButton: h.seatsToButton }).toEqual({
+      position: 'HJ',
+      seatsToButton: 2,
+    });
+  });
 });
 
 describe('heads-up', () => {
@@ -392,5 +462,72 @@ describe('heroHand', () => {
     // big-blind defence against a steal.
     expect(h.stealDefenceOpp).toBe(true);
     expect(h.stealDefence).toBe('3bet');
+  });
+});
+
+/** BLIND_ALL_IN reshaped (synthetic): the big blind calls the shove and the two
+ * villains show down, with Hero's printed fold still between them. */
+const BLIND_ALL_IN_SHOWDOWN = `Poker Hand #TM9000000001: Tournament #310513609, Daily Classic $4 Hold'em No Limit - Level26(6,000/12,000(1,500)) - 2026/09/09 21:43:53
+Table '2' 8-max Seat #6 is the button
+Seat 1: d27dc6bf (250,589 in chips)
+Seat 6: 7f6196a3 (111,506 in chips)
+Seat 7: Hero (5,817 in chips)
+Seat 8: b7d3698c (355,396 in chips)
+7f6196a3: posts the ante 1,500
+Hero: posts the ante 1,500
+d27dc6bf: posts the ante 1,500
+b7d3698c: posts the ante 1,500
+Hero: posts small blind 4,317
+b7d3698c: posts big blind 12,000
+*** HOLE CARDS ***
+Dealt to d27dc6bf 
+Dealt to 7f6196a3 
+Dealt to Hero [5s Td]
+Dealt to b7d3698c 
+d27dc6bf: folds
+7f6196a3: raises 98,006 to 110,006 and is all-in
+Hero: folds
+b7d3698c: calls 98,006
+*** FLOP *** [2c 3d 4h]
+*** TURN *** [2c 3d 4h] [8s]
+*** RIVER *** [2c 3d 4h 8s] [Kd]
+*** SHOWDOWN ***
+7f6196a3: shows [Ah Ad]
+b7d3698c: shows [Qh Qd]
+7f6196a3 collected 230,329 from pot
+*** SUMMARY ***
+Total pot 230,329 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0`;
+
+describe('a blind post that is the whole stack', () => {
+  const parsed = parseHands(BLIND_ALL_IN).hands[0];
+
+  it('flags the post all-in and keeps the printed fold that follows it', () => {
+    expect(parsed.potMatches).toBe(true);
+    const post = parsed.actions.find((a) => a.player === 'Hero' && a.kind === 'sb')!;
+    expect(post.allIn).toBe(true);
+    // GG treats the all-in poster as folded — the raiser collects Hero's chips
+    // uncontested — so the fold stays in the record, with no chips behind it.
+    const fold = parsed.actions.find((a) => a.player === 'Hero' && a.kind === 'fold')!;
+    expect(fold.stackBefore).toBe(0);
+    expect(isDecision(fold)).toBe(false);
+    expect(isDecision(post)).toBe(false);
+    // Still a seat that took part, so positions do not shift.
+    expect(parsed.position.Hero).toBe('SB');
+  });
+
+  it('leaves Hero no decision to coach', () => {
+    const h = heroHand(parsed)!;
+    expect(h.decisions).toEqual([]);
+    expect(h.streets.find((s) => s.street === 'preflop')).toBeUndefined();
+    expect(h.netBB).toBeCloseTo(-5817 / 12000, 6);
+  });
+
+  it('is out of the pot when the others show down', () => {
+    // The same post, but the big blind calls and the two villains show down.
+    // Dropping the fold put Hero in that showdown, inflating WTSD.
+    const h = heroHand(parseHands(BLIND_ALL_IN_SHOWDOWN).hands[0])!;
+    expect(h.decisions).toEqual([]);
+    expect(h.flopDealtLive).toBe(false);
+    expect(h.showdown).toBe(false);
   });
 });

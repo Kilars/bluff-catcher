@@ -48,3 +48,21 @@ export function collect(target: string, seen = new Set<string>()): string[] {
     return entry.name.toLowerCase().endsWith('.txt') ? [path] : [];
   });
 }
+
+/**
+ * Every .txt under every target, each file once. Overlapping targets — `hands`
+ * and `hands/cash`, or a file named alongside its own folder — share one `seen`
+ * set and are deduped by real path; walked separately, every hand in the
+ * overlap came back as a duplicate of itself and was reported excluded.
+ */
+export function collectAll(targets: string[]): string[] {
+  const seen = new Set<string>();
+  const files = new Map<string, string>();
+  for (const target of targets) {
+    for (const path of collect(target, seen)) {
+      const real = realpathSync(path);
+      if (!files.has(real)) files.set(real, path);
+    }
+  }
+  return [...files.values()];
+}

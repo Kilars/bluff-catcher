@@ -46,12 +46,22 @@ export function boardType(board: readonly string[]): BoardType | null {
   const suits = flop.map((c) => c[1]);
 
   if (suits[0] === suits[1] && suits[1] === suits[2]) return 'monotone';
-  if (new Set(ranks).size < 3) return 'paired';
 
   const high = Math.max(...ranks);
-  if (high < TEN) return 'middling-theirs';
+  const span = high - Math.min(...ranks);
+
+  // strategy-notes §2 files 7-7-6 under middling-connected but 9-9-5 under
+  // paired: a T-or-lower pair whose other card touches it is the caller's
+  // board. A gap between the two (8-8-6) isn't pinned, so it stays paired, and
+  // so does trips (7-7-7): there is no other card to touch.
+  const distinct = new Set(ranks).size;
+  if (distinct < 3) return distinct === 2 && high <= TEN && span <= 1 ? 'middling-theirs' : 'paired';
+
+  // The notes' T-9-7 is "theirs": a T-high flop joins the middling bucket when
+  // it is connected. A disconnected T-high flop (T-6-2) keeps its high bucket.
+  const connected = span <= CONNECTED_SPAN;
+  if (high < TEN || (high === TEN && connected)) return 'middling-theirs';
 
   const twoTone = new Set(suits).size === 2;
-  const connected = high - Math.min(...ranks) <= CONNECTED_SPAN;
   return twoTone || connected ? 'wet-high-mine' : 'dry-high-mine';
 }

@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { heroHand, type HeroHand } from './hero.ts';
 import { labelGroups, labelledDecisions } from './labels.ts';
+import { actionLine } from './lines.ts';
 import { parseHands } from './parse.ts';
 
 /**
@@ -728,8 +729,252 @@ Total pot 2,900 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
 Board [Jh 7c 2d 4s 8h]`,
 );
 
+/**
+ * RC4857718435's line: a pocket pair under a turned board pair. The probe and
+ * the river check-back both fire, and both read the hand as the one pair it is
+ * — the board's nines are everyone's, so this is not two pair.
+ */
+const PROBE_UNDER_BOARD_PAIR = caller(
+  '4h 4s',
+  `*** FLOP *** [3c 5d 9s]
+Hero: checks
+Villain: checks
+*** TURN *** [3c 5d 9s] [9d]
+Hero: bets 300
+Villain: calls 300
+*** RIVER *** [3c 5d 9s 9d] [Qd]
+Hero: checks
+Villain: checks
+Villain: shows [Ac Kd] (a pair of Nines)
+Hero: shows [4h 4s] (two pair, Nines and Fours)
+*** SHOWDOWN ***
+Hero collected 1,100 from pot
+*** SUMMARY ***
+Total pot 1,100 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [3c 5d 9s 9d Qd]`,
+);
+
+/**
+ * RC4840435045: jacks under an ace with the river pairing the board. One pair
+ * calling a river bet is the bluff-catch `river-call-marginal` names; reading
+ * it as two pair (strong) hid it.
+ */
+const CALL_UNDER_BOARD_PAIR = caller(
+  'Jc Jd',
+  `*** FLOP *** [3c Ah 2d]
+Hero: checks
+Villain: checks
+*** TURN *** [3c Ah 2d] [7h]
+Hero: checks
+Villain: checks
+*** RIVER *** [3c Ah 2d 7h] [7c]
+Hero: checks
+Villain: bets 300
+Hero: calls 300
+Villain: shows [Ac 5c] (two pair, Aces and Sevens)
+Hero: shows [Jc Jd] (two pair, Jacks and Sevens)
+*** SHOWDOWN ***
+Villain collected 1,100 from pot
+*** SUMMARY ***
+Total pot 1,100 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [3c Ah 2d 7h 7c]`,
+);
+
+/**
+ * RC4848809818's shape: a strong hand shoves the river for many times the pot.
+ * `sizing` is null on a shove (the stack chose the size), but the label is
+ * about a bet bigger than the pot, which a jam is — so it must still fire.
+ */
+const SHOVE_STRONG = heads(
+  'Ac Ad',
+  `*** FLOP *** [Kh 7c 2d]
+Hero: checks
+Villain: checks
+*** TURN *** [Kh 7c 2d] [4s]
+Hero: checks
+Villain: checks
+*** RIVER *** [Kh 7c 2d 4s] [9h]
+Hero: bets 29,200 and is all-in
+Villain: folds
+Uncalled bet (29,200) returned to Hero
+*** SHOWDOWN ***
+Hero collected 1,600 from pot
+*** SUMMARY ***
+Total pot 1,600 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Kh 7c 2d 4s 9h]`,
+);
+
+/**
+ * RC4851716369: top pair with a jack kicker overbets a river that paired the
+ * board earlier. The kicker is below Q and the eights are the board's, so the
+ * hand is `marginal-made` and `overbet-strong` must not fire.
+ */
+const OVERBET_TOP_PAIR_BOARD_PAIR = heads(
+  'Kd Jh',
+  `*** FLOP *** [Qc 8c 3h]
+Hero: checks
+Villain: checks
+*** TURN *** [Qc 8c 3h] [8h]
+Hero: checks
+Villain: checks
+*** RIVER *** [Qc 8c 3h 8h] [Kc]
+Hero: bets 4,000
+Villain: folds
+Uncalled bet (4,000) returned to Hero
+*** SHOWDOWN ***
+Hero collected 1,600 from pot
+*** SUMMARY ***
+Total pot 1,600 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Qc 8c 3h 8h Kc]`,
+);
+
+/**
+ * Hero calls a flop bet, then leads the turn and folds to a raise. The villain
+ * bet the flop, but the turn bet Hero folded to is a raise of Hero's own lead,
+ * not a continued barrel — `fold-to-turn-barrel` must not fire.
+ */
+const LEAD_TURN_FOLD_TO_RAISE = caller(
+  'Ac Kd',
+  `*** FLOP *** [Jh 7c 2d]
+Hero: checks
+Villain: bets 300
+Hero: calls 300
+*** TURN *** [Jh 7c 2d] [4s]
+Hero: bets 600
+Villain: raises 1,200 to 1,800
+Hero: folds
+Uncalled bet (1,200) returned to Villain
+*** SHOWDOWN ***
+Villain collected 2,300 from pot
+*** SUMMARY ***
+Total pot 2,300 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s]`,
+);
+
+/**
+ * RC4854845086's line: Hero calls a turn barrel, leads the river and folds to
+ * a raise. No river barrel was faced, so `fold-to-river-barrel` must not fire;
+ * the river lead itself is still a bluff with air.
+ */
+const LEAD_RIVER_FOLD_TO_RAISE = caller(
+  'Ac Kd',
+  `*** FLOP *** [Jh 7c 2d]
+Hero: checks
+Villain: bets 300
+Hero: calls 300
+*** TURN *** [Jh 7c 2d] [4s]
+Hero: checks
+Villain: bets 900
+Hero: calls 900
+*** RIVER *** [Jh 7c 2d 4s] [8h]
+Hero: bets 1,000
+Villain: raises 2,000 to 3,000
+Hero: folds
+Uncalled bet (2,000) returned to Villain
+*** SHOWDOWN ***
+Villain collected 4,900 from pot
+*** SUMMARY ***
+Total pot 4,900 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s 8h]`,
+);
+
+/**
+ * A limped pot: the button completes, Hero checks the big blind, the flop
+ * checks through and Hero bets the turn. With no preflop raiser there is no
+ * declined c-bet to probe into, so `turn-probe` must not fire.
+ */
+const LIMPED_TURN_BET = dealt(
+  'LL',
+  'Ac Kd',
+  'Villain: calls 50\nHero: checks',
+  `*** FLOP *** [Jh 7c 2d]
+Hero: checks
+Villain: checks
+*** TURN *** [Jh 7c 2d] [4s]
+Hero: bets 200
+Villain: folds
+Uncalled bet (200) returned to Hero
+*** SHOWDOWN ***
+Hero collected 200 from pot
+*** SUMMARY ***
+Total pot 200 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s]`,
+);
+
+/**
+ * Hero calls a cutoff open on the button and is in position. The raiser checks
+ * the flop, Hero checks back, the raiser checks the turn and Hero bets. That is
+ * a delayed stab from position: the raiser checked *to* Hero rather than
+ * checking back, so it is not a `turn-probe`.
+ */
+const IP_DELAYED_STAB = `Poker Hand #IPAc: Tournament #310296737, Daily Special $2.50 Hold'em No Limit - Level3(50/100) - 2026/09/09 22:00:00
+Table '7' 8-max Seat #4 is the button
+Seat 2: Villain (30,000 in chips)
+Seat 4: Hero (30,000 in chips)
+Seat 5: SB (30,000 in chips)
+Seat 6: BB (30,000 in chips)
+SB: posts small blind 50
+BB: posts big blind 100
+*** HOLE CARDS ***
+Dealt to Hero [Ac Kd]
+Villain: raises 150 to 250
+Hero: calls 250
+SB: folds
+BB: folds
+*** FLOP *** [Jh 7c 2d]
+Villain: checks
+Hero: checks
+*** TURN *** [Jh 7c 2d] [4s]
+Villain: checks
+Hero: bets 400
+Villain: folds
+Uncalled bet (400) returned to Hero
+*** SHOWDOWN ***
+Hero collected 650 from pot
+*** SUMMARY ***
+Total pot 650 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s]
+`;
+
 /** The fixture the CLI and the doc guard already read — TM5 is its only draw. */
+/**
+ * The only preflop raise is a short stack's all-in: SB jams over Hero's limp,
+ * both others call. Nobody left in the hand raised with chips behind, so there
+ * is no preflop aggressor to lead into, and Hero's flop bet is no donk-bet.
+ */
+const ALL_IN_RAISER_ONLY = `Poker Hand #AIR1: Tournament #310296737, Daily Special $2.50 Hold'em No Limit - Level3(50/100) - 2026/09/09 22:00:00
+Table '7' 8-max Seat #4 is the button
+Seat 1: BB (30,000 in chips)
+Seat 3: SB (1,000 in chips)
+Seat 4: Hero (30,000 in chips)
+SB: posts small blind 50
+BB: posts big blind 100
+*** HOLE CARDS ***
+Dealt to Hero [Ac Kd]
+Hero: calls 100
+SB: raises 900 to 1,000 and is all-in
+BB: calls 900
+Hero: calls 900
+*** FLOP *** [Jh 7c 2d]
+BB: checks
+Hero: bets 1,000
+BB: folds
+Uncalled bet (1,000) returned to Hero
+*** TURN *** [Jh 7c 2d] [4s]
+*** RIVER *** [Jh 7c 2d 4s] [9c]
+*** SHOWDOWN ***
+SB: shows [Qs Qd]
+Hero: shows [Ac Kd]
+SB collected 3,000 from pot
+*** SUMMARY ***
+Total pot 3,000 | Rake 0 | Jackpot 0 | Bingo 0 | Fortune 0 | Tax 0
+Board [Jh 7c 2d 4s 9c]
+`;
+
 const DAY2 = readFileSync('src/lib/hh/fixtures/t310299999/day2.txt', 'utf8');
+/** Archive hands, verbatim, behind the round-2 fixes (cash and MTT). */
+const RC2 = readFileSync('src/lib/hh/fixtures/rc/round2.txt', 'utf8');
+const MTT2 = readFileSync('src/lib/hh/fixtures/mtt/round2.txt', 'utf8');
 
 function parsed(text: string, id?: string) {
   const hands = parseHands(text).hands;
@@ -887,6 +1132,116 @@ const CASES = [
     want: [],
   },
   {
+    name: 'leads the turn after calling a flop bet, folds to a raise — fold-to-raise, no turn barrel',
+    text: LEAD_TURN_FOLD_TO_RAISE,
+    want: [['turn:fold', ['fold-to-raise']]],
+  },
+  {
+    name: 'leads the river after calling a turn barrel, folds to a raise — fold-to-raise, no river barrel',
+    text: LEAD_RIVER_FOLD_TO_RAISE,
+    want: [
+      ['river:bet', ['river-bluff-no-blocker']],
+      ['river:fold', ['fold-to-raise']],
+    ],
+  },
+  {
+    // Hero c-bets, BB check-raises, Hero calls; BB bets the turn, Hero folds.
+    // A raise of Hero's flop bet is the villain's flop aggression too.
+    name: 'RC4851719710: folds the turn after calling a flop check-raise — fold-to-turn-barrel',
+    text: RC2,
+    id: 'RC4851719710',
+    want: [['turn:fold', ['fold-to-turn-barrel']]],
+  },
+  {
+    name: 'RC4857718745: c-bets the flop, is raised, folds — fold-to-raise',
+    text: RC2,
+    id: 'RC4857718745',
+    want: [['flop:fold', ['fold-to-raise']]],
+  },
+  {
+    // The check was the first half of a check-raise: the aggressive line, not
+    // a draw checked passively.
+    name: 'RC4834989265: check-raises a flush draw — no check-draw on the check',
+    text: RC2,
+    id: 'RC4834989265',
+    want: [['flop:raise', ['check-raise-flop']]],
+  },
+  {
+    name: 'TM6436800479: check-raises a flush draw multiway — no check-draw on the check',
+    text: MTT2,
+    id: 'TM6436800479',
+    want: [['flop:raise', ['check-raise-flop']]],
+  },
+  {
+    name: 'bets the turn in a limped pot after the flop checks through — no raiser to probe',
+    text: LIMPED_TURN_BET,
+    want: [],
+  },
+  {
+    name: 'in position, bets the turn after the raiser checked twice — a stab, not a probe',
+    text: IP_DELAYED_STAB,
+    want: [],
+  },
+  {
+    name: 'probes the turn with a pocket pair under a board pair, checks the river back',
+    text: PROBE_UNDER_BOARD_PAIR,
+    want: [
+      ['turn:bet', ['turn-probe']],
+      ['river:check', ['river-check-value']],
+    ],
+  },
+  {
+    name: 'calls a river bet with an underpair on a paired board — river-call-marginal',
+    text: CALL_UNDER_BOARD_PAIR,
+    want: [['river:call', ['river-call-marginal']]],
+  },
+  {
+    name: 'shoves the river for many pots with an overpair — overbet-strong',
+    text: SHOVE_STRONG,
+    want: [
+      ['flop:check', ['pfa-check-flop']],
+      ['river:bet', ['overbet-strong']],
+    ],
+  },
+  {
+    // The villain has $34.27 behind against Hero's $45.11 jam into $36.77: the
+    // most anyone can call is 0.93 pot, a just-under-pot jam, not an overbet.
+    name: 'RC4848809818: jams the turn past what the villain can call — not an overbet',
+    text: RC2,
+    id: 'RC4848809818',
+    want: [['flop:raise', ['check-raise-flop']]],
+  },
+  {
+    // A near-all-in river bet the villain can call for 1.15 pot.
+    name: 'RC4835306771: bets all but $6 into a pot the villain can match past 1x — overbet-strong',
+    text: RC2,
+    id: 'RC4835306771',
+    want: [['river:bet', ['overbet-strong']]],
+  },
+  {
+    name: 'TM6393633319: leads for more than the villain has left — still a donk-bet',
+    text: MTT2,
+    id: 'TM6393633319',
+    want: [['flop:bet', ['donk-bet']]],
+  },
+  {
+    // SB's short all-in raise is no aggressor: Hero, whose open it raised, is.
+    name: 'TM6393633744: the raiser checks the flop behind a short all-in re-raise — pfa-check-flop',
+    text: MTT2,
+    id: 'TM6393633744',
+    want: [['flop:check', ['pfa-check-flop', 'check-draw']]],
+  },
+  {
+    name: 'bets the flop when the only preflop raiser is all-in — no raiser to donk into',
+    text: ALL_IN_RAISER_ONLY,
+    want: [],
+  },
+  {
+    name: 'overbets the river with top pair, weak kicker, on a paired board — not strong',
+    text: OVERBET_TOP_PAIR_BOARD_PAIR,
+    want: [['flop:check', ['pfa-check-flop']]],
+  },
+  {
     name: 'gives up as the raiser, then bluffs a blank river',
     text: BLUFF,
     want: [
@@ -915,6 +1270,46 @@ describe('labelledDecisions', () => {
     expect(ds.map((d) => [`${d.street}:${d.kind}`, d.labels])).toEqual(want);
   });
 
+  it('takes the last preflop raiser with chips behind as the aggressor', () => {
+    // A raiser who is all-in never acts postflop, so naming them would make
+    // every flop lead a donk-bet and hide the real raiser's check.
+    expect(hero(MTT2, 'TM6393633744')).toMatchObject({ preflopRaiser: 'Hero', pfa: true });
+    expect(hero(ALL_IN_RAISER_ONLY)).toMatchObject({ preflopRaiser: null, pfa: false });
+  });
+
+  it('counts a preflop all-in among the players who saw the flop', () => {
+    // An all-in player never acts on the flop, so counting flop actors missed
+    // them: TM6393633744 is three-way to the flop, TM6393142394 four-way.
+    expect(hero(MTT2, 'TM6393633744').playersToFlop).toBe(3);
+    expect(labelledDecisions(hero(MTT2, 'TM6393633744'))[0].playersToFlop).toBe(3);
+    expect(hero(MTT2, 'TM6393142394').playersToFlop).toBe(4);
+    expect(hero(ALL_IN_RAISER_ONLY).playersToFlop).toBe(3);
+    // No flop, nobody saw one.
+    expect(hero(MTT2, 'TM6390221998').playersToFlop).toBe(0);
+  });
+
+  it('prices a fold to a raise of Hero’s own bet', () => {
+    // RC4857718745: Hero c-bets a third of the pot, BB raises to 0.75 of it.
+    const [d] = labelledDecisions(hero(RC2, 'RC4857718745'));
+    expect(d.facedSizing).toBeCloseTo(0.75, 2);
+    expect(d.line).toBe('ffffR100c / B33r75F');
+  });
+
+  it('prints a jam in the line at the size anyone could call', () => {
+    // RC4848809818: $34.27 of the $45.11 jam is callable into $36.77.
+    expect(actionLine(hero(RC2, 'RC4848809818'), 'turn').split(' / ').at(-1)).toBe('B93');
+  });
+
+  it('reads one pair beside a board pair as marginal-made', () => {
+    // The labels above would fire with `strong` too; the class is the facet a
+    // coach reads them by, so pin it on the decisions themselves.
+    const ds = labelledDecisions(hero(PROBE_UNDER_BOARD_PAIR));
+    expect(ds.map((d) => [`${d.street}:${d.kind}`, d.handClass])).toEqual([
+      ['turn:bet', 'marginal-made'],
+      ['river:check', 'marginal-made'],
+    ]);
+  });
+
   it('tells the agent nothing about what a decision returned', () => {
     // The same sweep doc.test.ts runs over the payload, at the source: labels
     // are the selector now, so anything they carry reaches the coach.
@@ -939,6 +1334,14 @@ describe('labelGroups', () => {
       depth: 'deep',
       boardType: 'dry-high-mine',
     });
+  });
+
+  it('never shares the cash chart key, which every cash hand reads', () => {
+    // 'cash' is a constant of the variant, not something the instances agree
+    // on: sharing it made every cash group of two a "pattern". The two
+    // check-raises differ in seat, hand class and board.
+    const cash = labelGroups([hero(RC2, 'RC4848809818'), hero(RC2, 'RC4834989265')]);
+    expect(cash.find((g) => g.label === 'check-raise-flop')?.shared).toEqual({});
   });
 
   it('says nothing is shared when there is only one instance', () => {

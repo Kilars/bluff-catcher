@@ -152,7 +152,7 @@ export const RUBRIC: Record<Label, Rubric> = {
   },
   'fold-to-turn-barrel': {
     cues: [
-      'Hero folded the turn to a continued bet (villain bet the flop too). Weigh the price against the hand: compare requiredEquity (from facedSizing) and mdf to the showdown class Hero held — a hand that clears the price defends, one that does not folds.',
+      'Hero folded the turn to a continued bet (villain bet or raised the flop too). Weigh the price against the hand: compare requiredEquity (from facedSizing) and mdf to the showdown class Hero held — a hand that clears the price defends, one that does not folds.',
       'Small-stakes pools under-bluff and under-barrel, so over-folding to a second barrel is the more common leak; treat that as a lean to test against the price, not a verdict.',
     ],
     unless:
@@ -165,6 +165,14 @@ export const RUBRIC: Record<Label, Rubric> = {
     ],
     unless:
       'A fold can be correct — do not assume an over-fold. Folding the bottom of the class is right on villain-favourable runouts (paired boards, bricked draws, narrow barrelled value lines) where the price is not met. requiredEquity/mdf are the thresholds, not "amateurs over-fold" as a blanket rule. facedSizing/mdf are exact only heads-up-to-Hero — when villains acted between the bet and Hero they mis-scale, so confirm the line before trusting the price. Multiway the turn and river bets can come from different villains, so this need not be one player firing twice — confirm a single aggressor before reading it as a barrel.',
+  },
+  'fold-to-raise': {
+    cues: [
+      'Hero bet or raised this street, was raised, and folded. Weigh the price against the hand: compare requiredEquity (from facedSizing) and mdf to the showdown class Hero held.',
+      'Read whether Hero’s bet had a plan for a raise from the actual cards and board: a thin value bet folding is a sizing/selection question, a bluff folding is the plan working.',
+    ],
+    unless:
+      'A fold to a raise is often correct — small-stakes pools raise for value far more than they bluff-raise, so do not assume an over-fold. requiredEquity/mdf are the thresholds; at committed SPR the call is a stack-off decision; facedSizing/mdf are exact only heads-up-to-Hero. A label is a candidate, not a verdict, and frequency is never the point.',
   },
 };
 
@@ -180,7 +188,7 @@ export const HYPOTHESIS: Record<Family, string> = {
   'River value / bluff-catch':
     'Hero’s river value bets and bluff-catches are miscalibrated — thin value left on the table, prices misread. Test this against the hands.',
   'Facing aggression':
-    'Hero over-folds to barrels — giving up too readily to a continued bet against a pool that under-bluffs. Test this against the price and hand class, not the result.',
+    'Hero over-folds under pressure — to a continued barrel, or to a raise of Hero’s own bet. Test this against the price and hand class, not the result; a raise at small stakes is value-heavy, so a fold to one is often right.',
 };
 
 export function rubricFor(label: Label): Rubric {
