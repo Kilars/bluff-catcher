@@ -53,8 +53,8 @@
 /*
  * Not a control. In the trainer's sheet the drill is being run at one tier, and
  * a sheet-local switch that silently does not change what is being tested is a
- * trap — so here the tier is stated, not offered. The 3-way strip below exists
- * only for the standalone browser (depthSwitchable).
+ * trap — so here the tier is stated, not offered. The chart browser picks
+ * tiers in its own strips (depthExternal) and shows no chip.
  */
 .depthChip {
   display: flex;
@@ -68,7 +68,7 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Tier: 3-way strip (standalone browser) ─────────────────────────────── */
+/* ── Hero seats (paged mode): a strip of two-line tabs ─────────────────── */
 
 .depths {
   display: flex;

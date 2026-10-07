@@ -1,7 +1,7 @@
-/* ChartBrowser.module.css — the decision and source strips above the range
- * views. They sit above the views' own strips (tier or hero seat, then seat
- * or raiser), so they read as the outermost axis: a segmented control for the
- * decision, then quieter chips for the source.
+/* ChartBrowser.module.css — the format, spot and stack strips above the
+ * range views. They sit above the views' own strips (your seat, then the
+ * raiser), so they read as the outermost axes: a compact segmented control
+ * for the format, a full one for the spot, then quieter chips for the stack.
  */
 
 .strips {
@@ -10,7 +10,7 @@
   gap: var(--space-2);
 }
 
-/* ── Decision: one segmented control ──────────────────────────────────────── */
+/* ── Format and spot: segmented controls ───────────────────────────────────── */
 
 .views {
   display: flex;
@@ -50,7 +50,19 @@
   color: var(--color-accent-100);
 }
 
-/* ── Source: small chips ─────────────────────────────────────────────────── */
+/* Format is set once and rarely changed: a slimmer bar than the spot's. */
+.views[data-size='sm'] .view {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Phone: the spot bar's height, so the tabs stay a thumb's width. */
+:root[data-layout='phone'] .views[data-size='sm'] .view {
+  min-height: 36px;
+}
+
+/* ── Stack: small chips ──────────────────────────────────────────────────── */
 
 .sets {
   display: flex;
@@ -95,7 +107,7 @@
   opacity: 0.62;
 }
 
-/* Phone: three sources share one row, the name under the stack. */
+/* Phone: the stacks share one row, the note under the stack. */
 :root[data-layout='phone'] .sets {
   flex-wrap: nowrap;
 }

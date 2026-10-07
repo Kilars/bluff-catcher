@@ -346,6 +346,29 @@ wider than any open, so it deals every hand. The 50bb+ BTN pack has no open
 charts and uses the RFI drill's 60bb+ BTN chart (the same vendor). Range
 charts colour hands outside the dealt range as "not in range", not as folds.
 
+## The range browser's menu: format, spot, stack, seat, versus (2026-10-07)
+
+The browser's strips now read top to bottom as **Format** (Tournament · Cash),
+**Spot** (Drill, from a trainer only · Open · 3-bet · 4-bet), **Stack**
+(tournament only, and only where there's a choice: 60bb+/20bb/10bb on Open,
+40bb/50bb+ on 3-bet), then the views' own **your position** and **versus**
+strips. 3-bet is the old "vs open" (hero faces an open, so Blinds spots live
+there too) and 4-bet the old "vs 3-bet". This replaces the decision strip, the
+facing views' source strip, and the Open view's own tier strip: the views
+take the tier from the browser (`depthExternal`).
+
+Assumptions, each easy to reverse:
+- Drill keeps the trainer's own seat and chart tabs and hides Stack: they
+  are the drill's navigation, not the browser's axes.
+- Format stays on Drill showing the drill's format. Picking the other format
+  leaves the drill for its own decision; going back to Drill resets it.
+- Each format keeps its stack picks, so Cash → Tournament or 4-bet → 3-bet
+  returns to the tier or 50bb+ picked before.
+- The 50bb+ pack keeps a one-seat (BTN) position strip so that row doesn't
+  vanish (`seatStrip`).
+- Changing spot or stack still reopens the chart list on its first page (or
+  the dealt pair), as before; seat and raiser are not carried across.
+
 ## HH bug sweep assumptions (2026-10-07)
 
 The hand-history bug sweep changed only what was wrong by its own definition.

@@ -325,25 +325,16 @@ describe('PhoneRangeView', () => {
       expect(screen.queryByRole('tab', { name: /10bb/ })).toBeNull();
     });
 
-    it('is a strip of the three tiers plus Cash in the standalone browser', () => {
-      renderAt('phone', <PhoneRangeView position="HJ" depthSwitchable />);
+    it('is left to the caller with depthExternal, which redraws on a new depth and keeps the seat', () => {
+      const { rerender } = renderAt('phone', <PhoneRangeView position="UTG" depthExternal />);
       expect(screen.queryByTestId('depth-chip')).toBeNull();
-      const strip = screen.getByRole('tablist', { name: 'Chart' });
-      const tabs = within(strip).getAllByRole('tab');
-      expect(tabs).toHaveLength(4);
-      expect(tabs.map((t) => t.textContent)).toEqual(['60bb+Deep', '20bbMid', '10bbShort', 'Cash6-max']);
-      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
-    });
+      expect(screen.queryByRole('tablist', { name: 'Chart' })).toBeNull();
+      fireEvent.click(screen.getByRole('tab', { name: 'CO' }));
+      expect(screen.getByTestId('boundary-sentence').textContent).toBe(boundarySentence('CO', 'deep'));
 
-    it('switches the chart, the sentence and the verb when the strip is used', () => {
-      renderAt('phone', <PhoneRangeView position="UTG" depthSwitchable />);
-      expect(cellFor('A2s').getAttribute('aria-label')).toBe('A2s: fold'); // UTG @ 60bb+
-      fireEvent.click(screen.getByRole('tab', { name: /10bb/ }));
-      expect(cellFor('A2s').getAttribute('aria-label')).toBe('A2s: jam'); // UTG @ 10bb
-      expect(screen.getByTestId('boundary-sentence').textContent).toBe(
-        boundarySentence('UTG', 'short')
-      );
-      expect(scrubTo(0, 12)).toBe('A2s · jam · UTG');
+      rerender(<PhoneRangeView position="UTG" depth="short" depthExternal />);
+      expect(screen.getByTestId('boundary-sentence').textContent).toBe(boundarySentence('CO', 'short'));
+      expect(screen.getByRole('tab', { name: 'CO' })).toHaveAttribute('aria-selected', 'true');
     });
   });
 

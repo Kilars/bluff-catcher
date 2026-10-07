@@ -84,8 +84,11 @@ export interface PageGroup {
   indices: number[];
 }
 
-/** The pages' seats in first-seen order, or none when they all share one. */
-export function pageGroups(pages: readonly ChartPage[] | undefined): PageGroup[] {
+/**
+ * The pages' seats in first-seen order, or none when they all share one
+ * (`single`: keep a lone seat, so a browser's seat strip doesn't vanish).
+ */
+export function pageGroups(pages: readonly ChartPage[] | undefined, single = false): PageGroup[] {
   const groups: PageGroup[] = [];
   pages?.forEach((p, i) => {
     if (p.group === undefined) return;
@@ -93,7 +96,7 @@ export function pageGroups(pages: readonly ChartPage[] | undefined): PageGroup[]
     if (g) g.indices.push(i);
     else groups.push({ group: p.group, indices: [i] });
   });
-  return groups.length > 1 ? groups : [];
+  return groups.length > (single ? 0 : 1) ? groups : [];
 }
 
 /** Verdict-style label for a cell action, used in aria-labels and readouts. */

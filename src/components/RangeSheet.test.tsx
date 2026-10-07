@@ -150,3 +150,16 @@ describe('RangeSheet navigation', () => {
     expect(DEPTH_META.short.action).toBe('jam');
   });
 });
+
+describe('RangeSheet depthExternal', () => {
+  it('hides the tier strip and redraws on a new depth, keeping the seat', () => {
+    const { rerender } = render(<RangeSheet position="UTG" depthExternal onClose={() => {}} />);
+    expect(screen.queryByRole('tablist', { name: 'Chart' })).toBeNull();
+    fireEvent.click(within(screen.getByRole('tablist', { name: 'Position' })).getByRole('tab', { name: /^CO/ }));
+    const deep = screen.getByText(/combos ·/).textContent;
+
+    rerender(<RangeSheet position="UTG" depth="short" depthExternal onClose={() => {}} />);
+    expect(screen.getByText(/combos ·/).textContent).not.toBe(deep);
+    expect(within(screen.getByRole('tablist', { name: 'Position' })).getByRole('tab', { selected: true }).textContent).toMatch(/^CO/);
+  });
+});

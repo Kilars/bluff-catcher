@@ -25,7 +25,10 @@
  *
  * Props:
  *   position    — the seat to open on (initial only; the sheet owns it after).
- *   depth       — the tier to open on (initial only; the sheet owns it after).
+ *   depth       — the tier to open on. The sheet owns it after, but a new
+ *                 `depth` from the caller redraws on it.
+ *   depthExternal — the caller switches tiers (the chart browser's format and
+ *                 stack strips), so the sheet's own depth strip is hidden.
  *   highlight   — hero's current hand class; marked only on the hero's own chart.
  *   heroPosition— seat of the hand being drilled, dotted in the tab strip.
  *   cellAction  — optional 4-colour mode, forwarded to RangeGrid as-is (PLAN-3bet F3).
@@ -39,8 +42,9 @@
  *                 Each page brings its own colouring and copy.
  *   startPage   — the page to open on (hero's chart); `highlight` is marked
  *                 there only. Default 0. A new `pages` list reopens on it.
+ *   seatStrip   — show the hero-seat strip even when every page is one seat's.
  *   strip       — optional strip rendered above the sheet's own strips (the
- *                 chart browser's decision and source switch).
+ *                 chart browser's format, spot and stack).
  *   onClose     — called when the sheet should close.
  */
 
@@ -84,6 +88,8 @@ interface RangeSheetProps {
   footnote?: string;
   pages?: readonly ChartPage[];
   startPage?: number;
+  depthExternal?: boolean;
+  seatStrip?: boolean;
   strip?: ReactNode;
   onClose: () => void;
 }
@@ -98,6 +104,8 @@ export default function RangeSheet({
   footnote,
   pages,
   startPage = 0,
+  depthExternal = false,
+  seatStrip = false,
   strip,
   onClose,
 }: RangeSheetProps) {
@@ -112,6 +120,13 @@ export default function RangeSheet({
   // Cash is a fourth tab here: it swaps in the 6-max seats, and the same seat
   // can then be compared across formats.
   const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
+  // A new tier from the caller (the browser's stack strip) redraws on it, the
+  // way a new `pages` list does below; the picked seat carries over.
+  const [depthShown, setDepthShown] = useState(depth);
+  if (depth !== depthShown) {
+    setDepthShown(depth);
+    setViewDepth(depth);
+  }
   const meta = CHART_META[viewDepth];
   const seats = meta.seats;
   // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
@@ -127,7 +142,7 @@ export default function RangeSheet({
     setPageIdx(startPage);
   }
   const page = pages?.[pageIdx];
-  const groups = useMemo(() => pageGroups(pages), [pages]);
+  const groups = useMemo(() => pageGroups(pages, seatStrip), [pages, seatStrip]);
 
   const idx = pages ? pageIdx : seats.indexOf(viewPos);
   const count = pages ? pages.length : seats.length;
@@ -293,7 +308,7 @@ export default function RangeSheet({
           {strip}
 
           {/* Stack-depth strip — the same seat, three tiers */}
-          {!pages && (
+          {!pages && !depthExternal && (
           <div className={nav.depths} role="tablist" aria-label="Chart">
             {CHART_KEYS.map((d) => (
               <button

@@ -35,7 +35,7 @@ import { MODE_CONTEXT_LABEL, MODE_KICKER } from '../lib/facingMeta';
 import type { FacingMode } from '../lib/preflop/facing';
 import { positionLabel } from '../lib/preflop/boundary';
 import { DEFAULT_DEPTH, chartKeyFor, type Format, type Seat } from '../lib/preflop/ranges';
-import { DEFAULT_PAIR_SET, PAIR_SETS } from '../lib/preflop/pairCharts';
+import { pairSetFor } from '../lib/preflop/pairCharts';
 import PhoneFacingTrainer from './phone/PhoneFacingTrainer';
 import { FOURBET_CASH_LOW_BRIEFING, MODE_BRIEFING } from './facingBriefing';
 import type { Opponents } from '../lib/preflop/lowStakes';
@@ -116,9 +116,10 @@ export function FacingTrainer({
 
   // The range sheet opens on the graded charts; its decision strip reaches
   // every seat pair, opening on the dealt one (`ChartBrowser`).
+  const spotNode = mode === 'fourbet' ? 'vs3bet' : 'vsOpen';
   const browserSpot: BrowserSpot = {
-    node: mode === 'fourbet' ? 'vs3bet' : 'vsOpen',
-    setId: PAIR_SETS.find((s) => s.format === format && s.stack === bucketMeta.stackLabel)?.id ?? DEFAULT_PAIR_SET[format],
+    node: spotNode,
+    setId: pairSetFor(format, bucketMeta.stackLabel, spotNode),
     hero: bucketMeta.hero,
     villain: spot.opener,
     hand: spot.handClass,

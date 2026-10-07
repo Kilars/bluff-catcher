@@ -33,8 +33,10 @@ export interface PairSet {
   stack: Stack;
   /** Strip label, e.g. "100bb". */
   label: string;
-  /** Strip qualifier, e.g. "Cash". */
+  /** The format's name, for the page kicker, e.g. "Cash". */
   name: string;
+  /** What the source is limited to, under the stack tab, e.g. "BTN only". */
+  note?: string;
   /** The decisions this source has charts for. */
   nodes: readonly PairNode[];
 }
@@ -43,7 +45,7 @@ export const PAIR_SETS: readonly PairSet[] = [
   { id: 'cash100', format: 'cash', stack: '100bb', label: '100bb', name: 'Cash', nodes: ['vsOpen', 'vs3bet'] },
   { id: 'mtt40', format: 'mtt', stack: '40bb', label: '40bb', name: 'Tournament', nodes: ['vsOpen', 'vs3bet'] },
   // PokerCoaching: BTN vs an open only, with value and bluff 3-bets apart.
-  { id: 'mtt50', format: 'mtt', stack: '50bb+', label: '50bb+', name: 'BTN only', nodes: ['vsOpen'] },
+  { id: 'mtt50', format: 'mtt', stack: '50bb+', label: '50bb+', name: 'Tournament', note: 'BTN only', nodes: ['vsOpen'] },
 ];
 
 export function pairSet(id: string): PairSet {
@@ -54,6 +56,19 @@ export function pairSet(id: string): PairSet {
 
 /** The set a format opens on: the one with a full seat grid. */
 export const DEFAULT_PAIR_SET: Record<Format, string> = { cash: 'cash100', mtt: 'mtt40' };
+
+/** The sources a format has for one decision, in strip order. */
+export function pairSetsFor(format: Format, node: PairNode): PairSet[] {
+  return PAIR_SETS.filter((s) => s.format === format && s.nodes.includes(node));
+}
+
+/**
+ * The source for a format, stack and decision, or the format's full grid
+ * when that stack has no charts for it (50bb+ has no 3-bet pots).
+ */
+export function pairSetFor(format: Format, stack: Stack, node: PairNode): string {
+  return pairSetsFor(format, node).find((s) => s.stack === stack)?.id ?? DEFAULT_PAIR_SET[format];
+}
 
 /** The seats a format seats, in action order, the big blind last. */
 const TABLE: Record<Format, readonly TableSeat[]> = {

@@ -4,7 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { PAIR_SETS, pairChartPages, pairPageId } from './pairCharts';
+import { PAIR_SETS, pairChartPages, pairPageId, pairSetFor, pairSetsFor } from './pairCharts';
+import { pageGroups } from './grid';
 import { facingRange } from './range';
 import { chartAction, dealtRange } from './facing';
 import { ALL_169 } from './hands';
@@ -61,5 +62,26 @@ describe('pairChartPages', () => {
     const page = pairChartPages('cash100', 'vs3bet').find((p) => p.id === pairPageId('cash100', 'vs3bet', 'CO', 'BTN'))!;
     expect(page.title).toBe('CO opens, BTN 3-bets');
     expect(page.footnote).toBe('The source uses this same chart for CO vs SB 3-bet, CO vs BB 3-bet.');
+  });
+});
+
+describe('pairSetFor', () => {
+  it('lists a format\'s sources per decision, in strip order', () => {
+    expect(pairSetsFor('mtt', 'vsOpen').map((s) => s.id)).toEqual(['mtt40', 'mtt50']);
+    expect(pairSetsFor('mtt', 'vs3bet').map((s) => s.id)).toEqual(['mtt40']);
+    expect(pairSetsFor('cash', 'vsOpen').map((s) => s.id)).toEqual(['cash100']);
+  });
+
+  it('picks the stack\'s source, or the format\'s full grid where the stack has none', () => {
+    expect(pairSetFor('mtt', '50bb+', 'vsOpen')).toBe('mtt50');
+    expect(pairSetFor('mtt', '50bb+', 'vs3bet')).toBe('mtt40');
+    expect(pairSetFor('cash', '100bb', 'vs3bet')).toBe('cash100');
+    expect(pairSetFor('cash', '40bb', 'vsOpen')).toBe('cash100');
+  });
+
+  it('keeps the 50bb+ pack\'s lone seat as a group only when asked', () => {
+    const pages = pairChartPages('mtt50', 'vsOpen');
+    expect(pageGroups(pages)).toEqual([]);
+    expect(pageGroups(pages, true).map((g) => g.group)).toEqual(['BTN']);
   });
 });

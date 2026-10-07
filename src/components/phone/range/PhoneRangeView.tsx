@@ -34,7 +34,6 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  CHART_KEYS,
   CHART_META,
   DEFAULT_DEPTH,
   isOpen,
@@ -95,14 +94,14 @@ export interface PhoneRangeViewProps {
   /** Hero's seat. Defaults to `position` when a `highlight` is given. */
   heroPosition?: Seat;
   /**
-   * Whether the tier can be switched from inside this view.
-   *
-   * `false` (default) renders the active tier as a static chip. That is the
-   * trainer's sheet: a sheet-local depth that silently does not change what the
-   * drill is testing is a phone trap. `true` renders the chart strip (the three tiers plus Cash), and is
-   * for the standalone chart browser opened from the menu.
+   * The caller switches tiers (the chart browser's format and stack strips),
+   * so no tier chip here. A new `depth` redraws on it either way. Otherwise
+   * the tier is a static chip: in a trainer's sheet, a sheet-local switch
+   * that silently does not change what the drill tests is a phone trap.
    */
-  depthSwitchable?: boolean;
+  depthExternal?: boolean;
+  /** Show the hero-seat strip even when every page is one seat's. */
+  seatStrip?: boolean;
   /**
    * Optional 4-colour mode (PLAN-3bet F3): value / bluff / call / fold instead
    * of the boolean isOpen() read. Omit it and this renders exactly as before.
@@ -124,7 +123,7 @@ export interface PhoneRangeViewProps {
   pages?: readonly ChartPage[];
   /** The page to open on (hero's chart); `highlight` is marked there only. */
   startPage?: number;
-  /** Optional strip above the view's own (the chart browser's decision and source switch). */
+  /** Optional strip above the view's own (the chart browser's format, spot and stack). */
   strip?: ReactNode;
 }
 
@@ -148,7 +147,8 @@ export default function PhoneRangeView({
   depth = DEFAULT_DEPTH,
   highlight,
   heroPosition,
-  depthSwitchable = false,
+  depthExternal = false,
+  seatStrip = false,
   cellAction: seatCellAction,
   legend = true,
   footnote: seatFootnote,
@@ -166,11 +166,12 @@ export default function PhoneRangeView({
     setPageIdx(startPage);
   }
   const page = pages?.[pageIdx];
-  const groups = useMemo(() => pageGroups(pages), [pages]);
+  const groups = useMemo(() => pageGroups(pages, seatStrip), [pages, seatStrip]);
   const visiblePages = groups.find((g) => g.group === page?.group)?.indices.length ?? pages?.length ?? 0;
   const cellAction = page?.cellAction ?? seatCellAction;
   const footnote = page ? page.footnote : seatFootnote;
-  const [viewDepth, setViewDepth] = useState<ChartKey>(depth);
+  // The tier is the caller's: a chip in a trainer, the browser's strips there.
+  const viewDepth = depth;
   // Survives the lift on purpose: you scrub to a cell, take your finger off the
   // screen, and *then* read the bar the finger was covering.
   const [scrub, setScrub] = useState<Scrub | null>(null);
@@ -313,25 +314,8 @@ export default function PhoneRangeView({
     >
       {strip}
 
-      {/* Tier — a strip only where switching tiers means something */}
-      {pages ? null : depthSwitchable ? (
-        <div className={styles.depths} role="tablist" aria-label="Chart">
-          {CHART_KEYS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              role="tab"
-              aria-selected={d === viewDepth}
-              className={styles.depthTab}
-              data-active={d === viewDepth}
-              onClick={() => setViewDepth(d)}
-            >
-              <span className={styles.depthLabel}>{CHART_META[d].label}</span>
-              <span className={styles.depthName}>{CHART_META[d].name}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
+      {/* Tier — stated, not offered (see `depthExternal`) */}
+      {pages || depthExternal ? null : (
         <p className={styles.depthChip} data-testid="depth-chip">
           <span className={styles.depthLabel}>{meta.label}</span>
           <span className={styles.depthName}>{meta.rangeKicker}</span>
