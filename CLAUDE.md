@@ -28,6 +28,8 @@ review.
 | Strategy grounding | `docs/strategy-notes.md` |
 | Design decisions / plans | `docs/DECISIONS.md` (source of truth), `docs/PLAN-*.md` |
 | Hand review skill | `.claude/skills/hand-review/` |
+| Coaching knowledge base: nightly video → staged notes (`kb-nightly`, systemd 03:00), approval (`kb-review`); plan, channels and units | `.claude/skills/kb-*/`, `research/nightly-kb-plan.md`, `research/kb-channels.md`, `research/systemd/` |
+| KB corpus, briefs, digest (gitignored) | `research/coaching-transcripts/` |
 | Hand archive (gitignored) | `hands/` |
 | Coaching outputs (gitignored) | `leaks-log.md`, `leaks-review-*.md` |
 

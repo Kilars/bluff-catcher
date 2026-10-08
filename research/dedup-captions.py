@@ -1,4 +1,8 @@
-import re, pathlib
+import re, sys, pathlib
+
+# Cleans raw/<id>.txt into clean/<id>.md under coaching-transcripts/.
+# Usage: python3 research/dedup-captions.py [VIDEO_ID ...]   (no ids: all)
+BASE = pathlib.Path(__file__).resolve().parent / "coaching-transcripts"
 
 def collapse(tokens, maxk=12):
     """Collapse immediately-repeated k-gram runs (k=maxk..1), exact match,
@@ -24,7 +28,9 @@ def collapse(tokens, maxk=12):
 def dedup(text):
     return " ".join(collapse(text.split()))
 
-for raw in sorted(pathlib.Path("raw").glob("*.txt")):
+ids = sys.argv[1:]
+raws = [BASE / "raw" / f"{i}.txt" for i in ids] if ids else sorted((BASE / "raw").glob("*.txt"))
+for raw in raws:
     lines = raw.read_text(encoding="utf-8").splitlines()
     out, in_body, prev_tail = [], False, []
     for ln in lines:
@@ -41,7 +47,7 @@ for raw in sorted(pathlib.Path("raw").glob("*.txt")):
             prev_tail = (prev_tail + words)[-12:]
             ln = pre + " ".join(words)
         out.append(ln)
-    clean = pathlib.Path("clean") / (raw.stem + ".md")
+    clean = BASE / "clean" / (raw.stem + ".md")
     clean.write_text("\n".join(out) + "\n", encoding="utf-8")
     rw, cw = len(raw.read_text().split()), len(clean.read_text().split())
     print(f"{raw.stem:14} raw={rw:6}  clean={cw:6}  kept={cw*100//rw}%")

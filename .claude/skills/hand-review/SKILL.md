@@ -22,6 +22,22 @@ no window, the whole archive is reported. Say so.
 Read `docs/leak-coaching.md` first. It has the bands, the label meanings and the
 finding catalogue.
 
+### Knowledge-base briefs
+
+If they exist, read the approved briefs in
+`research/coaching-transcripts/kb/briefs/` for what the session touches:
+- the `preflop-*` briefs for preflop sections with hands in them
+- the brief for each postflop family with labels that fired (slugs in
+  `.claude/skills/kb-nightly/SKILL.md`)
+- `fundamentals`
+
+Briefs are coaching theory distilled from cited videos. They contain no hand
+results, so they're fine to use in the blind review. Use them to ground each
+explanation, and cite the source inline, like `(GTO Wizard, dVZ1CdESSTw
+12:04)`. Lead with the GTO baseline. When an exploit is the better line, name
+the population it assumes. Briefs never override the payload or the hard rules
+below. Skip `staging/`, which is unapproved.
+
 ## Read everything
 
 1. **Preflop, per hand:** `rfiFolds[]` (chart opens folded), `coldCalls[]`
