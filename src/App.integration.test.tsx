@@ -141,8 +141,12 @@ describe('3-bet mode', () => {
   it('briefs the seat pairs from the charts, without the SB spots', () => {
     localStorage.setItem('bluff-catcher:mode:v1', 'threebet');
     renderAt('desktop', <App />);
-    // One generated line per non-SB tournament spot: HJ vs LJ, CO vs HJ.
-    expect(screen.getAllByText(/3-bet \d+\.\d%, call \d+\.\d%, fold the rest\./)).toHaveLength(2);
+    // One generated line per non-SB tournament spot, as shares of the hands dealt.
+    const lines = screen.getAllByText(/3-bet \d+%, call \d+%, fold the rest of the hands dealt\./);
+    expect(lines.map((l) => l.textContent)).toEqual([
+      'HJ vs LJ — 3-bet 23%, call 38%, fold the rest of the hands dealt.',
+      'CO vs HJ — 3-bet 22%, call 34%, fold the rest of the hands dealt.',
+    ]);
   });
 
   it('renders the phone facing trainer with three thumb buttons', () => {

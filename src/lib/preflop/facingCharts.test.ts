@@ -177,3 +177,15 @@ describe('open vs 3-bet (cash)', () => {
     expect(chartAction(BUCKET_CHART['open4-cash-CO'], 'JJ').kind).toBe('value');
   });
 });
+
+describe('facingComboCounts over the dealt hands', () => {
+  it('counts only the hands a spot deals, keeping every continue', () => {
+    for (const [b, dealt] of Object.entries(BUCKET_REACHABLE)) {
+      const all = facingComboCounts(BUCKET_CHART[b as keyof typeof BUCKET_CHART]);
+      const some = facingComboCounts(BUCKET_CHART[b as keyof typeof BUCKET_CHART], dealt);
+      expect(Object.values(some).reduce((n, c) => n + c, 0), b).toBe(combos(dealt!));
+      // Only folds go undealt: the chart's raises and calls are all in range.
+      expect({ ...some, fold: 0 }, b).toEqual({ ...all, fold: 0 });
+    }
+  });
+});

@@ -119,7 +119,7 @@ export function FacingTrainer({
   const spotNode = mode === 'fourbet' ? 'vs3bet' : 'vsOpen';
   const browserSpot: BrowserSpot = {
     node: spotNode,
-    setId: pairSetFor(format, bucketMeta.stackLabel, spotNode),
+    setId: pairSetFor(format, bucketMeta.stack, spotNode),
     hero: bucketMeta.hero,
     villain: spot.opener,
     hand: spot.handClass,
@@ -158,7 +158,7 @@ export function FacingTrainer({
         heroOpenBb={bucketMeta.heroOpenBb}
         openerTag={bucketMeta.openerTag}
         format={format}
-        stackLabel={bucketMeta.stackLabel}
+        stackLabel={bucketMeta.stack}
         centreTitle={[`${openerLabel} ${heroOpened ? '3-bets' : 'opens'}`, bucketMeta.openerTag]
           .filter(Boolean)
           .join(' · ')}

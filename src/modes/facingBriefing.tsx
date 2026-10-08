@@ -6,7 +6,14 @@
 
 import type { InfoSheetContent } from '../components/PreflopInfoSheet';
 import type { Format } from '../lib/preflop/ranges';
-import { BUCKET_CHART, BUCKET_META, bucketsFor, facingComboCounts, type FacingMode } from '../lib/preflop/facing';
+import {
+  BUCKET_CHART,
+  BUCKET_META,
+  BUCKET_REACHABLE,
+  bucketsFor,
+  facingComboCounts,
+  type FacingMode,
+} from '../lib/preflop/facing';
 import type { TableSeat } from '../lib/preflop/ranges';
 import { CURATED_SPOTS, SPOT_STACK, openSizeBb } from '../lib/preflop/spots';
 import styles from './FacingTrainer.module.css';
@@ -371,8 +378,8 @@ const OPEN4_CASH_LOW_BRIEFING: InfoSheetContent = {
 
 // ─── Seat vs open: generated from the charts ──────────────────────────────────
 
-/** "8.3%" — a share of the 1326 combos, one decimal. */
-const pct = (combos: number) => `${((combos / 1326) * 100).toFixed(1)}%`;
+/** "31%": combos as a whole-number share of `of` (the hands a spot deals). */
+const pct = (combos: number, of: number) => `${Math.round((combos / of) * 100)}%`;
 
 /**
  * Seat vs open (docs/PLAN-range-generator.md, phase 4). Unlike the briefings
@@ -386,7 +393,9 @@ function seatBriefing(format: Format, heroes: (hero: TableSeat) => boolean): Inf
   const table =
     format === 'mtt' ? `9-handed tournament table · ${stack} effective, 1bb ante` : '6-max cash table · 100bb effective, no ante';
   const buckets = bucketsFor(format, 'seat').filter((b) => heroes(BUCKET_META[b].hero));
-  const counts = buckets.map((b) => facingComboCounts(BUCKET_CHART[b]));
+  // Shares of the hands the drill deals (`BUCKET_REACHABLE`), not of all 1326,
+  // so they match the dealt hands and the chart's "not in range" cells.
+  const counts = buckets.map((b) => facingComboCounts(BUCKET_CHART[b], BUCKET_REACHABLE[b]));
   // The cash source never flats outside the BTN and BB, so its spots are 3-bet or fold.
   const anyCall = counts.some((c) => c.call > 0);
   const sizes = [...new Set(CURATED_SPOTS.filter((s) => s.format === format && heroes(s.hero)).map((s) => openSizeBb(format, s.villain)))];
@@ -399,7 +408,7 @@ function seatBriefing(format: Format, heroes: (hero: TableSeat) => boolean): Inf
         title: 'The spot',
         body: `One player opens to ${sizes.join(' or ')}bb and it folds to you. Seats behind you are still to act. ${
           anyCall ? 'Fold, call, or 3-bet.' : 'Fold or 3-bet: this source never flat-calls outside the button and big blind.'
-        } Only hands you would open from your seat are dealt, plus any the chart plays beyond them.`,
+        } Only hands you would open from your seat are dealt, plus any the chart plays beyond them; the shares below are of those hands.`,
       },
       {
         title: 'The spots',
@@ -408,10 +417,11 @@ function seatBriefing(format: Format, heroes: (hero: TableSeat) => boolean): Inf
             {buckets.map((b, i) => {
               const c = counts[i];
               const raise = 'threeBet' in c ? c.threeBet : 'value' in c ? c.value + c.bluff : 0;
+              const of = Object.values(c).reduce((a, n) => a + n, 0);
               return (
                 <li key={b}>
-                  <strong>{BUCKET_META[b].openerTag}</strong> — 3-bet {pct(raise)}
-                  {c.call > 0 ? `, call ${pct(c.call)}` : ''}, fold the rest.
+                  <strong>{BUCKET_META[b].openerTag}</strong> — 3-bet {pct(raise, of)}
+                  {c.call > 0 ? `, call ${pct(c.call, of)}` : ''}, fold the rest of the hands dealt.
                 </li>
               );
             })}

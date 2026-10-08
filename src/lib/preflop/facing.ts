@@ -159,7 +159,7 @@ const BB_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       id,
       drill: 'bb',
       format,
-      stackLabel: src.stack,
+      stack: src.stack,
       label: `vs ${seat}`,
       openers: [o],
       chartSeat: o,
@@ -201,7 +201,7 @@ const BTN4_SPOTS = (['mtt', 'cash'] as const).flatMap((format) => {
       id,
       drill: 'btn4',
       format,
-      stackLabel: src.stack,
+      stack: src.stack,
       label: `vs ${seat} 3-bet`,
       openers: [seat],
       chartSeat: seat,
@@ -245,7 +245,7 @@ const OPEN4_SPOTS = OPEN4_OPENERS.map((opener) => {
     id,
     drill: 'open4',
     format: 'cash',
-    stackLabel: '100bb',
+    stack: '100bb',
     label: 'vs 3-bet',
     openers: threeBettors,
     chartSeat: opener,
@@ -283,7 +283,7 @@ const SEAT_SPOTS = CURATED_SPOTS.map(({ format, hero, villain }) => {
     id,
     drill: 'seat',
     format,
-    stackLabel: stack,
+    stack,
     label: `vs ${seatShort(villain)}`,
     openerTag: pair,
     openers: [villain],
@@ -350,7 +350,7 @@ export interface BucketMeta {
   drill: Drill;
   format: Format;
   /** The source's stack, also the plaques' and labels' figure, e.g. "50bb+". */
-  stackLabel: Stack;
+  stack: Stack;
   /** Plaque / tab label, e.g. "vs Early". */
   label: string;
   /**
@@ -410,7 +410,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     id: 'early',
     drill: 'btn',
     format: 'mtt',
-    stackLabel: '50bb+',
+    stack: '50bb+',
     label: 'vs Early',
     openerTag: 'vs Early',
     openers: openersIn('mtt', 'early'),
@@ -425,7 +425,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     id: 'late',
     drill: 'btn',
     format: 'mtt',
-    stackLabel: '50bb+',
+    stack: '50bb+',
     label: 'vs Late',
     openerTag: 'vs Late',
     openers: openersIn('mtt', 'late'),
@@ -440,7 +440,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     id: 'cashEarly',
     drill: 'btn',
     format: 'cash',
-    stackLabel: '100bb',
+    stack: '100bb',
     label: 'vs LJ/HJ',
     openerTag: 'vs LJ/HJ',
     openers: openersIn('cash', 'cashEarly'),
@@ -455,7 +455,7 @@ export const BUCKET_META: Record<Bucket, BucketMeta> = {
     id: 'cashCo',
     drill: 'btn',
     format: 'cash',
-    stackLabel: '100bb',
+    stack: '100bb',
     label: 'vs CO',
     openerTag: 'vs CO',
     openers: openersIn('cash', 'cashCo'),
@@ -639,7 +639,7 @@ export const BUCKET_REACHABLE: Partial<Record<Bucket, ReadonlySet<HandClass>>> =
   BUCKETS.flatMap((b) => {
     const meta = BUCKET_META[b];
     const node = meta.raise === '4bet' ? 'vs3bet' : 'vsOpen';
-    const range = dealtRange(meta.format, meta.stackLabel, node, meta.hero, BUCKET_CHART[b]);
+    const range = dealtRange(meta.format, meta.stack, node, meta.hero, BUCKET_CHART[b]);
     return range ? [[b, range]] : [];
   })
 );
@@ -733,7 +733,7 @@ export function facingAction(opener: Opener, hc: HandClass): FacingAnswer {
 /**
  * Combo totals per answer, as printed under each source chart; sums to 1326.
  * A kinded chart reports value and bluff, a plain one a single threeBet or
- * fourBet.
+ * fourBet. With `dealt` (a spot's `dealtRange`), only those hands count.
  */
 export type FacingComboCounts = { call: number; fold: number } & (
   | { value: number; bluff: number }
@@ -741,13 +741,14 @@ export type FacingComboCounts = { call: number; fold: number } & (
   | { fourBet: number }
 );
 
-export function facingComboCounts(chart: FacingChart): FacingComboCounts {
+export function facingComboCounts(chart: FacingChart, dealt?: ReadonlySet<HandClass>): FacingComboCounts {
   const plainKey = isFourBetChart(chart) ? 'fourBet' : 'threeBet';
   const kinded = hasKinds(chart) || (isFourBetChart(chart) && 'value' in chart.fourBet);
   const counts: Record<string, number> = kinded
     ? { value: 0, bluff: 0, call: 0, fold: 0 }
     : { [plainKey]: 0, call: 0, fold: 0 };
   for (const hc of ALL_169) {
+    if (dealt && !dealt.has(hc)) continue;
     const { action, kind } = chartAction(chart, hc);
     counts[action === 'call' || action === 'fold' ? action : (kind ?? plainKey)] += combosForClass(hc);
   }

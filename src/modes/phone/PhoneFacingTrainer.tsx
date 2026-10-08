@@ -65,7 +65,7 @@ export default function PhoneFacingTrainer({
         contextLine={[
           `${openerLabel} ${bucketMeta.heroOpenBb !== undefined ? '3-bets to' : 'raises'} ${sizes.raiseBb}bb`,
           bucketMeta.openerTag,
-          bucketMeta.stackLabel,
+          bucketMeta.stack,
         ]
           .filter(Boolean)
           .join(' · ')}
