@@ -24,8 +24,9 @@
  * when format and stack are the hand's own.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import RangeSheet from './RangeSheet';
+import SliceRows from './SliceRows';
 import PhoneSheet from './phone/PhoneSheet';
 import PhoneRangeView from './phone/range/PhoneRangeView';
 import { FORMAT_META, type ChartKey, type Format, type Seat, type TableSeat } from '../lib/preflop/ranges';
@@ -138,15 +139,32 @@ export default function ChartBrowser({
 
   // The drill's charts are the trainer's format. Picking the other format
   // leaves the drill for its own decision (or Open); coming back resets it.
-  const pickTab = (row: Row, id: string) =>
-    setAxes((a) => {
-      if (row === 'format' && a.spot === 'drill') {
-        if (id === drillFormat) return a;
-        return pick(pick(a, 'format', id), 'spot', spot ? NODE_SPOT[spot.node] : 'open');
-      }
-      if (row === 'spot' && id === 'drill') return pick(pick(a, 'format', drillFormat), 'spot', 'drill');
-      return pick(a, row, id);
-    });
+  const applyTab = (a: Axes, row: Row, id: string): Axes => {
+    if (row === 'format' && a.spot === 'drill') {
+      if (id === drillFormat) return a;
+      return pick(pick(a, 'format', id), 'spot', spot ? NODE_SPOT[spot.node] : 'open');
+    }
+    if (row === 'spot' && id === 'drill') return pick(pick(a, 'format', drillFormat), 'spot', 'drill');
+    return pick(a, row, id);
+  };
+  const pickTab = (row: Row, id: string) => setAxes((a) => applyTab(a, row, id));
+
+  // A slice picks several rows between two renders, so it reads and writes
+  // the latest picks here rather than the ones this render saw.
+  const axesRef = useRef(axes);
+  useLayoutEffect(() => {
+    axesRef.current = axes;
+  }, [axes]);
+  const slicePick = (row: string, id: string) => {
+    // Drill swaps the rows for its own tabs: a tap's job, not a slice's.
+    if (row === 'spot' && id === 'drill') return false;
+    const cur = axesRef.current;
+    const next = applyTab(cur, row as Row, id);
+    if (JSON.stringify(next) === JSON.stringify(cur)) return false;
+    axesRef.current = next;
+    setAxes(next);
+    return true;
+  };
   // Stable, so the desktop sheet's key listener isn't rebound on every render.
   const onStep = useCallback((delta: number) => setAxes((a) => step(a, delta)), []);
 
@@ -219,10 +237,11 @@ export default function ChartBrowser({
   const menu = (
     <div className={styles.strips}>
       {row('format', 'Format')}
-      {/* Drill navigates by its own seat and chart tabs, so it keeps only Spot. */}
-      <div className={styles.rows}>
+      {/* Drill navigates by its own seat and chart tabs, so it keeps only Spot.
+          Format stays out of the slice: it changes which seats there are. */}
+      <SliceRows className={styles.rows} onPick={slicePick}>
         {ROWS.filter(([r]) => axes.spot !== 'drill' || r === 'spot').map(([r, name, caption]) => row(r, name, caption))}
-      </div>
+      </SliceRows>
     </div>
   );
 

@@ -1,0 +1,19 @@
+/* SliceRows.module.css — the sliceable rows and the trail drawn over them. */
+
+.slice {
+  position: relative;
+  /* The stroke is ours: no scroll, pinch or text selection starts on the rows. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.trail {
+  position: absolute;
+  inset: -16px; /* BLEED in SliceRows.tsx */
+  width: calc(100% + 32px);
+  height: calc(100% + 32px);
+  pointer-events: none;
+  z-index: 1;
+}

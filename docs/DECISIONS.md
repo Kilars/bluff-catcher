@@ -389,6 +389,24 @@ Assumptions, each easy to reverse:
 - Drill keeps only Spot: its own seat and chart tabs replace the rows below.
 - Nine-seat rows label UTG+1/UTG+2 as UTG1/UTG2 so they fit a 360px phone.
 
+## Slice the range browser's rows (2026-10-09)
+
+One stroke down the browser's rows, with a mouse or a finger, picks Spot,
+Stack, You and vs in one go (`SliceRows`, phases 2–3 of
+docs/PLAN-slice-menu.md). A tap still works, and keyboard use is unchanged.
+
+Assumptions, each easy to reverse:
+- A row picks where the stroke crosses its centre line, or where the stroke
+  moves mostly sideways within it; not every tab it touches, since a
+  diagonal leaves a row over the neighbour of the tab it meant.
+- Picks apply live, mid-stroke, with no cancel; a wrong one is fixed by a tap.
+- Format and Drill stay taps: both change which rows exist.
+- A stroke starts after 8px of movement; less is a tap. The rows take every
+  touch (`touch-action: none`), so a scroll can't start on them.
+- The trail is a 220ms tapered canvas stroke in the accent colour; a pick
+  pops its tab and buzzes a phone that supports it. Reduced motion turns
+  both off.
+
 ## HH bug sweep assumptions (2026-10-07)
 
 The hand-history bug sweep changed only what was wrong by its own definition.

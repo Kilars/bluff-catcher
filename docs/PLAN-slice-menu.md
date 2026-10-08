@@ -1,6 +1,6 @@
 # Plan — slice the range browser's menu
 
-Status: **phase 1 shipped** (2026-10-08); phases 2–3 to come. Follows the menu rework in DECISIONS.md
+Status: **shipped** (phase 1 2026-10-08, phases 2–3 2026-10-09). Follows the menu rework in DECISIONS.md
 ("The range browser's menu: format, spot, stack, seat, versus").
 
 ## The essentials
@@ -62,10 +62,11 @@ so nothing moves mid-gesture.
 - **Hit-test:** row rects and tab rects are measured on pointerdown
   (`getBoundingClientRect`, as the grid scrub does). Each move gives the row
   under the finger and the tab under the finger. Nothing is assumed about pitch.
-- **What a row picks:** the **last enabled tab the finger was over** while in
-  that row. A disabled tab is passed over. Leaving a row without touching an
-  enabled tab leaves it as it was. You can drift sideways within a row to
-  correct yourself before going on.
+- **What a row picks:** the tab where the stroke **crosses the row's centre
+  line** (built: "the last tab touched" picked the wrong seat on every
+  diagonal, which leaves a row over the neighbour of the tab it crossed). The
+  press point picks too, and so does a mostly sideways move inside a row, so
+  you can drift along a row to correct. A disabled tab is passed over.
 - **Commit:** live. Each pick applies as soon as it's made (the chart below
   redraws mid-stroke), and the next row's enabled set is recomputed from it.
   Going back up a row re-picks it. There's no cancel: a wrong pick is fixed by
