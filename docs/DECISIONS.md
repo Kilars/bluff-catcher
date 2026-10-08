@@ -365,9 +365,29 @@ Assumptions, each easy to reverse:
 - Each format keeps its stack picks, so Cash → Tournament or 4-bet → 3-bet
   returns to the tier or 50bb+ picked before.
 - The 50bb+ pack keeps a one-seat (BTN) position strip so that row doesn't
-  vanish (`seatStrip`).
+  vanish (`seatStrip`). *Superseded 2026-10-08: the rows stay put.*
 - Changing spot or stack still reopens the chart list on its first page (or
   the dealt pair), as before; seat and raiser are not carried across.
+  *Superseded 2026-10-08: they carry across.*
+
+## The range browser's rows stay put (2026-10-08)
+
+The browser's menu is now five rows that keep their shape within a format:
+**Format**, **Spot**, **Stack** (tournament: 10bb · 20bb · 40bb · 50bb+ ·
+60bb+), **You** and **vs** (the format's whole table, twice, in the same
+columns). A tab that doesn't apply to what's picked above it is greyed, not
+removed; the rules are one pure module (`lib/preflop/browserAxes.ts`). The
+browser owns the seat and raiser, and the views take them (`menuExternal`).
+This is phase 1 of docs/PLAN-slice-menu.md; the slice gesture comes next.
+
+Assumptions, each easy to reverse:
+- A pick keeps every lower pick that still applies and moves the rest to the
+  nearest one that does (the opener just before you, the 3-bettor just
+  after). Seat and raiser carry across spots, stacks and formats;
+  the early 9-max seats come back from cash as the LJ.
+- Each spot keeps its own tournament stack (Open's tier, 3-bet's 50bb+).
+- Drill keeps only Spot: its own seat and chart tabs replace the rows below.
+- Nine-seat rows label UTG+1/UTG+2 as UTG1/UTG2 so they fit a 360px phone.
 
 ## HH bug sweep assumptions (2026-10-07)
 

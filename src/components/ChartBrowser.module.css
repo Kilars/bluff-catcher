@@ -1,7 +1,9 @@
-/* ChartBrowser.module.css — the format, spot and stack strips above the
- * range views. They sit above the views' own strips (your seat, then the
- * raiser), so they read as the outermost axes: a compact segmented control
- * for the format, a full one for the spot, then quieter chips for the stack.
+/* ChartBrowser.module.css — the browser's menu above the range views.
+ *
+ * Format is a slim segmented bar on its own. Below it, Spot, Stack, You and vs
+ * are one block of rows, each a small caption then its tabs on a grid, so the
+ * You and vs columns line up seat for seat. A tab that doesn't apply stays in
+ * its column, greyed: nothing moves when a pick above changes.
  */
 
 .strips {
@@ -10,22 +12,43 @@
   gap: var(--space-2);
 }
 
-/* ── Format and spot: segmented controls ───────────────────────────────────── */
-
-.views {
+.rows {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--color-neutral-800);
   border-radius: var(--radius-md);
   background: var(--color-neutral-900);
-  padding: 2px;
-  gap: 2px;
 }
 
-.view {
-  flex: 1 1 0;
+.row[data-captioned] {
+  grid-template-columns: 24px repeat(var(--cols), minmax(0, 1fr));
+}
+
+.caption {
+  align-self: center;
+  padding-left: 3px;
+  color: var(--color-neutral-500);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tab {
+  position: relative;
   min-width: 0;
-  min-height: 36px;
-  padding: 6px 8px;
+  min-height: 34px;
+  padding: 4px 2px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -33,90 +56,62 @@
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
 }
 
-.view:hover {
+.tab:hover:not([data-off]) {
   color: var(--color-text);
 }
 
-.view[data-active='true'] {
+.tab[data-active='true'] {
   background: color-mix(in srgb, var(--color-accent) 22%, var(--color-neutral-900));
   color: var(--color-accent-100);
 }
 
-/* Format is set once and rarely changed: a slimmer bar than the spot's. */
-.views[data-size='sm'] .view {
+.tab[data-off] {
+  opacity: 0.28;
+  cursor: default;
+}
+
+/* Desktop: mouse-sized rows, so the five leave the chart its height. */
+:root:not([data-layout='phone']) .tab {
   min-height: 28px;
-  padding: 4px 8px;
+  padding-block: 2px;
+}
+
+/* Format is set once and rarely changed: a slimmer bar. */
+.row[data-row='format'] .tab {
+  min-height: 28px;
   font-size: 12px;
 }
 
-/* Phone: the spot bar's height, so the tabs stay a thumb's width. */
-:root[data-layout='phone'] .views[data-size='sm'] .view {
+/* Nine seats at 9-max: a smaller face so "UTG1" fits a 30px column. */
+.row[data-dense] .tab {
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+/* The dealt seat, on the chart that is the hand's own. */
+.dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* Phone: thumb-height rows, Format included. */
+:root[data-layout='phone'] .tab {
   min-height: 36px;
 }
 
-/* ── Stack: small chips ──────────────────────────────────────────────────── */
-
-.sets {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.set {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-neutral-800);
-  background: transparent;
-  color: var(--color-neutral-400);
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease;
-}
-
-.set:hover {
-  color: var(--color-text);
-  border-color: var(--color-neutral-700);
-}
-
-.set[data-active='true'] {
-  border-color: var(--color-accent);
-  color: var(--color-accent-100);
-}
-
-.setLabel {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.setName {
+:root[data-layout='phone'] .row[data-dense] .tab {
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.62;
-}
-
-/* Phone: the stacks share one row, the note under the stack. */
-:root[data-layout='phone'] .sets {
-  flex-wrap: nowrap;
-}
-
-:root[data-layout='phone'] .set {
-  flex: 1 1 0;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  padding: 4px 6px;
 }

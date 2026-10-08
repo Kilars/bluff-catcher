@@ -79,9 +79,8 @@ describe('pairSetFor', () => {
     expect(pairSetFor('cash', '40bb', 'vsOpen')).toBe('cash100');
   });
 
-  it('keeps the 50bb+ pack\'s lone seat as a group only when asked', () => {
+  it('gives the 50bb+ pack\'s lone seat no group', () => {
     const pages = pairChartPages('mtt50', 'vsOpen');
     expect(pageGroups(pages)).toEqual([]);
-    expect(pageGroups(pages, true).map((g) => g.group)).toEqual(['BTN']);
   });
 });

@@ -100,8 +100,17 @@ export interface PhoneRangeViewProps {
    * that silently does not change what the drill tests is a phone trap.
    */
   depthExternal?: boolean;
-  /** Show the hero-seat strip even when every page is one seat's. */
-  seatStrip?: boolean;
+  /**
+   * The caller shows the chart on screen and its own strips for it (the chart
+   * browser's seat and versus rows): `position` or `page` is read on every
+   * render, the view's seat, chart and position strips are hidden, and a
+   * swipe calls `onStep` instead.
+   */
+  menuExternal?: boolean;
+  /** With `menuExternal`, the page on screen. */
+  page?: number;
+  /** With `menuExternal`, a step of ±1 asked for. */
+  onStep?: (delta: number) => void;
   /**
    * Optional 4-colour mode (PLAN-3bet F3): value / bluff / call / fold instead
    * of the boolean isOpen() read. Omit it and this renders exactly as before.
@@ -148,7 +157,9 @@ export default function PhoneRangeView({
   highlight,
   heroPosition,
   depthExternal = false,
-  seatStrip = false,
+  menuExternal = false,
+  page: controlledPage,
+  onStep,
   cellAction: seatCellAction,
   legend = true,
   footnote: seatFootnote,
@@ -157,7 +168,8 @@ export default function PhoneRangeView({
   strip,
 }: PhoneRangeViewProps) {
   const [pickedPos, setPickedPos] = useState<Seat>(position);
-  const [pageIdx, setPageIdx] = useState(startPage);
+  const [ownPageIdx, setPageIdx] = useState(startPage);
+  const pageIdx = menuExternal ? (controlledPage ?? 0) : ownPageIdx;
   // A new chart list (the browser switched decision or source) reopens on its
   // start page, as RangeSheet does. Callers pass a memoised list.
   const [pagesShown, setPagesShown] = useState(pages);
@@ -166,7 +178,7 @@ export default function PhoneRangeView({
     setPageIdx(startPage);
   }
   const page = pages?.[pageIdx];
-  const groups = useMemo(() => pageGroups(pages, seatStrip), [pages, seatStrip]);
+  const groups = useMemo(() => (menuExternal ? [] : pageGroups(pages)), [pages, menuExternal]);
   const visiblePages = groups.find((g) => g.group === page?.group)?.indices.length ?? pages?.length ?? 0;
   const cellAction = page?.cellAction ?? seatCellAction;
   const footnote = page ? page.footnote : seatFootnote;
@@ -179,7 +191,7 @@ export default function PhoneRangeView({
   const meta = CHART_META[viewDepth];
   const seats = meta.seats;
   // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
-  const viewPos = seatOnChart(pickedPos, viewDepth);
+  const viewPos = menuExternal ? position : seatOnChart(pickedPos, viewDepth);
   const heroSeat = heroPosition ?? (highlight ? position : undefined);
   const onHeroChart = pages ? pageIdx === startPage : viewPos === heroSeat;
   const heroHand = onHeroChart ? highlight : undefined;
@@ -259,10 +271,11 @@ export default function PhoneRangeView({
 
   const step = useCallback(
     (delta: number) => {
-      if (pages) setPageIdx((cur) => Math.min(pages.length - 1, Math.max(0, cur + delta)));
+      if (menuExternal) onStep?.(delta);
+      else if (pages) setPageIdx((cur) => Math.min(pages.length - 1, Math.max(0, cur + delta)));
       else setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
     },
-    [pages, viewDepth]
+    [menuExternal, onStep, pages, viewDepth]
   );
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -315,7 +328,7 @@ export default function PhoneRangeView({
       {strip}
 
       {/* Tier — stated, not offered (see `depthExternal`) */}
-      {pages || depthExternal ? null : (
+      {pages || depthExternal || menuExternal ? null : (
         <p className={styles.depthChip} data-testid="depth-chip">
           <span className={styles.depthLabel}>{meta.label}</span>
           <span className={styles.depthName}>{meta.rangeKicker}</span>
@@ -354,7 +367,7 @@ export default function PhoneRangeView({
       {/* Charts (paged mode): this seat's when grouped. The BB has 8 at 9-max,
           so the strip is dense: 8 x 36px + 7 x 4px = 316px, inside a 360px
           phone's 332px measure. */}
-      {pages && (
+      {pages && !menuExternal && (
       <div
         className={styles.seats}
         role="tablist"
@@ -379,7 +392,7 @@ export default function PhoneRangeView({
       )}
 
       {/* Seats — at most 7 x 44px + 6 x 4px gaps = 332px, inside the 366px measure */}
-      {!pages && (
+      {!pages && !menuExternal && (
       <div className={styles.seats} role="tablist" aria-label="Position">
         {seats.map((p) => (
           <button

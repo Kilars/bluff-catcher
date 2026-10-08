@@ -71,7 +71,7 @@ export function pairSetFor(format: Format, stack: Stack, node: PairNode): string
 }
 
 /** The seats a format seats, in action order, the big blind last. */
-const TABLE: Record<Format, readonly TableSeat[]> = {
+export const TABLE: Record<Format, readonly TableSeat[]> = {
   cash: [...CASH_SEATS, 'BB'],
   mtt: [...POSITIONS, 'SB', 'BB'],
 };

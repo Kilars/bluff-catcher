@@ -42,7 +42,13 @@
  *                 Each page brings its own colouring and copy.
  *   startPage   — the page to open on (hero's chart); `highlight` is marked
  *                 there only. Default 0. A new `pages` list reopens on it.
- *   seatStrip   — show the hero-seat strip even when every page is one seat's.
+ *   menuExternal — the caller shows the chart on screen and its own strips
+ *                 for it (the chart browser's seat and versus rows): `position`
+ *                 or `page` is read on every render, the sheet's seat, chart
+ *                 and position strips are hidden, and arrows, keys, wheel and
+ *                 swipe call `onStep` instead.
+ *   page        — with `menuExternal`, the page on screen.
+ *   onStep      — with `menuExternal`, a step of ±1 asked for.
  *   strip       — optional strip rendered above the sheet's own strips (the
  *                 chart browser's format, spot and stack).
  *   onClose     — called when the sheet should close.
@@ -89,7 +95,9 @@ interface RangeSheetProps {
   pages?: readonly ChartPage[];
   startPage?: number;
   depthExternal?: boolean;
-  seatStrip?: boolean;
+  menuExternal?: boolean;
+  page?: number;
+  onStep?: (delta: number) => void;
   strip?: ReactNode;
   onClose: () => void;
 }
@@ -105,7 +113,9 @@ export default function RangeSheet({
   pages,
   startPage = 0,
   depthExternal = false,
-  seatStrip = false,
+  menuExternal = false,
+  page: controlledPage,
+  onStep,
   strip,
   onClose,
 }: RangeSheetProps) {
@@ -130,10 +140,11 @@ export default function RangeSheet({
   const meta = CHART_META[viewDepth];
   const seats = meta.seats;
   // The picked seat survives a trip to a chart that lacks it (see seatOnChart).
-  const viewPos = seatOnChart(pickedPos, viewDepth);
+  const viewPos = menuExternal ? position : seatOnChart(pickedPos, viewDepth);
 
   // Paged mode (facing drills): the same navigator over a list of charts.
-  const [pageIdx, setPageIdx] = useState(startPage);
+  const [ownPageIdx, setPageIdx] = useState(startPage);
+  const pageIdx = menuExternal ? (controlledPage ?? 0) : ownPageIdx;
   // A new chart list (the browser switched decision or source) reopens on its
   // start page; adjusted during render so no frame shows a stale index.
   const [pagesShown, setPagesShown] = useState(pages);
@@ -142,7 +153,7 @@ export default function RangeSheet({
     setPageIdx(startPage);
   }
   const page = pages?.[pageIdx];
-  const groups = useMemo(() => pageGroups(pages, seatStrip), [pages, seatStrip]);
+  const groups = useMemo(() => (menuExternal ? [] : pageGroups(pages)), [pages, menuExternal]);
 
   const idx = pages ? pageIdx : seats.indexOf(viewPos);
   const count = pages ? pages.length : seats.length;
@@ -152,10 +163,11 @@ export default function RangeSheet({
   const pageCount = pages?.length ?? 0;
   const step = useCallback(
     (delta: number) => {
-      if (pageCount > 0) setPageIdx((cur) => Math.min(pageCount - 1, Math.max(0, cur + delta)));
+      if (menuExternal) onStep?.(delta);
+      else if (pageCount > 0) setPageIdx((cur) => Math.min(pageCount - 1, Math.max(0, cur + delta)));
       else setPickedPos((cur) => stepSeat(cur, viewDepth, delta));
     },
-    [pageCount, viewDepth, setPageIdx]
+    [menuExternal, onStep, pageCount, viewDepth, setPageIdx]
   );
 
   // ── Keyboard: ← / → step, Esc closes ─────────────────────────────────────
@@ -308,7 +320,7 @@ export default function RangeSheet({
           {strip}
 
           {/* Stack-depth strip — the same seat, three tiers */}
-          {!pages && !depthExternal && (
+          {!pages && !depthExternal && !menuExternal && (
           <div className={nav.depths} role="tablist" aria-label="Chart">
             {CHART_KEYS.map((d) => (
               <button
@@ -352,7 +364,7 @@ export default function RangeSheet({
           )}
 
           {/* Chart tab strip (paged mode): this seat's charts when grouped */}
-          {pages && (
+          {pages && !menuExternal && (
           <div className={nav.tabs} role="tablist" aria-label={groups.length > 0 ? `${page?.group} vs` : 'Chart'}>
             {pages.map((p, i) => (groups.length > 0 && p.group !== page?.group ? null :
               <button
@@ -371,7 +383,7 @@ export default function RangeSheet({
           )}
 
           {/* Position tab strip */}
-          {!pages && (
+          {!pages && !menuExternal && (
           <div className={nav.tabs} role="tablist" aria-label="Position">
             {seats.map((p) => (
               <button
