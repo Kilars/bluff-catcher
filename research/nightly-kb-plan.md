@@ -44,7 +44,7 @@ hand histories flag.
    a video's rank, and popularity breaks ties.
 7. **Runtime: a local systemd user timer at 03:00 runs the `kb-nightly`
    skill** through `claude -p "/kb-nightly"` with a restricted
-   `--allowedTools`, three times a night (three sequential runs in one service). `Persistent=true` means a missed run catches up on the
+   `--allowedTools`. `Persistent=true` means a missed run catches up on the
    next wake. The service runs the skill three times a night, one video
    per run, each in fresh context. No new script: the skill
    orchestrates pieces that already exist (`yt-dlp`, the `curl` transcript
