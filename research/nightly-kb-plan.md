@@ -32,7 +32,7 @@ hand histories flag.
    staged diffs family by family (approve/edit/reject per claim, with its
    citation). When coaches contradict each other, the conflict is flagged and
    never merged. Changes to `labels.ts` and `leak-coaching.md` keep their
-   per-item approval. The digest nags once more than about 7 videos are
+   per-item approval. The digest nags once more than about 15 videos are
    waiting.
 5. **Stance: GTO baseline first.** Each brief states the solver baseline
    first. Exploits sit beside it, tagged with the population they assume. The
@@ -44,8 +44,9 @@ hand histories flag.
    a video's rank, and popularity breaks ties.
 7. **Runtime: a local systemd user timer at 03:00 runs the `kb-nightly`
    skill** through `claude -p "/kb-nightly"` with a restricted
-   `--allowedTools`. `Persistent=true` means a missed run catches up on the
-   next wake. Each run processes one video. No new script: the skill
+   `--allowedTools`, three times a night (three sequential runs in one service). `Persistent=true` means a missed run catches up on the
+   next wake. The service runs the skill three times a night, one video
+   per run, each in fresh context. No new script: the skill
    orchestrates pieces that already exist (`yt-dlp`, the `curl` transcript
    method, `dedup-captions.py`, the extraction prompt). The corpus stays in
    the gitignored `research/coaching-transcripts/`. Cloud `/schedule` was

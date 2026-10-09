@@ -1,5 +1,5 @@
 [Unit]
-Description=bluff-catcher: process one coaching video into the KB staging area
+Description=bluff-catcher: process three coaching videos into the KB staging area
 
 [Service]
 Type=oneshot
@@ -7,5 +7,9 @@ WorkingDirectory=/home/larsski/Code/bluff-catcher
 Environment=PATH=/home/larsski/.local/bin:/home/larsski/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin
 # dontAsk: only the allowlist runs; everything else is denied. Transcripts are
 # untrusted text, so the unattended run gets no general shell.
-ExecStart=/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
-TimeoutStartSec=45min
+# Three videos a night: three separate runs, each with fresh context. The '-'
+# prefix lets the next run go ahead when one fails.
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
+TimeoutStartSec=2h

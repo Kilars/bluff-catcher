@@ -200,8 +200,8 @@ Prepend this to `digest.md`:
 Staged: <n> adds, <n> reinforcements, <n> conflicts → staging/<file>
 ```
 
-Add a line `⚠ <k> videos waiting for kb-review` when there are more than 7
-unreviewed staging files, and a line for any skips or errors in this run.
+Add a line `⚠ <k> videos waiting for kb-review` when there are more than 15
+unreviewed staging files (the timer runs this skill three times a night), and a line for any skips or errors in this run.
 
 Set the video's queue status to `done` and `lastRun` to today. Your final reply
 is one line: what was processed, or why nothing was.
