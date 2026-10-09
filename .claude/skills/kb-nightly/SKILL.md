@@ -6,9 +6,10 @@ description: Process one YouTube coaching video into the coach knowledge base, i
 # KB nightly: one video per run
 
 This builds the coach knowledge base described in `research/nightly-kb-plan.md`.
-The goal is more chips at 6-max 100bb raked cash, so fundamentals count as much
+The goal is more chips at 6-max 100bb raked online cash (mostly GGPoker Rush &
+Cash, which is fast-fold, at NL50), so fundamentals count as much
 as leaks. Each run processes **one** video and writes **only** to staging and the
-digest. Live briefs change only through `kb-review`.
+digest. Live briefs change only through `kb-autoreview`, which runs after this skill.
 
 The run is usually unattended, so nobody can answer questions. Don't ask any:
 decide, then record the decision in the digest. Keep tool use to the
@@ -32,9 +33,9 @@ $KB/listings/<h>.tsv   raw yt-dlp listing per channel
 $KB/raw/<id>.txt       verbatim transcript
 $KB/clean/<id>.md      de-duplicated transcript (extraction input)
 $KB/notes/<id>.yaml    canonical, immutable per-video notes
-$KB/staging/<date>-<id>.md   proposed brief changes, awaiting kb-review
-$KB/kb/briefs/<slug>.md      LIVE briefs (only kb-review writes here)
-$KB/kb/index.md              LIVE concept index (only kb-review writes here)
+$KB/staging/<date>-<id>.md   proposed brief changes, awaiting kb-autoreview
+$KB/kb/briefs/<slug>.md      LIVE briefs (only kb-autoreview/kb-review write here)
+$KB/kb/index.md              LIVE concept index (same)
 $KB/digest.md          newest entry first
 ```
 
@@ -200,8 +201,7 @@ Prepend this to `digest.md`:
 Staged: <n> adds, <n> reinforcements, <n> conflicts → staging/<file>
 ```
 
-Add a line `⚠ <k> videos waiting for kb-review` when there are more than 15
-unreviewed staging files (the timer runs this skill three times a night), and a line for any skips or errors in this run.
+Add a line for any skips or errors in this run.
 
 Set the video's queue status to `done` and `lastRun` to today. Your final reply
 is one line: what was processed, or why nothing was.

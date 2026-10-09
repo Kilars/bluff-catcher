@@ -27,13 +27,22 @@ hand histories flag.
      `hand-review`.
    - Insights that fit no family go to an `unmapped` inbox, which doubles as
      the queue for label proposals.
-4. **Approval: staging plus batch review.** Nightly runs write only to
-   staging. Live briefs change only through a `kb-review` skill that walks the
-   staged diffs family by family (approve/edit/reject per claim, with its
-   citation). When coaches contradict each other, the conflict is flagged and
-   never merged. Changes to `labels.ts` and `leak-coaching.md` keep their
-   per-item approval. The digest nags once more than about 15 videos are
-   waiting.
+4. **Approval: agent review, the user handles escalations only.** (Revised
+   2026-10-09: the user isn't a poker expert, so a per-claim human gate added
+   little.) After the three extraction runs, `kb-autoreview` runs on Opus,
+   independent of the Sonnet extractor, and checks every staged claim:
+   - grounded: the quote is at the cited timestamp
+   - fits 6-max 100bb cash
+   - agrees with the repo's ground truth (`src/lib/preflop/`, strategy notes,
+     leak-coaching)
+   - conflict rule: GTO Wizard is the baseline, and other coaches pass only as
+     population-tagged exploits
+
+   Passing claims merge into the briefs, and every verdict is logged in
+   `kb/review-log.md`. Only true draws and possible repo fixes reach
+   `kb/escalations.md`, which the user settles in `kb-review`. That's also
+   where they can veto a merged claim. Changes to `labels.ts` and
+   `leak-coaching.md` still need the user's per-item approval as dev-hat work.
 5. **Stance: GTO baseline first.** Each brief states the solver baseline
    first. Exploits sit beside it, tagged with the population they assume. The
    coach says which one it is applying.
