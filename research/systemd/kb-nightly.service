@@ -16,3 +16,7 @@ ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --mode
 # area and merges what passes. File tools only: it needs no shell or network.
 ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-autoreview skill." --model opus --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep"
 TimeoutStartSec=3h
+# Alert on the desktop when nothing got processed tonight (expired login, a dead
+# transcript source, or the queue paused), or when the service itself failed or
+# timed out. The runs above ignore their own exit codes, so this is the signal.
+ExecStopPost=/bin/sh -c 'd=$(date +%%F); f=research/coaching-transcripts/state.json; if [ "$SERVICE_RESULT" != success ]; then notify-send -u critical "kb-nightly failed" "$SERVICE_RESULT: journalctl --user -u kb-nightly"; elif ! grep -q "$d" "$f"; then notify-send -u critical "kb-nightly: no video tonight" "Check digest.md and journalctl --user -u kb-nightly"; fi'

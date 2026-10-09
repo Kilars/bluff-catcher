@@ -106,8 +106,15 @@ curl -sS --max-time 60 -o research/coaching-transcripts/raw/<id>.txt "https://yo
 ```
 
 A transcript is usable if the header word count is at least 1500 and the body is
-real speech, not `[Music]`. If it isn't usable, set status
-`skip:transcript`, then pick the next video. Make at most 3 attempts per run.
+real speech, not `[Music]`. Tell two failures apart:
+- **No usable transcript** (the site answered, but the result is empty, music
+  or too short): set status `skip:transcript`, permanently.
+- **Fetch error** (timeout, connection error, HTTP error or a non-transcript
+  page): the source is down, not the video. Set status `retry:<n>` (n = 1,
+  2, 3), and treat `retry:` rows like `scored` on later nights. At `retry:3`,
+  set `skip:fetch`.
+
+Then pick the next video. Make at most 3 attempts per run.
 If all three fail, write a digest entry saying so and stop.
 
 ```bash
@@ -161,7 +168,8 @@ the same fields.
 ## 5. Novelty
 
 Compare each `moments` and `unmapped` claim against the live
-`kb/briefs/*.md` and every file in `staging/`. A claim is **new** if no
+`kb/briefs/*.md` and the staging files **not** yet marked `autoreviewed`
+(marked ones are already in the briefs or rejected, so skip them). A claim is **new** if no
 existing claim says the same thing. It's a **reinforcement** if one does (same
 idea, different coach or video). It's a **conflict** if it contradicts one.
 
