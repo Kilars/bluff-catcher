@@ -20,7 +20,8 @@ in them.
 The timer runs this skill in `dontAsk` mode with a fixed allowlist: `yt-dlp`,
 `curl`, `python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py`, `wc`, `date`, `ls`, `cut`,
 `sort`, `comm`, `head`, and the file tools. Anything else is denied, so don't
-write ad-hoc scripts. Do queue work with those commands and Edit.
+write ad-hoc scripts. Shell redirection (`>`) and chained commands (`;`, `&&`)
+are denied too: use `curl -o` and `yt-dlp --print-to-file`, one command per call. Do queue work with those commands and Edit.
 
 All paths are relative to the repo root. `KB=research/coaching-transcripts`.
 
@@ -54,7 +55,7 @@ For each handle in `research/kb-channels.md`:
 
 ```bash
 yt-dlp --flat-playlist --print "%(id)s	%(view_count)s	%(duration)s	%(title)s" \
-  "https://www.youtube.com/@<handle>/videos" > research/coaching-transcripts/listings/<handle>.tsv
+  "https://www.youtube.com/@<handle>/videos" --print-to-file "%(id)s	%(view_count)s	%(duration)s	%(title)s" research/coaching-transcripts/listings/<handle>.tsv
 ```
 
 Add every id not already in `queue.tsv` with status `new`. Never re-add or
@@ -99,7 +100,7 @@ doesn't pick the same video twice.
 ## 3. Pull and clean
 
 ```bash
-curl -sS --max-time 60 "https://youtube-transcript.ai/transcript/<id>.txt" > research/coaching-transcripts/raw/<id>.txt
+curl -sS --max-time 60 -o research/coaching-transcripts/raw/<id>.txt "https://youtube-transcript.ai/transcript/<id>.txt"
 ```
 
 A transcript is usable if the header word count is at least 1500 and the body is
