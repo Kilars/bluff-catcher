@@ -54,8 +54,8 @@ Otherwise skip to step 2.
 For each handle in `research/kb-channels.md`:
 
 ```bash
-yt-dlp --flat-playlist --print "%(id)s	%(view_count)s	%(duration)s	%(title)s" \
-  "https://www.youtube.com/@<handle>/videos" --print-to-file "%(id)s	%(view_count)s	%(duration)s	%(title)s" research/coaching-transcripts/listings/<handle>.tsv
+yt-dlp --flat-playlist --quiet "https://www.youtube.com/@<handle>/videos" \
+  --print-to-file "%(id)s	%(view_count)s	%(duration)s	%(title)s" research/coaching-transcripts/listings/<handle>.tsv
 ```
 
 Add every id not already in `queue.tsv` with status `new`. Never re-add or
@@ -80,7 +80,8 @@ Set status to `scored` and write the score.
 
 After the first build, list only each channel's newest uploads
 (`yt-dlp --flat-playlist -I 1:50 ...`), because the backlog is already in the
-queue. Find new ids with `cut -f1 | sort` and `comm -13`. To rank, use
+queue. `--print-to-file` appends, so a listing file collects repeats; find new ids with
+`cut -f1 | sort -u` and `comm -13`. To rank, use
 `sort -t$'\t' -k6,6nr -k3,3nr` (there's no awk).
 
 ## 2. Pick
