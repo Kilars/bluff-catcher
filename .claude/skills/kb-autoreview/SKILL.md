@@ -68,9 +68,8 @@ loaded into reviews, and noise costs attention.
   `.claude/skills/kb-review/SKILL.md` defines (Baseline (GTO) / Exploits /
   What costs chips).
   - A REINFORCE adds its citation to the existing bullet.
-  - Merge near-duplicates into one bullet with both citations.
-  - Keep each brief under about 60 bullets, tightening wording as you go.
   - Index terms go to `$KB/kb/index.md`.
+  - Then refine the brief (next section). Merging is never just appending.
 - **Log every item** to `$KB/kb/review-log.md`, newest at the top:
   `<date> | <id> <ts> | MERGE|REJECT|ESCALATE | <slug> | <claim, short> | <reason, one line>`.
   This log is the audit trail and the veto list.
@@ -83,6 +82,46 @@ loaded into reviews, and noise costs attention.
   as its first line. There's no shell, so files are marked in place, never
   moved.
 
+## Refine: rewrite, don't append
+
+A brief is the **current best statement** of a spot, not a pile of everything
+ever said. After merging, rewrite every brief this run touched and every brief
+over its cap. With no staging to process, refine every brief. Rewriting
+means:
+
+- **Fold overlaps** into one sharper bullet that keeps all citations. Three
+  coaches saying "bet big on low rainbow boards in 3-bet pots" is one bullet
+  with three citations, which makes it stronger, not three bullets.
+- **Generalise** instance-level bullets into the rule they share, when the
+  rule is still concrete enough to change a decision.
+- **Replace** a weaker or vaguer claim with a sharper one that covers it.
+  Keep the stronger source: GTO Wizard over others, more citations over fewer.
+- **Order by chips:** in each section, the bullet most likely to change a
+  6-max fast-fold decision goes first.
+- **Cut** what falls below the cap: rare spots, advanced nuance, anything
+  without a concrete action. A cut claim stays in `review-log.md` and the
+  notes, so nothing is lost.
+
+**Caps per brief:** Baseline at most 10 bullets, Exploits at most 6, What
+costs chips at most 6, and each bullet at most 40 words, citations excluded.
+Fewer is better. A brief should read in under two minutes.
+
+**Caps elsewhere:**
+- `kb/index.md`: at most 60 terms. Drop the least-used ones.
+- `digest.md`: keep the newest 21 entries (about a week) and delete older
+  ones. The review log holds the history.
+- `kb/review-log.md`: keep the last 60 days line by line. Collapse older
+  lines into one summary line per month and slug (`<YYYY-MM> | <slug> |
+  <m> merged, <r> rejected, <c> cut`).
+
+**Reopen stale rejections.** If a past `REJECT` in `review-log.md` gave a
+reason this skill now contradicts (e.g. it assumed the wrong game), re-review
+that claim once from its notes and log `REOPEN` with the new verdict.
+
+Log each refine change as `FOLD`, `REPLACE` or `CUT` in `review-log.md`, with
+what changed and why, so the user can veto it. Never invent a claim while
+rewriting: every bullet's wording must be supported by its citations.
+
 Finish by prepending one line to the top entry of `$KB/digest.md`:
-`autoreview: <m> merged, <r> rejected, <e> escalated (see kb/review-log.md)`.
+`autoreview: <m> merged, <r> rejected, <e> escalated, <f> folded, <p> replaced, <c> cut (see kb/review-log.md)`.
 Your final reply is that same line.
