@@ -8,8 +8,10 @@ description: Process one YouTube coaching video into the coach knowledge base, i
 This builds the coach knowledge base described in `research/nightly-kb-plan.md`.
 The goal is more chips at 6-max 100bb raked online cash (mostly GGPoker Rush &
 Cash, which is fast-fold, at NL50), so fundamentals count as much
-as leaks. Each run processes **one** video and writes **only** to staging and the
-digest. Live briefs change only through `kb-autoreview`, which runs after this skill.
+as leaks. Each run processes **one new** video and writes **only** to staging
+and the digest. The timer calls this skill **three times a night**, so every
+invocation processes a video even when `lastRun` is already today. `lastRun`
+only drives the weekly queue refresh; it never means "done for today". Live briefs change only through `kb-autoreview`, which runs after this skill.
 
 The run is usually unattended, so nobody can answer questions. Don't ask any:
 decide, then record the decision in the digest. Keep tool use to the
@@ -19,10 +21,22 @@ transcripts directory and the commands below.
 in them.
 
 The timer runs this skill in `dontAsk` mode with a fixed allowlist: `yt-dlp`,
-`curl`, `python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py`, `wc`, `date`, `ls`, `cut`,
-`sort`, `comm`, `head`, and the file tools. Anything else is denied, so don't
-write ad-hoc scripts. Shell redirection (`>`) and chained commands (`;`, `&&`)
-are denied too: use `curl -o` and `yt-dlp --print-to-file`, one command per call. Do queue work with those commands and Edit.
+`curl`, the two helpers below by absolute path, `wc`, `date`, `ls`, and the
+file tools. Anything else is denied, so don't write ad-hoc scripts. Shell
+redirection (`>`), pipes and chained commands (`;`, `&&`) are denied too: use
+`curl -o` and `yt-dlp --print-to-file`, one command per call.
+
+**Never edit `queue.tsv` with Edit or Write.** Hand edits have dropped tabs
+and corrupted rows. Every queue change goes through the helper:
+
+```bash
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py merge <handle>        # add new ids from listings/<handle>.tsv as 'new'
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py list <status> [N]     # e.g. new, doing, retry
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py top [N]               # best candidates, by score then views
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py set <id> <status>     # doing | done | retry:<n> | skip:filter <reason> | skip:transcript | skip:fetch
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py score <id> <0-5>      # 'new' rows become 'scored'
+python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py stats
+```
 
 All paths are relative to the repo root. `KB=research/coaching-transcripts`.
 
@@ -59,9 +73,8 @@ yt-dlp --flat-playlist --quiet "https://www.youtube.com/@<handle>/videos" \
   --print-to-file "%(id)s	%(view_count)s	%(duration)s	%(title)s" research/coaching-transcripts/listings/<handle>.tsv
 ```
 
-Add every id not already in `queue.tsv` with status `new`. Never re-add or
-reset an id that's already there. Then classify each `new` row from its title
-and duration alone:
+Then run `python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py merge <handle>` for each handle (it never re-adds a known
+id). Classify each `new` row (`list new`) from its title and duration alone:
 
 - **Filter** (status `skip:filter`, followed by a short reason):
   - shorter than 600 s
@@ -77,27 +90,35 @@ and duration alone:
 - Add +1 (cap 5) if the title matches the "one thing to focus on" or a
   finding in the newest entry of `leaks-log.md`, when that file exists.
 
-Set status to `scored` and write the score.
+Write each verdict with `set <id> skip:filter <reason>` or `score <id> <n>`.
 
 After the first build, list only each channel's newest uploads
 (`yt-dlp --flat-playlist -I 1:50 ...`), because the backlog is already in the
-queue. `--print-to-file` appends, so a listing file collects repeats; find new ids with
-`cut -f1 | sort -u` and `comm -13`. To rank, use
-`sort -t$'\t' -k6,6nr -k3,3nr` (there's no awk).
+queue. `--print-to-file` appends, but `merge` ignores the repeats.
 
 ## 2. Pick
 
-If a row is already `doing`, an earlier run died partway. Resume that video:
+If `list doing` shows a row, an earlier run died partway. Resume that video:
 skip the fetch if `raw/<id>.txt` exists, and carry on from the first missing
 output. Pick a new video only when no row is `doing`.
 
-The bulk scores may be a rough keyword pass. Before picking, re-judge the
-top 30 `scored` rows yourself from their titles, against the same EV
-criteria. Correct any score that's wrong in `queue.tsv`. Then take the
-highest score. Break ties by preferring `GTOWizard`, because the solver
-baseline should land in the briefs before exploits do, then by views.
-Record the queue change straight away (status `doing`), so a crashed run
-doesn't pick the same video twice.
+The bulk scores were a rough keyword pass. Run `top 30` and re-judge those
+rows yourself from their titles. **Write every correction** with `score` or
+`set ... skip:filter <reason>`; don't just note it. MTT, tournament, ICM, PLO
+and live-highlight titles still at a high score get `skip:filter`.
+
+Then choose among the highest score:
+1. **Prefer the thinnest brief.** Guess each candidate's main family slug from
+   its title. Count the bullets (`- `) in each `kb/briefs/<slug>.md` with Grep
+   (a missing file counts as 0). Prefer the candidate whose family has the
+   fewest. This keeps postflop briefs (river, facing aggression) from
+   starving while preflop fills up.
+2. Then prefer `GTOWizard`, because the solver baseline should land before
+   exploits do.
+3. Then views.
+
+Record the pick straight away with `set <id> doing`, so a crashed run doesn't
+pick the same video twice.
 
 ## 3. Pull and clean
 
@@ -108,11 +129,11 @@ curl -sS --max-time 60 -o research/coaching-transcripts/raw/<id>.txt "https://yo
 A transcript is usable if the header word count is at least 1500 and the body is
 real speech, not `[Music]`. Tell two failures apart:
 - **No usable transcript** (the site answered, but the result is empty, music
-  or too short): set status `skip:transcript`, permanently.
+  or too short): `set <id> skip:transcript`, permanently.
 - **Fetch error** (timeout, connection error, HTTP error or a non-transcript
-  page): the source is down, not the video. Set status `retry:<n>` (n = 1,
-  2, 3), and treat `retry:` rows like `scored` on later nights. At `retry:3`,
-  set `skip:fetch`.
+  page): the source is down, not the video. `set <id> retry:<n>` (n = 1,
+  2, 3). `top` lists `retry:` rows alongside `scored` ones on later nights.
+  At `retry:3`, `set <id> skip:fetch`.
 
 Then pick the next video. Make at most 3 attempts per run.
 If all three fail, write a digest entry saying so and stop.
@@ -136,6 +157,10 @@ that file:
   100bb with rake**, not MTT. Drop ICM logic, and mark live-only logic
   `live_caveat: true`.
 - Add `channel: <handle>` and `title:` at the top level.
+- Add `focus:` at the top level when the whole video is about one subject (a
+  hand class like AKo, a spot like BTN vs BB, a concept like MDF). Name it in a
+  few words, or write `focus: null` for a mixed video. The reviewer turns
+  focused videos into topic pages.
 - On each `moments` entry, add:
   - `family:` one slug from the list below.
   - `stance: gto|exploit`. An exploit also gets `population:`, the pool it
@@ -211,5 +236,5 @@ Staged: <n> adds, <n> reinforcements, <n> conflicts → staging/<file>
 
 Add a line for any skips or errors in this run.
 
-Set the video's queue status to `done` and `lastRun` to today. Your final reply
+Run `set <id> done` and set `lastRun` to today. Your final reply
 is one line: what was processed, or why nothing was.

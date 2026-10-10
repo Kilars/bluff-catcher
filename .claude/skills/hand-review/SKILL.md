@@ -30,8 +30,13 @@ If they exist, read the approved briefs in
 - the brief for each postflop family with labels that fired (slugs in
   `.claude/skills/kb-nightly/SKILL.md`)
 - `fundamentals`
+- **topic pages** in `research/coaching-transcripts/kb/topics/`. Read
+  `kb/index.md`, which lists each topic's `triggers`, then load the topics
+  whose triggers match the session: hands in `faced3Bets`, `coldCalls` or
+  `bigSpots` (e.g. AKo), families that fired, or spots that recur in big
+  spots. Load at most about 6 topics, the most relevant first.
 
-Briefs are coaching theory distilled from cited videos. They contain no hand
+Briefs and topics are coaching theory distilled from cited videos. They contain no hand
 results, so they're fine to use in the blind review. Use them to ground each
 explanation, and cite the source inline, like `(GTO Wizard, dVZ1CdESSTw
 12:04)`. Lead with the GTO baseline. When an exploit is the better line, name

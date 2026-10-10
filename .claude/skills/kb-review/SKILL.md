@@ -31,8 +31,8 @@ each item from the file once it's decided, and log the decision in
 
 ## 3. Veto
 
-If the user wants to undo something, remove the bullet (or the one citation)
-from the brief and log `VETO` in `review-log.md` with the reason.
+If the user wants to undo something, remove the claim (or the one citation)
+from its brief or topic page and log `VETO` in `review-log.md` with the reason.
 
 ## Also
 

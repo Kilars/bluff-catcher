@@ -19,14 +19,20 @@ hand histories flag.
 2. **Format: cash only.** Queue cash and format-neutral videos and skip
    MTT/ICM ones. The 7 pilot notes stay and get tagged `format: mtt`, and
    cash briefs never cite them.
-3. **Three layers.**
-   - Per-video notes are canonical and immutable.
-   - A concept index (free-form topics, searchable) is derived from the notes.
-   - Family briefs (label families plus preflop spots: RFI, cold-call, faced
-     3-bet/4-bet, blinds) are derived and loaded selectively by
-     `hand-review`.
-   - Insights that fit no family go to an `unmapped` inbox, which doubles as
-     the queue for label proposals.
+3. **Layers, shaped for one reader: the coach raising bb/100.**
+   - Per-video notes are canonical and immutable (`focus:` marks
+     single-subject videos).
+   - **Briefs** are short entry points per family slug (about 250 words),
+     loaded by `hand-review` for the families a session touches.
+   - **Topic pages** are coherent subjects: a hand class (AKo), a spot, a
+     concept or a recurring leak. Each is written in whatever form teaches
+     best (summary, rules, tables, a cited example), with `triggers` so
+     `hand-review` loads the relevant ones. About 500 words each, about 40
+     topics.
+   - `kb-autoreview` decides the structure each run: it creates, merges,
+     splits and deletes topics and rewrites pages as the current best
+     statement. It never just appends.
+   - `index.md` maps the topics.
 4. **Approval: agent review, the user handles escalations only.** (Revised
    2026-10-09: the user isn't a poker expert, so a per-claim human gate added
    little.) After the three extraction runs, `kb-autoreview` runs on Opus,

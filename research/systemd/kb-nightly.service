@@ -9,12 +9,12 @@ Environment=PATH=/home/larsski/.local/bin:/home/larsski/.nix-profile/bin:/usr/lo
 # untrusted text, so the unattended run gets no general shell.
 # Three videos a night: three separate runs, each with fresh context. The '-'
 # prefix lets the next run go ahead when one fails.
-ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
-ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
-ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*),Bash(cut:*),Bash(sort:*),Bash(comm:*),Bash(head:*)"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*)"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*)"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-nightly skill." --model sonnet --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(yt-dlp:*),Bash(curl:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/dedup-captions.py:*),Bash(python3 /home/larsski/Code/bluff-catcher/research/kb-queue.py:*),Bash(wc:*),Bash(date:*),Bash(ls:*)"
 # Then Opus, a different model from the Sonnet extractor, reviews the staging
 # area and merges what passes. File tools only: it needs no shell or network.
-ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-autoreview skill." --model opus --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep"
+ExecStart=-/home/larsski/.local/bin/claude -p "Run the kb-autoreview skill." --model opus --permission-mode dontAsk --allowedTools "Skill,Read,Write,Edit,Glob,Grep,Bash(wc:*)"
 TimeoutStartSec=3h
 # Alert on the desktop when nothing got processed tonight (expired login, a dead
 # transcript source, or the queue paused), or when the service itself failed or
